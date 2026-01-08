@@ -1,0 +1,35 @@
+{
+	"schemaVersion": 1,
+	"id": "seymouranalyzer",
+	"version": "${version}",
+	"name": "Seymour Analyzer",
+	"description": "Advanced color analysis and collection tool for dyed leather armor in Hypixel Skyblock",
+	"authors": [
+		"Schnerry"
+	],
+	"contact": {
+		"homepage": "https://github.com/Schnerry/SeymourAnalyzer",
+		"sources": "https://github.com/Schnerry/SeymourAnalyzer"
+	},
+	"license": "GPL-3.0-or-later",
+	"icon": "assets/seymouranalyzer/icon.png",
+	"environment": "client",
+	"entrypoints": {
+		"main": [
+			"schnerry.seymouranalyzer.Seymouranalyzer"
+		],
+		"client": [
+			"schnerry.seymouranalyzer.SeymouranalyzerClient"
+		]
+	},
+	"mixins": [
+		"seymouranalyzer.mixins.json"
+	],
+	"depends": {
+		"fabricloader": ">=0.18.4",
+		"minecraft": "~1.21.8",
+		"java": ">=21",
+		"fabric-api": "*",
+		"cloth-config": ">=19.0.0"
+	}
+}

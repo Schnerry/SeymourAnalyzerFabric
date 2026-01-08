@@ -1,0 +1,263 @@
+package schnerry.seymouranalyzer.data;
+
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonObject;
+import net.fabricmc.loader.api.FabricLoader;
+import schnerry.seymouranalyzer.Seymouranalyzer;
+
+import java.io.*;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.HashMap;
+import java.util.Map;
+
+/**
+ * Persistent cache for armor checklist calculations
+ * Ported from ChatTriggers PogObject system
+ */
+public class ChecklistCache {
+    private static final String CACHE_FILE = "armorChecklistCache.json";
+    private static ChecklistCache instance;
+
+    // Cache data (matches the JS structure)
+    private Map<String, CategoryCache> normalColorCache = new HashMap<>();
+    private Map<String, CategoryCache> fadeDyeOptimalCache = new HashMap<>();
+    private int collectionSize = 0;
+    private long lastUpdated = 0;
+
+    public static class CategoryCache {
+        public String category;
+        public Map<Integer, StageMatches> matchesByIndex = new HashMap<>();
+        public boolean isCalculating = false;
+    }
+
+    public static class StageMatches {
+        public MatchInfo helmet;
+        public MatchInfo chestplate;
+        public MatchInfo leggings;
+        public MatchInfo boots;
+        public boolean calculated = false;
+        public String stageHex;
+    }
+
+    public static class MatchInfo {
+        public String name;
+        public String hex;
+        public double deltaE;
+        public String uuid;
+
+        public MatchInfo(String name, String hex, double deltaE, String uuid) {
+            this.name = name;
+            this.hex = hex;
+            this.deltaE = deltaE;
+            this.uuid = uuid;
+        }
+    }
+
+    private ChecklistCache() {
+        load();
+    }
+
+    public static ChecklistCache getInstance() {
+        if (instance == null) {
+            instance = new ChecklistCache();
+        }
+        return instance;
+    }
+
+    /**
+     * Load cache from disk
+     */
+    private void load() {
+        Path cacheFile = getCacheFilePath();
+
+        if (!Files.exists(cacheFile)) {
+            Seymouranalyzer.LOGGER.info("No checklist cache file found, starting fresh");
+            return;
+        }
+
+        try (BufferedReader reader = Files.newBufferedReader(cacheFile, StandardCharsets.UTF_8)) {
+            Gson gson = new Gson();
+            JsonObject root = gson.fromJson(reader, JsonObject.class);
+
+            if (root.has("collectionSize")) {
+                collectionSize = root.get("collectionSize").getAsInt();
+            }
+
+            if (root.has("lastUpdated")) {
+                lastUpdated = root.get("lastUpdated").getAsLong();
+            }
+
+            // Load normal color cache
+            if (root.has("normalColorCache")) {
+                JsonObject normalCache = root.getAsJsonObject("normalColorCache");
+                for (String categoryName : normalCache.keySet()) {
+                    JsonObject catObj = normalCache.getAsJsonObject(categoryName);
+                    CategoryCache categoryCache = gson.fromJson(catObj, CategoryCache.class);
+                    normalColorCache.put(categoryName, categoryCache);
+                }
+            }
+
+            // Load fade dye cache
+            if (root.has("fadeDyeOptimalCache")) {
+                JsonObject fadeCache = root.getAsJsonObject("fadeDyeOptimalCache");
+                for (String categoryName : fadeCache.keySet()) {
+                    JsonObject catObj = fadeCache.getAsJsonObject(categoryName);
+                    CategoryCache categoryCache = gson.fromJson(catObj, CategoryCache.class);
+                    fadeDyeOptimalCache.put(categoryName, categoryCache);
+                }
+            }
+
+            Seymouranalyzer.LOGGER.info("Loaded checklist cache: {} normal categories, {} fade dye categories, collection size {}",
+                normalColorCache.size(), fadeDyeOptimalCache.size(), collectionSize);
+
+        } catch (Exception e) {
+            Seymouranalyzer.LOGGER.error("Failed to load checklist cache", e);
+            // Reset to empty cache on error
+            normalColorCache.clear();
+            fadeDyeOptimalCache.clear();
+            collectionSize = 0;
+        }
+    }
+
+    /**
+     * Save cache to disk
+     */
+    public void save() {
+        Path cacheFile = getCacheFilePath();
+
+        try {
+            // Ensure parent directory exists
+            Files.createDirectories(cacheFile.getParent());
+
+            Gson gson = new GsonBuilder().setPrettyPrinting().create();
+            JsonObject root = new JsonObject();
+
+            root.addProperty("collectionSize", collectionSize);
+            root.addProperty("lastUpdated", System.currentTimeMillis());
+
+            // Save normal color cache
+            JsonObject normalCache = new JsonObject();
+            for (Map.Entry<String, CategoryCache> entry : normalColorCache.entrySet()) {
+                normalCache.add(entry.getKey(), gson.toJsonTree(entry.getValue()));
+            }
+            root.add("normalColorCache", normalCache);
+
+            // Save fade dye cache
+            JsonObject fadeCache = new JsonObject();
+            for (Map.Entry<String, CategoryCache> entry : fadeDyeOptimalCache.entrySet()) {
+                fadeCache.add(entry.getKey(), gson.toJsonTree(entry.getValue()));
+            }
+            root.add("fadeDyeOptimalCache", fadeCache);
+
+            try (BufferedWriter writer = Files.newBufferedWriter(cacheFile, StandardCharsets.UTF_8)) {
+                gson.toJson(root, writer);
+            }
+
+            Seymouranalyzer.LOGGER.info("Saved checklist cache to disk");
+
+        } catch (Exception e) {
+            Seymouranalyzer.LOGGER.error("Failed to save checklist cache", e);
+        }
+    }
+
+    /**
+     * Clear all caches (called when collection size changes)
+     */
+    public void clearAll() {
+        normalColorCache.clear();
+        fadeDyeOptimalCache.clear();
+        Seymouranalyzer.LOGGER.info("Cleared all checklist caches");
+    }
+
+    /**
+     * Check if cache needs to be invalidated
+     * @param currentCollectionSize Current size of the collection
+     * @return true if cache was cleared, false if still valid
+     */
+    public boolean checkAndInvalidate(int currentCollectionSize) {
+        if (currentCollectionSize != collectionSize) {
+            int diff = currentCollectionSize - collectionSize;
+            clearAll();
+            collectionSize = currentCollectionSize;
+            save();
+
+            if (diff > 0) {
+                Seymouranalyzer.LOGGER.info("Collection grew by {} pieces, recalculating matches", diff);
+            } else {
+                Seymouranalyzer.LOGGER.info("Collection changed by {} pieces, recalculating matches", diff);
+            }
+
+            return true;
+        }
+        return false;
+    }
+
+    private Path getCacheFilePath() {
+        return FabricLoader.getInstance().getConfigDir().resolve("seymouranalyzer").resolve(CACHE_FILE);
+    }
+
+    // Getters and setters
+
+    public CategoryCache getNormalColorCache(String category) {
+        return normalColorCache.get(category);
+    }
+
+    public void setNormalColorCache(String category, CategoryCache cache) {
+        normalColorCache.put(category, cache);
+    }
+
+    public CategoryCache getFadeDyeOptimalCache(String category) {
+        return fadeDyeOptimalCache.get(category);
+    }
+
+    public void setFadeDyeOptimalCache(String category, CategoryCache cache) {
+        fadeDyeOptimalCache.put(category, cache);
+    }
+
+    public int getCollectionSize() {
+        return collectionSize;
+    }
+
+    public void setCollectionSize(int size) {
+        this.collectionSize = size;
+    }
+
+    /**
+     * Check if a hex has any matches in the checklist (needed for items)
+     * @param hex The hex code to check
+     * @return true if this hex is needed for any checklist category
+     */
+    public boolean hasChecklistMatches(String hex) {
+        String hexUpper = hex.toUpperCase();
+
+        // Check normal color cache
+        for (CategoryCache categoryCache : normalColorCache.values()) {
+            if (categoryCache.matchesByIndex != null) {
+                for (StageMatches stageMatches : categoryCache.matchesByIndex.values()) {
+                    if (stageMatches.stageHex != null && stageMatches.stageHex.equalsIgnoreCase(hexUpper)) {
+                        // This hex is a target in the checklist
+                        return true;
+                    }
+                }
+            }
+        }
+
+        // Check fade dye cache
+        for (CategoryCache categoryCache : fadeDyeOptimalCache.values()) {
+            if (categoryCache.matchesByIndex != null) {
+                for (StageMatches stageMatches : categoryCache.matchesByIndex.values()) {
+                    if (stageMatches.stageHex != null && stageMatches.stageHex.equalsIgnoreCase(hexUpper)) {
+                        // This hex is a target in the checklist
+                        return true;
+                    }
+                }
+            }
+        }
+
+        return false;
+    }
+}
+
