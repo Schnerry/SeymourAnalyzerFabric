@@ -10,7 +10,6 @@ import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.tooltip.TooltipType;
 import net.minecraft.nbt.NbtCompound;
-import net.minecraft.screen.slot.Slot;
 import net.minecraft.text.Text;
 import schnerry.seymouranalyzer.Seymouranalyzer;
 
@@ -39,15 +38,14 @@ public class ItemDebugger {
     /**
      * Enable debug mode - will log next hovered item
      */
+    @SuppressWarnings("deprecation")
     public void enable() {
         enabled = true;
         lastLoggedStack = null;
 
         // Register HUD render callback if not already registered
         if (!registered) {
-            HudRenderCallback.EVENT.register((context, tickCounter) -> {
-                checkHoveredItem();
-            });
+            HudRenderCallback.EVENT.register((context, tickCounter) -> checkHoveredItem());
             registered = true;
         }
 
@@ -57,6 +55,7 @@ public class ItemDebugger {
     /**
      * Disable debug mode
      */
+    @SuppressWarnings("unused")
     public void disable() {
         enabled = false;
         lastLoggedStack = null;
@@ -70,23 +69,12 @@ public class ItemDebugger {
 
         try {
             MinecraftClient client = MinecraftClient.getInstance();
-            if (client.currentScreen instanceof HandledScreen<?> handledScreen) {
-                // Use reflection to get the focused slot (protected field)
-                Slot hoveredSlot = null;
+            if (client.currentScreen instanceof HandledScreen<?>) {
+                // Use the mixin-captured ItemStack from InfoBoxRenderer
+                // This avoids reflection and works reliably even with other mods
+                ItemStack stack = schnerry.seymouranalyzer.render.InfoBoxRenderer.getInstance().getLastHoveredStack();
 
-                try {
-                    // Try to access the protected focusedSlot field via reflection
-                    var field = HandledScreen.class.getDeclaredField("focusedSlot");
-                    field.setAccessible(true);
-                    hoveredSlot = (Slot) field.get(handledScreen);
-                } catch (Exception e) {
-                    // If reflection fails, fall back to manual detection
-                    Seymouranalyzer.LOGGER.warn("[DEBUG] Could not access focusedSlot via reflection: {}", e.getMessage());
-                }
-
-                if (hoveredSlot != null && !hoveredSlot.getStack().isEmpty()) {
-                    ItemStack stack = hoveredSlot.getStack();
-
+                if (stack != null && !stack.isEmpty()) {
                     // Only log if it's a different item than last time
                     if (lastLoggedStack == null || !ItemStack.areEqual(lastLoggedStack, stack)) {
                         lastLoggedStack = stack.copy();

@@ -1,8 +1,12 @@
 package schnerry.seymouranalyzer.render;
 
 import net.fabricmc.fabric.api.client.item.v1.ItemTooltipCallback;
+import net.minecraft.component.DataComponentTypes;
+import net.minecraft.component.type.DyedColorComponent;
+import net.minecraft.component.type.NbtComponent;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.tooltip.TooltipType;
+import net.minecraft.nbt.NbtCompound;
 import net.minecraft.text.MutableText;
 import net.minecraft.text.Text;
 import schnerry.seymouranalyzer.scanner.ChestScanner;
@@ -21,9 +25,8 @@ public class HexTooltipRenderer {
     private HexTooltipRenderer() {
         // Register tooltip callback
         // ItemTooltipCallback signature: getTooltip(ItemStack stack, TooltipContext context, TooltipType type, List<Text> lines)
-        ItemTooltipCallback.EVENT.register((stack, tooltipContext, tooltipType, lines) -> {
-            onTooltip(stack, tooltipType, lines);
-        });
+        ItemTooltipCallback.EVENT.register((stack, tooltipContext, tooltipType, lines) ->
+            onTooltip(stack, tooltipType, lines));
     }
 
     public static HexTooltipRenderer getInstance() {
@@ -44,26 +47,48 @@ public class HexTooltipRenderer {
     /**
      * Called when tooltip is rendered - add hex code line
      */
+    @SuppressWarnings("unused")
     private void onTooltip(ItemStack stack, TooltipType tooltipType, List<Text> lines) {
         if (!enabled) return;
         if (stack.isEmpty()) return;
 
-        // Extract hex code (works for any colored leather armor)
-        ChestScanner scanner = new ChestScanner();
-        String hex = scanner.extractHex(stack);
-        if (hex == null) return;
+        // Check if item has been dyed
+        DyeInfo dyeInfo = checkDyeStatus(stack);
+
+        // Determine which hex to show as the main hex
+        String displayHex;
+        String hexForAnalysis;
+
+        if (dyeInfo.isDyed) {
+            // When dyed: show the dyed (fake) hex as main, use original for analysis
+            displayHex = dyeInfo.dyedHex;
+            hexForAnalysis = dyeInfo.originalHex;
+        } else {
+            // Not dyed: extract hex normally and use it for both
+            ChestScanner scanner = new ChestScanner();
+            displayHex = scanner.extractHex(stack);
+            hexForAnalysis = displayHex;
+        }
+
+        if (displayHex == null) return;
 
         String itemName = stack.getName().getString();
         boolean isSeymourArmor = ChestScanner.isSeymourArmor(itemName);
 
         // Parse hex to RGB for coloring the text
-        int rgb = hexToRgb(hex);
+        int rgb = hexToRgb(displayHex);
 
         // Build the first line: "Hex: #XXXXXX"
         MutableText hexText = Text.literal("Hex: ")
             .styled(style -> style.withColor(0xA8A8A8).withItalic(false)) // Gray for "Hex: "
-            .append(Text.literal("#" + hex)
+            .append(Text.literal("#" + displayHex)
                 .styled(style -> style.withColor(rgb).withItalic(false))); // Actual color for hex code
+
+        // If item has been dyed, add a big red warning with the original hex
+        if (dyeInfo.isDyed) {
+            hexText.append(Text.literal(" [DYED - Original: #" + dyeInfo.originalHex + "]")
+                .styled(style -> style.withColor(0xFF5555).withItalic(false).withBold(true))); // Bright red, bold
+        }
 
         // Insert after the item name (usually line 0) and before stats
         int insertIndex = findInsertionPoint(lines);
@@ -71,8 +96,10 @@ public class HexTooltipRenderer {
 
         // Only show closest match analysis for Seymour armor pieces
         if (isSeymourArmor) {
+            // Use original hex for analysis (so closest match is based on original color)
+
             // Analyze color to get closest match
-            var analysis = schnerry.seymouranalyzer.analyzer.ColorAnalyzer.getInstance().analyzeArmorColor(hex, itemName);
+            var analysis = schnerry.seymouranalyzer.analyzer.ColorAnalyzer.getInstance().analyzeArmorColor(hexForAnalysis, itemName);
 
             // Add second line with closest match and deltaE if analysis succeeded
             if (analysis != null && analysis.bestMatch != null) {
@@ -102,6 +129,7 @@ public class HexTooltipRenderer {
     /**
      * Get color for deltaE display based on tier and type
      */
+    @SuppressWarnings("unused")
     private int getClosenessColor(double deltaE, int tier, boolean isFade, boolean isCustom) {
         if (isCustom) {
             return switch (tier) {
@@ -159,6 +187,75 @@ public class HexTooltipRenderer {
             return Integer.parseInt(hex, 16);
         } catch (NumberFormatException e) {
             return 0xFFFFFF; // White fallback
+        }
+    }
+
+    /**
+     * Check if an item has been dyed (has both original color data and dyed_color component)
+     * Returns DyeInfo with isDyed flag and both hex values if applicable
+     */
+    private DyeInfo checkDyeStatus(ItemStack stack) {
+        // Check for original color in custom_data (Seymour items store it as "R:G:B")
+        NbtComponent nbtComponent = stack.getOrDefault(DataComponentTypes.CUSTOM_DATA, NbtComponent.DEFAULT);
+        NbtCompound nbt = nbtComponent.copyNbt();
+
+        String originalHex = null;
+        if (nbt.contains("color")) {
+            String colorStr = nbt.getString("color").orElse("");
+            if (colorStr.contains(":")) {
+                originalHex = rgbStringToHex(colorStr);
+            }
+        }
+
+        // Check for dyed_color component
+        DyedColorComponent dyedColor = stack.getOrDefault(DataComponentTypes.DYED_COLOR, null);
+        String dyedHex = null;
+        if (dyedColor != null) {
+            int rgb = dyedColor.rgb();
+            dyedHex = String.format("%02X%02X%02X", (rgb >> 16) & 0xFF, (rgb >> 8) & 0xFF, rgb & 0xFF);
+        }
+
+        // Item is considered "dyed" if it has BOTH original color data AND a dyed_color component
+        // and they are different
+        boolean isDyed = originalHex != null && dyedHex != null && !originalHex.equals(dyedHex);
+
+        return new DyeInfo(isDyed, originalHex, dyedHex);
+    }
+
+    /**
+     * Convert RGB string (R:G:B) to hex
+     */
+    private String rgbStringToHex(String rgbString) {
+        try {
+            String[] parts = rgbString.split(":");
+            if (parts.length == 3) {
+                int r = Integer.parseInt(parts[0]);
+                int g = Integer.parseInt(parts[1]);
+                int b = Integer.parseInt(parts[2]);
+                return String.format("%02X%02X%02X",
+                    Math.max(0, Math.min(255, r)),
+                    Math.max(0, Math.min(255, g)),
+                    Math.max(0, Math.min(255, b))
+                );
+            }
+        } catch (NumberFormatException e) {
+            // Invalid format
+        }
+        return null;
+    }
+
+    /**
+     * Helper class to hold dye status information
+     */
+    private static class DyeInfo {
+        boolean isDyed;
+        String originalHex;
+        String dyedHex;
+
+        DyeInfo(boolean isDyed, String originalHex, String dyedHex) {
+            this.isDyed = isDyed;
+            this.originalHex = originalHex;
+            this.dyedHex = dyedHex;
         }
     }
 }

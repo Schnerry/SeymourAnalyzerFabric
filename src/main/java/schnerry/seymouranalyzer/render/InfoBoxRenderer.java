@@ -3,10 +3,7 @@ package schnerry.seymouranalyzer.render;
 import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.screen.ingame.HandledScreen;
 import net.minecraft.item.ItemStack;
-import net.minecraft.screen.slot.Slot;
-import net.minecraft.text.Text;
 import net.minecraft.text.Text;
 import org.lwjgl.glfw.GLFW;
 import schnerry.seymouranalyzer.analyzer.ColorAnalyzer;
@@ -24,6 +21,7 @@ public class InfoBoxRenderer {
     private static final boolean DEBUG = false; // Disable debugging
     private static InfoBoxRenderer instance;
     private static HoveredItemData hoveredItemData = null;
+    private static ItemStack lastHoveredStack = null; // For debugger access
     private static int boxX = 10;
     private static int boxY = 10;
     private static boolean isDragging = false;
@@ -38,11 +36,9 @@ public class InfoBoxRenderer {
 
     private InfoBoxRenderer() {
         // Register screen render callback to render AFTER screen elements
-        ScreenEvents.AFTER_INIT.register((client, screen, scaledWidth, scaledHeight) -> {
-            ScreenEvents.afterRender(screen).register((scr, context, mouseX, mouseY, delta) -> {
-                render(context, delta, scr);
-            });
-        });
+        ScreenEvents.AFTER_INIT.register((client, screen, scaledWidth, scaledHeight) ->
+            ScreenEvents.afterRender(screen).register((scr, context, mouseX, mouseY, delta) ->
+                render(context, delta, scr)));
     }
 
     public static InfoBoxRenderer getInstance() {
@@ -62,6 +58,9 @@ public class InfoBoxRenderer {
             System.out.println("[InfoBox]   Item: " + itemName);
         }
 
+        // Store the stack for debugger access
+        lastHoveredStack = stack.copy();
+
         // Check if it's a Seymour armor piece
         if (ChestScanner.isSeymourArmor(itemName)) {
             if (DEBUG) System.out.println("[InfoBox] Is Seymour armor, analyzing...");
@@ -78,6 +77,13 @@ public class InfoBoxRenderer {
     public void clearHoveredItem() {
         // Don't clear immediately - let the data persist until GUI changes
         if (DEBUG) System.out.println("[InfoBox] clearHoveredItem() called (but not clearing to persist data)");
+    }
+
+    /**
+     * Get the last hovered ItemStack (for debugger access)
+     */
+    public ItemStack getLastHoveredStack() {
+        return lastHoveredStack;
     }
 
     private static class HoveredItemData {
@@ -125,6 +131,7 @@ public class InfoBoxRenderer {
         }
     }
 
+    @SuppressWarnings({"unused", "deprecation"})
     private static void render(DrawContext context, float delta, net.minecraft.client.gui.screen.Screen currentScreen) {
         if (DEBUG) {
             System.out.println("[InfoBox] render() called");
@@ -161,6 +168,7 @@ public class InfoBoxRenderer {
         }
     }
 
+    @SuppressWarnings("deprecation")
     private static void setHoveredItemData(ItemStack stack, String itemName) {
         ChestScanner scanner = new ChestScanner();
         String hex = scanner.extractHex(stack);
@@ -326,7 +334,7 @@ public class InfoBoxRenderer {
                 dupeCount++;
 
                 // Check if the hovered item IS this collection piece
-                if (uuid != null && entry.getKey().equals(uuid)) {
+                if (java.util.Objects.equals(uuid, entry.getKey())) {
                     isThisItemInCollection = true;
                 }
             }
@@ -370,11 +378,12 @@ public class InfoBoxRenderer {
         if (isDragging && isMouseDown) {
             boxX = (int)(mouseX - dragOffsetX);
             boxY = (int)(mouseY - dragOffsetY);
-        } else if (isDragging && !isMouseDown) {
+        } else if (isDragging) {
             isDragging = false;
         }
     }
 
+    @SuppressWarnings("deprecation")
     private static int calculateBoxHeight(HoveredItemData data, boolean isShiftHeld) {
         ModConfig config = ModConfig.getInstance();
         int height = isShiftHeld ? 120 : 90;
@@ -392,9 +401,10 @@ public class InfoBoxRenderer {
         return height;
     }
 
+    @SuppressWarnings("deprecation")
     private static int calculateBoxWidth(HoveredItemData data, MinecraftClient client, boolean isShiftHeld) {
-        int minWidth = 150;
         int maxWidth = 300;
+        int minWidth = 150;
         int padding = 10; // 5px on each side
 
         ModConfig config = ModConfig.getInstance();
@@ -467,6 +477,7 @@ public class InfoBoxRenderer {
         return Math.min(Math.max(calculatedWidth, minWidth), maxWidth);
     }
 
+    @SuppressWarnings("deprecation")
     private static void renderInfoBox(DrawContext context, MinecraftClient client) {
         boolean isShiftHeld = GLFW.glfwGetKey(client.getWindow().getHandle(), GLFW.GLFW_KEY_LEFT_SHIFT) == GLFW.GLFW_PRESS ||
                              GLFW.glfwGetKey(client.getWindow().getHandle(), GLFW.GLFW_KEY_RIGHT_SHIFT) == GLFW.GLFW_PRESS;
