@@ -3,7 +3,6 @@ package schnerry.seymouranalyzer.config;
 import me.shedaniel.clothconfig2.api.ConfigBuilder;
 import me.shedaniel.clothconfig2.api.ConfigCategory;
 import me.shedaniel.clothconfig2.api.ConfigEntryBuilder;
-import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.text.Text;
 
@@ -83,6 +82,10 @@ public class ConfigScreen {
         priorityCategory.addEntry(entryBuilder.startTextDescription(
                 Text.literal(priorityDisplay.toString())
         ).build());
+
+        priorityCategory.addEntry(entryBuilder.startTextDescription(
+                Text.literal("§c(Note: This config is available with /seymour priorities)"))
+                .build());
 
         // Filter Options Category
         ConfigCategory filterCategory = builder.getOrCreateCategory(Text.literal("Filter Options"));

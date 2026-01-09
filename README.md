@@ -1,6 +1,6 @@
 # Seymour Analyzer - Fabric Mod
 
-A Fabric 1.21.8 client-side mod that analyzes and tracks dyed leather armor colors in Hypixel Skyblock.
+A Fabric 1.21.8 client-side mod for Hypixel Skyblock that analyzes and tracks dyed leather armor colors in Hypixel Skyblock.
 
 **License:** GPL-3.0-or-later
 
@@ -16,7 +16,7 @@ A Fabric 1.21.8 client-side mod that analyzes and tracks dyed leather armor colo
 - Scans chests and tracks all dyed armor pieces
 - Persistent storage of collection data
 - UUID tracking to avoid duplicates
-- Export/import functionality (planned)
+- Export functionality
 
 ✅ **Pattern & Word Detection**
 - Detects special hex patterns (paired, repeating, palindrome, AxBxCx)
@@ -29,8 +29,9 @@ A Fabric 1.21.8 client-side mod that analyzes and tracks dyed leather armor colo
 - Sort and filter capabilities
 - Search by hex, name, or color match
 
-✅ **Commands**
-- `/seymour` - Show help menu
+✅ ** Important Commands**
+- `/seymour` - Show help menu -  Get all available commands there
+- `/seymour config` - Open config GUI
 - `/seymour scan start/stop` - Start/stop chest scanning
 - `/seymour db` - Open database GUI
 - `/seymour toggle <option>` - Toggle features
@@ -42,7 +43,7 @@ A Fabric 1.21.8 client-side mod that analyzes and tracks dyed leather armor colo
 
 ## Installation
 
-1. Install [Fabric Loader](https://fabricmc.net/use/) for Minecraft 1.21.8
+1. Make sure you use [Fabric Loader 18.4+](https://fabricmc.net/use/) for Minecraft 1.21.8
 2. Install [Fabric API](https://modrinth.com/mod/fabric-api)
 3. Download the latest SeymourAnalyzer jar from releases
 4. Place the jar in your `.minecraft/mods` folder
@@ -106,7 +107,8 @@ Available toggle options:
 - `pattern` - Special pattern detection
 - `custom` - Custom color matching
 - `dupes` - Duplicate highlighting
-- `highfades` - Show high fade stages (50+)
+- `highfades` - Show fade dye matches with ΔE > 2.00 (T3+)
+- `itemframes` - Scan armor in item frames
 
 ## Configuration
 
@@ -142,13 +144,6 @@ This mod is a complete Java rewrite of the original ChatTriggers JavaScript modu
 ## License
 
 This project is licensed under the GNU General Public License v3.0 or later - see the [LICENSE](LICENSE) file for details.
-
-**What this means:**
-- ✅ You can use, modify, and distribute this mod
-- ✅ You can use it for commercial purposes
-- ⚠️ Any modified versions must also be open source under GPL-3.0
-- ⚠️ You must include the license and copyright notice
-- ⚠️ You must state changes made to the code
 
 **Dependencies:**
 - [Fabric API](https://modrinth.com/mod/fabric-api) - Apache License 2.0 (compatible)
