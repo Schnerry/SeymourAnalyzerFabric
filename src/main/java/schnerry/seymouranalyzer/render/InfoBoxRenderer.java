@@ -8,7 +8,7 @@ import net.minecraft.text.Text;
 import org.lwjgl.glfw.GLFW;
 import schnerry.seymouranalyzer.analyzer.ColorAnalyzer;
 import schnerry.seymouranalyzer.analyzer.PatternDetector;
-import schnerry.seymouranalyzer.config.ModConfig;
+import schnerry.seymouranalyzer.config.ClothConfig;
 import schnerry.seymouranalyzer.data.ChecklistCache;
 import schnerry.seymouranalyzer.data.CollectionManager;
 import schnerry.seymouranalyzer.scanner.ChestScanner;
@@ -138,8 +138,8 @@ public class InfoBoxRenderer {
             System.out.println("[InfoBox] Current screen instance: " + System.identityHashCode(currentScreen));
         }
 
-        ModConfig config = ModConfig.getInstance();
-        if (!config.infoBoxEnabled()) {
+        ClothConfig config = ClothConfig.getInstance();
+        if (!config.isInfoBoxEnabled()) {
             if (DEBUG) System.out.println("[InfoBox] InfoBox disabled in config");
             return;
         }
@@ -179,10 +179,10 @@ public class InfoBoxRenderer {
         var analysis = ColorAnalyzer.getInstance().analyzeArmorColor(hex, itemName);
         if (analysis == null || analysis.bestMatch == null) return;
 
-        ModConfig config = ModConfig.getInstance();
+        ClothConfig config = ClothConfig.getInstance();
 
-        String wordMatch = config.wordsEnabled() ? PatternDetector.getInstance().detectWordMatch(hex) : null;
-        String specialPattern = config.patternsEnabled() ? PatternDetector.getInstance().detectPattern(hex) : null;
+        String wordMatch = config.isWordsEnabled() ? PatternDetector.getInstance().detectWordMatch(hex) : null;
+        String specialPattern = config.isPatternsEnabled() ? PatternDetector.getInstance().detectPattern(hex) : null;
 
         int itemRgb = Integer.parseInt(hex, 16);
         int targetRgb = Integer.parseInt(analysis.bestMatch.targetHex, 16);
@@ -192,7 +192,7 @@ public class InfoBoxRenderer {
 
         // Get checklist status from cache for the best match hex
         ChecklistStatus checklistStatus = getChecklistStatusForHex(analysis.bestMatch.targetHex, itemName);
-        int dupeCount = config.dupesEnabled() ? checkDupeCount(hex, uuid) : 0;
+        int dupeCount = config.isDupesEnabled() ? checkDupeCount(hex, uuid) : 0;
 
         hoveredItemData = new HoveredItemData(
             analysis.bestMatch.name,
@@ -385,18 +385,18 @@ public class InfoBoxRenderer {
 
     @SuppressWarnings("deprecation")
     private static int calculateBoxHeight(HoveredItemData data, boolean isShiftHeld) {
-        ModConfig config = ModConfig.getInstance();
+        ClothConfig config = ClothConfig.getInstance();
         int height = isShiftHeld ? 120 : 90;
 
-        if (config.wordsEnabled() && data.wordMatch != null) height += 10;
-        if (config.patternsEnabled() && data.specialPattern != null) height += 10;
+        if (config.isWordsEnabled() && data.wordMatch != null) height += 10;
+        if (config.isPatternsEnabled() && data.specialPattern != null) height += 10;
 
         // Add height for checklist indicator: either have T2+ or needed
         if (!isShiftHeld && (data.isOwned || data.isNeededForChecklist)) {
             height += 10;
         }
 
-        if (config.dupesEnabled() && data.dupeCount > 0) height += 10;
+        if (config.isDupesEnabled() && data.dupeCount > 0) height += 10;
 
         return height;
     }
@@ -407,7 +407,7 @@ public class InfoBoxRenderer {
         int minWidth = 150;
         int padding = 10; // 5px on each side
 
-        ModConfig config = ModConfig.getInstance();
+        ClothConfig config = ClothConfig.getInstance();
         var textRenderer = client.textRenderer;
 
         int maxTextWidth = 0;
@@ -420,12 +420,12 @@ public class InfoBoxRenderer {
         maxTextWidth = Math.max(maxTextWidth, textRenderer.getWidth("§7Piece: §f#" + data.itemHex));
 
         // Word match
-        if (config.wordsEnabled() && data.wordMatch != null) {
+        if (config.isWordsEnabled() && data.wordMatch != null) {
             maxTextWidth = Math.max(maxTextWidth, textRenderer.getWidth("§d§l✦ WORD: " + data.wordMatch));
         }
 
         // Pattern match
-        if (config.patternsEnabled() && data.specialPattern != null) {
+        if (config.isPatternsEnabled() && data.specialPattern != null) {
             String patternName = getPatternDisplayName(data.specialPattern);
             maxTextWidth = Math.max(maxTextWidth, textRenderer.getWidth("§5§l★ PATTERN: " + patternName));
         }
@@ -468,7 +468,7 @@ public class InfoBoxRenderer {
         }
 
         // Dupe warning
-        if (config.dupesEnabled() && data.dupeCount > 0) {
+        if (config.isDupesEnabled() && data.dupeCount > 0) {
             maxTextWidth = Math.max(maxTextWidth, textRenderer.getWidth("§c§l⚠ DUPE HEX §7(x" + data.dupeCount + ")"));
         }
 
@@ -511,15 +511,15 @@ public class InfoBoxRenderer {
         int yOffset = 28;
 
         // Word match
-        ModConfig config = ModConfig.getInstance();
-        if (config.wordsEnabled() && hoveredItemData.wordMatch != null) {
+        ClothConfig config = ClothConfig.getInstance();
+        if (config.isWordsEnabled() && hoveredItemData.wordMatch != null) {
             context.drawText(client.textRenderer, Text.literal("§d§l✦ WORD: " + hoveredItemData.wordMatch),
                 boxX + 5, boxY + yOffset, 0xFFFFFFFF, true);
             yOffset += 10;
         }
 
         // Pattern match
-        if (config.patternsEnabled() && hoveredItemData.specialPattern != null) {
+        if (config.isPatternsEnabled() && hoveredItemData.specialPattern != null) {
             String patternName = getPatternDisplayName(hoveredItemData.specialPattern);
             context.drawText(client.textRenderer, Text.literal("§5§l★ PATTERN: " + patternName),
                 boxX + 5, boxY + yOffset, 0xFFFFFFFF, true);
@@ -584,7 +584,7 @@ public class InfoBoxRenderer {
         }
 
         // Dupe warning (after ownership check, properly positioned)
-        if (config.dupesEnabled() && hoveredItemData.dupeCount > 0) {
+        if (config.isDupesEnabled() && hoveredItemData.dupeCount > 0) {
             context.drawText(client.textRenderer, Text.literal("§c§l⚠ DUPE HEX §7(x" + hoveredItemData.dupeCount + ")"),
                 boxX + 5, boxY + yOffset, 0xFFFFFFFF, true);
         }

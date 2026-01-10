@@ -49,14 +49,20 @@ public class ChecklistCacheGenerator {
         ChecklistCache cache = ChecklistCache.getInstance();
 
         // Load checklist data
-        Map<String, List<ChecklistEntry>> categories = loadChecklistData();
-        if (categories.isEmpty()) {
+        Map<String, List<ChecklistEntry>> normalCategories = loadChecklistData();
+        if (normalCategories.isEmpty()) {
             Seymouranalyzer.LOGGER.warn("No checklist data found, skipping cache generation");
             return;
         }
 
+        // Load fade dye categories
+        Map<String, List<ChecklistEntry>> fadeDyeCategories = loadFadeDyeData();
+        if (fadeDyeCategories.isEmpty()) {
+            Seymouranalyzer.LOGGER.warn("No fade dye data found, skipping fade dye cache generation");
+        }
+
         // Generate normal color caches
-        for (Map.Entry<String, List<ChecklistEntry>> categoryEntry : categories.entrySet()) {
+        for (Map.Entry<String, List<ChecklistEntry>> categoryEntry : normalCategories.entrySet()) {
             String categoryName = categoryEntry.getKey();
             List<ChecklistEntry> entries = categoryEntry.getValue();
 
@@ -68,7 +74,7 @@ public class ChecklistCacheGenerator {
         }
 
         // Generate fade dye caches
-        for (Map.Entry<String, List<ChecklistEntry>> categoryEntry : categories.entrySet()) {
+        for (Map.Entry<String, List<ChecklistEntry>> categoryEntry : fadeDyeCategories.entrySet()) {
             String categoryName = categoryEntry.getKey();
             List<ChecklistEntry> entries = categoryEntry.getValue();
 
@@ -83,7 +89,8 @@ public class ChecklistCacheGenerator {
         cache.setCollectionSize(collection.size());
         cache.save();
 
-        Seymouranalyzer.LOGGER.info("Completed full checklist cache generation for {} categories", categories.size());
+        Seymouranalyzer.LOGGER.info("Completed full checklist cache generation for {} normal and {} fade dye categories",
+            normalCategories.size(), fadeDyeCategories.size());
     }
 
     /**
@@ -282,6 +289,62 @@ public class ChecklistCacheGenerator {
         }
 
         return categories;
+    }
+
+    /**
+     * Load fade dye categories from colors.json
+     */
+    private static Map<String, List<ChecklistEntry>> loadFadeDyeData() {
+        Map<String, List<ChecklistEntry>> fadeDyeCategories = new LinkedHashMap<>();
+
+        try {
+            InputStream inputStream = Seymouranalyzer.class.getResourceAsStream("/data/seymouranalyzer/colors.json");
+            if (inputStream == null) {
+                Seymouranalyzer.LOGGER.error("Could not load colors.json for fade dyes");
+                return fadeDyeCategories;
+            }
+
+            Gson gson = new Gson();
+            JsonObject root = gson.fromJson(new InputStreamReader(inputStream, StandardCharsets.UTF_8), JsonObject.class);
+            JsonObject fadeDyes = root.getAsJsonObject("FADE_DYES");
+
+            if (fadeDyes == null) {
+                Seymouranalyzer.LOGGER.warn("No FADE_DYES section found in colors.json");
+                return fadeDyeCategories;
+            }
+
+            // Group stages by fade dye name
+            for (String key : fadeDyes.keySet()) {
+                // Parse "Aurora - Stage 1" format
+                String[] parts = key.split(" - Stage ");
+                if (parts.length == 2) {
+                    String dyeName = parts[0];
+                    String hexValue = fadeDyes.get(key).getAsString().toUpperCase();
+
+                    fadeDyeCategories.putIfAbsent(dyeName, new ArrayList<>());
+
+                    ChecklistEntry entry = new ChecklistEntry();
+                    entry.hex = hexValue;
+                    entry.name = key;
+                    entry.pieces = new ArrayList<>();
+                    entry.pieces.add("helmet");
+                    entry.pieces.add("chestplate");
+                    entry.pieces.add("leggings");
+                    entry.pieces.add("boots");
+
+                    fadeDyeCategories.get(dyeName).add(entry);
+                }
+            }
+
+            Seymouranalyzer.LOGGER.info("Loaded {} fade dye categories with {} total stages",
+                fadeDyeCategories.size(),
+                fadeDyeCategories.values().stream().mapToInt(List::size).sum());
+
+        } catch (Exception e) {
+            Seymouranalyzer.LOGGER.error("Failed to load fade dye data", e);
+        }
+
+        return fadeDyeCategories;
     }
 }
 

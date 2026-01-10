@@ -7,7 +7,7 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.screen.slot.Slot;
 import schnerry.seymouranalyzer.analyzer.ColorAnalyzer;
 import schnerry.seymouranalyzer.analyzer.PatternDetector;
-import schnerry.seymouranalyzer.config.ModConfig;
+import schnerry.seymouranalyzer.config.ClothConfig;
 import schnerry.seymouranalyzer.data.ArmorPiece;
 import schnerry.seymouranalyzer.data.CollectionManager;
 import schnerry.seymouranalyzer.scanner.ChestScanner;
@@ -117,8 +117,8 @@ public class ItemSlotHighlighter {
      * This method is called during slot rendering, so it's in the correct coordinate space
      */
     public void renderSlotHighlight(DrawContext context, Slot slot) {
-        ModConfig config = ModConfig.getInstance();
-        if (!config.highlightsEnabled()) return;
+        ClothConfig config = ClothConfig.getInstance();
+        if (!config.isHighlightsEnabled()) return;
 
         ItemStack stack = slot.getStack();
         if (stack.isEmpty()) return;
@@ -158,8 +158,8 @@ public class ItemSlotHighlighter {
      * This is called during beforeRenderForeground which already has the correct translation applied
      */
     private void renderHighlightsInSlotSpace(HandledScreen<?> screen, DrawContext context) {
-        ModConfig config = ModConfig.getInstance();
-        if (!config.highlightsEnabled()) return;
+        ClothConfig config = ClothConfig.getInstance();
+        if (!config.isHighlightsEnabled()) return;
 
         try {
             if (DEBUG_POSITIONS) {
@@ -248,8 +248,8 @@ public class ItemSlotHighlighter {
      * Old render method - kept for reference, can be removed later
      */
     private void renderHighlights(HandledScreen<?> screen, DrawContext context, int mouseX, int mouseY, float delta) {
-        ModConfig config = ModConfig.getInstance();
-        if (!config.highlightsEnabled()) return;
+        ClothConfig config = ClothConfig.getInstance();
+        if (!config.isHighlightsEnabled()) return;
 
         try {
             // Get screen position - try multiple field names for compatibility
@@ -413,15 +413,14 @@ public class ItemSlotHighlighter {
      * Returns null if no highlight should be drawn
      */
     private Integer getHighlightColor(ItemStack stack, String hex, String itemName, String uuid) {
-        ModConfig config = ModConfig.getInstance();
-        schnerry.seymouranalyzer.config.ClothConfig clothConfig = schnerry.seymouranalyzer.config.ClothConfig.getInstance();
+        ClothConfig config = ClothConfig.getInstance();
         String hexUpper = hex.toUpperCase();
 
         // Collect all possible matches with their priorities
         java.util.Map<schnerry.seymouranalyzer.config.MatchPriority, Integer> possibleMatches = new java.util.HashMap<>();
 
         // Check dupe
-        if (config.dupesEnabled() && uuid != null && isDuplicateHex(hex, uuid)) {
+        if (config.isDupesEnabled() && uuid != null && isDuplicateHex(hex, uuid)) {
             possibleMatches.put(schnerry.seymouranalyzer.config.MatchPriority.DUPE, COLOR_DUPE);
         }
 
@@ -431,7 +430,7 @@ public class ItemSlotHighlighter {
         }
 
         // Check word match
-        if (config.wordsEnabled()) {
+        if (config.isWordsEnabled()) {
             String wordMatch = PatternDetector.getInstance().detectWordMatch(hex);
             if (wordMatch != null) {
                 possibleMatches.put(schnerry.seymouranalyzer.config.MatchPriority.WORD, COLOR_WORD);
@@ -439,7 +438,7 @@ public class ItemSlotHighlighter {
         }
 
         // Check pattern match
-        if (config.patternsEnabled()) {
+        if (config.isPatternsEnabled()) {
             String pattern = PatternDetector.getInstance().detectPattern(hex);
             if (pattern != null) {
                 possibleMatches.put(schnerry.seymouranalyzer.config.MatchPriority.PATTERN, COLOR_PATTERN);
@@ -483,7 +482,7 @@ public class ItemSlotHighlighter {
         }
 
         // Find the highest priority match based on user's priority order
-        java.util.List<schnerry.seymouranalyzer.config.MatchPriority> priorities = clothConfig.getMatchPriorities();
+        java.util.List<schnerry.seymouranalyzer.config.MatchPriority> priorities = config.getMatchPriorities();
         for (schnerry.seymouranalyzer.config.MatchPriority priority : priorities) {
             if (possibleMatches.containsKey(priority)) {
                 return possibleMatches.get(priority);

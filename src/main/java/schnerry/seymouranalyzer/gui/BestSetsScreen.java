@@ -30,13 +30,30 @@ public class BestSetsScreen extends ModScreen {
     private int scrollOffset = 0;
     private ContextMenu contextMenu = null;
 
+    // Static cache to persist results across GUI opens/closes
+    private static List<ArmorSet> cachedBestSets = null;
+    private static int cachedCollectionSize = -1;
+    private static long cacheTimestamp = 0;
+
     private static final int MAX_SETS = 100;
     private static final double MAX_DELTA_E = 5.0;
     private static final int ROW_HEIGHT = 80;
     private static final int START_Y = 90;
+    private static final long CACHE_VALIDITY_MS = 300000; // 5 minutes
 
     public BestSetsScreen(Screen parent) {
         super(Text.literal("Best Matching Sets"), parent);
+
+        // Load from cache if valid
+        int currentSize = CollectionManager.getInstance().getCollection().size();
+        long currentTime = System.currentTimeMillis();
+
+        if (cachedBestSets != null &&
+            cachedCollectionSize == currentSize &&
+            (currentTime - cacheTimestamp) < CACHE_VALIDITY_MS) {
+            bestSets = new ArrayList<>(cachedBestSets);
+            System.out.println("[Best Sets] Loaded " + bestSets.size() + " sets from cache");
+        }
     }
 
     @Override
@@ -335,91 +352,124 @@ public class BestSetsScreen extends ModScreen {
         // Categorize pieces by type
         Map<String, ArmorPiece> collection = CollectionManager.getInstance().getCollection();
 
-        List<ArmorPiece> helmets = new ArrayList<>();
-        List<ArmorPiece> chestplates = new ArrayList<>();
-        List<ArmorPiece> leggings = new ArrayList<>();
-        List<ArmorPiece> boots = new ArrayList<>();
+        List<PieceWithLab> helmets = new ArrayList<>();
+        List<PieceWithLab> chestplates = new ArrayList<>();
+        List<PieceWithLab> leggings = new ArrayList<>();
+        List<PieceWithLab> boots = new ArrayList<>();
 
-        calculationProgress = 10;
+        calculationProgress = 5;
 
+        // Pre-calculate LAB values for ALL pieces (huge optimization - done once instead of 6x per set)
         for (ArmorPiece piece : collection.values()) {
             if (piece.getHexcode() == null || piece.getPieceName() == null) continue;
 
             String type = getPieceType(piece.getPieceName());
+            PieceWithLab pwl = new PieceWithLab(piece);
+
             switch (type) {
-                case "helmet" -> helmets.add(piece);
-                case "chestplate" -> chestplates.add(piece);
-                case "leggings" -> leggings.add(piece);
-                case "boots" -> boots.add(piece);
+                case "helmet" -> helmets.add(pwl);
+                case "chestplate" -> chestplates.add(pwl);
+                case "leggings" -> leggings.add(pwl);
+                case "boots" -> boots.add(pwl);
             }
         }
 
         System.out.println("[Best Sets] Pieces: " + helmets.size() + " helmets, " + chestplates.size() +
                           " chests, " + leggings.size() + " legs, " + boots.size() + " boots");
 
-        calculationProgress = 20;
+        calculationProgress = 10;
+
+        // Pre-filter: Remove pieces that can't possibly match with ANY other piece
+        helmets = filterViablePieces(helmets, Arrays.asList(chestplates, leggings, boots));
+        chestplates = filterViablePieces(chestplates, Arrays.asList(helmets, leggings, boots));
+        leggings = filterViablePieces(leggings, Arrays.asList(helmets, chestplates, boots));
+        boots = filterViablePieces(boots, Arrays.asList(helmets, chestplates, leggings));
+
+        System.out.println("[Best Sets] After filtering: " + helmets.size() + " helmets, " +
+                          chestplates.size() + " chests, " + leggings.size() + " legs, " +
+                          boots.size() + " boots");
+
+        calculationProgress = 15;
 
         // Generate ALL valid 4-piece combinations and calculate their scores
-        List<ArmorSet> allValidSets = new ArrayList<>();
+        List<ArmorSet> allValidSets = Collections.synchronizedList(new ArrayList<>());
 
-        int totalCombinations = helmets.size() * chestplates.size() * leggings.size() * boots.size();
-        int processedCombinations = 0;
-        int lastProgress = 20;
+        long totalCombinations = (long) helmets.size() * chestplates.size() * leggings.size() * boots.size();
+        final long[] processedCombinations = {0};
+        final int[] lastProgress = {15};
 
-        for (ArmorPiece helmet : helmets) {
-            for (ArmorPiece chest : chestplates) {
+        System.out.println("[Best Sets] Total theoretical combinations: " + totalCombinations);
+
+        // Make lists final for lambda
+        final List<PieceWithLab> finalChestplates = chestplates;
+        final List<PieceWithLab> finalLeggings = leggings;
+        final List<PieceWithLab> finalBoots = boots;
+
+        // Process in parallel for better performance
+        helmets.parallelStream().forEach(helmet -> {
+            for (PieceWithLab chest : finalChestplates) {
                 // Quick validation - check if helmet-chest pair is within threshold
-                double hcDelta = ColorMath.calculateDeltaE(helmet.getHexcode(), chest.getHexcode());
+                double hcDelta = ColorMath.calculateDeltaEWithLab(helmet.lab, chest.lab);
                 if (hcDelta > MAX_DELTA_E) {
-                    processedCombinations += leggings.size() * boots.size();
+                    synchronized (processedCombinations) {
+                        processedCombinations[0] += (long) finalLeggings.size() * finalBoots.size();
+                    }
                     continue;
                 }
 
-                for (ArmorPiece leg : leggings) {
+                for (PieceWithLab leg : finalLeggings) {
                     // Check if adding legs keeps us within threshold
-                    double hlDelta = ColorMath.calculateDeltaE(helmet.getHexcode(), leg.getHexcode());
-                    double clDelta = ColorMath.calculateDeltaE(chest.getHexcode(), leg.getHexcode());
+                    double hlDelta = ColorMath.calculateDeltaEWithLab(helmet.lab, leg.lab);
+                    double clDelta = ColorMath.calculateDeltaEWithLab(chest.lab, leg.lab);
 
                     if (hlDelta > MAX_DELTA_E || clDelta > MAX_DELTA_E) {
-                        processedCombinations += boots.size();
+                        synchronized (processedCombinations) {
+                            processedCombinations[0] += finalBoots.size();
+                        }
                         continue;
                     }
 
-                    for (ArmorPiece boot : boots) {
-                        processedCombinations++;
+                    for (PieceWithLab boot : finalBoots) {
+                        synchronized (processedCombinations) {
+                            processedCombinations[0]++;
 
-                        // Update progress every 1000 combinations (cap at 80 for this phase)
-                        if (processedCombinations % 1000 == 0) {
-                            int newProgress = 20 + (int)((processedCombinations * 60.0) / totalCombinations);
-                            newProgress = Math.min(80, newProgress); // Cap at 80%
-                            if (newProgress > lastProgress) {
-                                calculationProgress = newProgress;
-                                lastProgress = newProgress;
+                            // Update progress every 5000 combinations (cap at 80 for this phase)
+                            if (processedCombinations[0] % 5000 == 0) {
+                                int newProgress = 15 + (int)((processedCombinations[0] * 65.0) / totalCombinations);
+                                newProgress = Math.min(80, newProgress);
+                                if (newProgress > lastProgress[0]) {
+                                    calculationProgress = newProgress;
+                                    lastProgress[0] = newProgress;
+                                }
                             }
                         }
 
                         // Check if all pieces are different (no reuse within a set)
-                        if (helmet.getUuid().equals(chest.getUuid()) ||
-                            helmet.getUuid().equals(leg.getUuid()) ||
-                            helmet.getUuid().equals(boot.getUuid()) ||
-                            chest.getUuid().equals(leg.getUuid()) ||
-                            chest.getUuid().equals(boot.getUuid()) ||
-                            leg.getUuid().equals(boot.getUuid())) {
+                        if (helmet.piece.getUuid().equals(chest.piece.getUuid()) ||
+                            helmet.piece.getUuid().equals(leg.piece.getUuid()) ||
+                            helmet.piece.getUuid().equals(boot.piece.getUuid()) ||
+                            chest.piece.getUuid().equals(leg.piece.getUuid()) ||
+                            chest.piece.getUuid().equals(boot.piece.getUuid()) ||
+                            leg.piece.getUuid().equals(boot.piece.getUuid())) {
                             continue;
                         }
 
                         // Check boots deltas
-                        double hbDelta = ColorMath.calculateDeltaE(helmet.getHexcode(), boot.getHexcode());
-                        double cbDelta = ColorMath.calculateDeltaE(chest.getHexcode(), boot.getHexcode());
-                        double lbDelta = ColorMath.calculateDeltaE(leg.getHexcode(), boot.getHexcode());
+                        double hbDelta = ColorMath.calculateDeltaEWithLab(helmet.lab, boot.lab);
+                        double cbDelta = ColorMath.calculateDeltaEWithLab(chest.lab, boot.lab);
+                        double lbDelta = ColorMath.calculateDeltaEWithLab(leg.lab, boot.lab);
 
                         // All pairwise deltas must be within threshold
                         if (hbDelta > MAX_DELTA_E || cbDelta > MAX_DELTA_E || lbDelta > MAX_DELTA_E) {
                             continue;
                         }
 
-                        // Create the set and calculate final average
-                        ArmorSet set = new ArmorSet(helmet, chest, leg, boot);
+                        // Create the set with pre-computed LAB values and deltas
+                        ArmorSet set = new ArmorSet(
+                            helmet.piece, chest.piece, leg.piece, boot.piece,
+                            helmet.lab, chest.lab, leg.lab, boot.lab,
+                            hcDelta, hlDelta, hbDelta, clDelta, cbDelta, lbDelta
+                        );
 
                         if (set.avgDeltaE <= MAX_DELTA_E) {
                             allValidSets.add(set);
@@ -427,7 +477,7 @@ public class BestSetsScreen extends ModScreen {
                     }
                 }
             }
-        }
+        });
 
         calculationProgress = 85;
         System.out.println("[Best Sets] Found " + allValidSets.size() + " valid combinations");
@@ -464,8 +514,47 @@ public class BestSetsScreen extends ModScreen {
 
         bestSets = selectedSets;
 
+        // Save to cache
+        cachedBestSets = new ArrayList<>(selectedSets);
+        cachedCollectionSize = collection.size();
+        cacheTimestamp = System.currentTimeMillis();
+
         long endTime = System.currentTimeMillis();
-        System.out.println("[Best Sets] Selected " + bestSets.size() + " optimal sets in " + (endTime - startTime) + "ms");
+        long totalTimeMs = endTime - startTime;
+        double totalTimeSec = totalTimeMs / 1000.0;
+        System.out.println("[Best Sets] Selected " + bestSets.size() + " optimal sets in " + totalTimeMs + "ms (" + String.format("%.2f", totalTimeSec) + " seconds)");
+    }
+
+    /**
+     * Pre-filter pieces that can't possibly match with ANY piece from other types
+     */
+    private List<PieceWithLab> filterViablePieces(List<PieceWithLab> pieces, List<List<PieceWithLab>> otherTypesLists) {
+        return pieces.stream()
+            .filter(piece -> {
+                // Check if this piece can match with at least one piece from EACH other type
+                for (List<PieceWithLab> otherType : otherTypesLists) {
+                    boolean hasMatch = otherType.stream()
+                        .anyMatch(other -> ColorMath.calculateDeltaEWithLab(piece.lab, other.lab) <= MAX_DELTA_E);
+                    if (!hasMatch) {
+                        return false; // Can't form a valid set
+                    }
+                }
+                return true;
+            })
+            .collect(Collectors.toList());
+    }
+
+    /**
+     * Wrapper class to hold piece and pre-computed LAB values
+     */
+    private static class PieceWithLab {
+        final ArmorPiece piece;
+        final ColorMath.LAB lab;
+
+        PieceWithLab(ArmorPiece piece) {
+            this.piece = piece;
+            this.lab = ColorMath.hexToLab(piece.getHexcode());
+        }
     }
 
     private String getPieceType(String pieceName) {
@@ -506,26 +595,16 @@ public class BestSetsScreen extends ModScreen {
         final double avgWithout2; // Average ΔE of best 2 pieces
         final String worstPieceType;
 
-        ArmorSet(ArmorPiece helmet, ArmorPiece chestplate, ArmorPiece leggings, ArmorPiece boots) {
+        // Constructor with pre-computed LAB values and deltas (MAJOR optimization)
+        ArmorSet(ArmorPiece helmet, ArmorPiece chestplate, ArmorPiece leggings, ArmorPiece boots,
+                 ColorMath.LAB helmetLab, ColorMath.LAB chestLab, ColorMath.LAB legsLab, ColorMath.LAB bootsLab,
+                 double d_hc, double d_hl, double d_hb, double d_cl, double d_cb, double d_lb) {
             this.helmet = helmet;
             this.chestplate = chestplate;
             this.leggings = leggings;
             this.boots = boots;
 
-            // Calculate all pairwise deltas
-            ColorMath.LAB helmetLab = ColorMath.hexToLab(helmet.getHexcode());
-            ColorMath.LAB chestLab = ColorMath.hexToLab(chestplate.getHexcode());
-            ColorMath.LAB legsLab = ColorMath.hexToLab(leggings.getHexcode());
-            ColorMath.LAB bootsLab = ColorMath.hexToLab(boots.getHexcode());
-
-            double d_hc = ColorMath.calculateDeltaEWithLab(helmetLab, chestLab);
-            double d_hl = ColorMath.calculateDeltaEWithLab(helmetLab, legsLab);
-            double d_hb = ColorMath.calculateDeltaEWithLab(helmetLab, bootsLab);
-            double d_cl = ColorMath.calculateDeltaEWithLab(chestLab, legsLab);
-            double d_cb = ColorMath.calculateDeltaEWithLab(chestLab, bootsLab);
-            double d_lb = ColorMath.calculateDeltaEWithLab(legsLab, bootsLab);
-
-            // Average of all pairs
+            // Average of all pairs (already computed)
             this.avgDeltaE = (d_hc + d_hl + d_hb + d_cl + d_cb + d_lb) / 6.0;
 
             // Calculate average delta for each piece

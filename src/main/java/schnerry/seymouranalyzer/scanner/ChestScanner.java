@@ -17,7 +17,7 @@ import net.minecraft.world.World;
 import schnerry.seymouranalyzer.Seymouranalyzer;
 import schnerry.seymouranalyzer.analyzer.ColorAnalyzer;
 import schnerry.seymouranalyzer.analyzer.PatternDetector;
-import schnerry.seymouranalyzer.config.ModConfig;
+import schnerry.seymouranalyzer.config.ClothConfig;
 import schnerry.seymouranalyzer.data.ArmorPiece;
 import schnerry.seymouranalyzer.data.CollectionManager;
 
@@ -48,6 +48,7 @@ public class ChestScanner {
         scanningEnabled = false;
         // Force save any pending changes when stopping scan
         CollectionManager.getInstance().forceSync();
+        // Cache will automatically regenerate on next tick when collection size change is detected
         Seymouranalyzer.LOGGER.info("Scanning stopped, collection saved");
     }
 
@@ -93,7 +94,7 @@ public class ChestScanner {
         }
 
         // Check for item frame scanning (every 5 seconds)
-        if (ModConfig.getInstance().itemFramesEnabled() && now - lastItemFrameScanTime >= ITEM_FRAME_SCAN_INTERVAL_MS) {
+        if (ClothConfig.getInstance().isItemFramesEnabled() && now - lastItemFrameScanTime >= ITEM_FRAME_SCAN_INTERVAL_MS) {
             Seymouranalyzer.LOGGER.info("[ItemFrame Debug] Triggering item frame scan (5 second interval)");
             lastItemFrameScanTime = now;
             readItemFrames(client);
@@ -222,10 +223,10 @@ public class ChestScanner {
      */
     private void readItemFrames(MinecraftClient client) {
         Seymouranalyzer.LOGGER.info("[ItemFrame Debug] readItemFrames() called");
-        Seymouranalyzer.LOGGER.info("[ItemFrame Debug] itemFramesEnabled: {}", ModConfig.getInstance().itemFramesEnabled());
+        Seymouranalyzer.LOGGER.info("[ItemFrame Debug] itemFramesEnabled: {}", ClothConfig.getInstance().isItemFramesEnabled());
         Seymouranalyzer.LOGGER.info("[ItemFrame Debug] scanningEnabled: {}, exportingEnabled: {}", scanningEnabled, exportingEnabled);
 
-        if (!ModConfig.getInstance().itemFramesEnabled() || (!scanningEnabled && !exportingEnabled)) {
+        if (!ClothConfig.getInstance().isItemFramesEnabled() || (!scanningEnabled && !exportingEnabled)) {
             Seymouranalyzer.LOGGER.info("[ItemFrame Debug] Skipping - checks failed");
             return;
         }

@@ -6,7 +6,7 @@ import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.client.gui.widget.TextFieldWidget;
 import net.minecraft.text.Text;
 import schnerry.seymouranalyzer.Seymouranalyzer;
-import schnerry.seymouranalyzer.config.ModConfig;
+import schnerry.seymouranalyzer.config.ClothConfig;
 import schnerry.seymouranalyzer.data.ArmorPiece;
 import schnerry.seymouranalyzer.data.CollectionManager;
 import schnerry.seymouranalyzer.util.ColorMath;
@@ -268,7 +268,7 @@ public class DatabaseScreen extends ModScreen {
             if (piece.getBestMatch() != null) {
                 double deltaE = piece.getBestMatch().deltaE;
                 boolean isFade = checkFadeDye(piece.getBestMatch().colorName);
-                boolean isCustom = ModConfig.getInstance().getCustomColors().containsKey(piece.getBestMatch().colorName);
+                boolean isCustom = ClothConfig.getInstance().getCustomColors().containsKey(piece.getBestMatch().colorName);
 
                 if (deltaE <= 2) {
                     if (isCustom || !isFade) {
@@ -441,7 +441,7 @@ public class DatabaseScreen extends ModScreen {
         if (piece.getBestMatch() != null) {
             double deltaE = piece.getBestMatch().deltaE;
             boolean isFade = checkFadeDye(piece.getBestMatch().colorName);
-            boolean isCustom = ModConfig.getInstance().getCustomColors().containsKey(piece.getBestMatch().colorName);
+            boolean isCustom = ClothConfig.getInstance().getCustomColors().containsKey(piece.getBestMatch().colorName);
 
             int highlightColor = 0;
 
@@ -506,7 +506,7 @@ public class DatabaseScreen extends ModScreen {
 
             double deltaE = piece.getBestMatch().deltaE;
             boolean isFade = checkFadeDye(piece.getBestMatch().colorName);
-            boolean isCustom = ModConfig.getInstance().getCustomColors().containsKey(piece.getBestMatch().colorName);
+            boolean isCustom = ClothConfig.getInstance().getCustomColors().containsKey(piece.getBestMatch().colorName);
 
             int deColor;
             if (isCustom) {

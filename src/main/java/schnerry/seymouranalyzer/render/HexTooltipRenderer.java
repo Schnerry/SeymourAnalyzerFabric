@@ -170,7 +170,10 @@ public class HexTooltipRenderer {
 
             // If we hit a stat line (Health:, Defense:, etc.), insert before it
             if (text.contains("Health:") || text.contains("Defense:") ||
-                text.contains("Speed:") || text.contains("Strength:")) {
+                text.contains("Speed:") || text.contains("Strength:") ||
+                text.contains("Crit Chance:") || text.contains("Crit Damage:") ||
+                text.contains("Ability Damage:") || text.contains("Ferocity:") ||
+                text.contains("Magic Find:") || text.contains("Pet Luck:")) {
                 return i;
             }
         }

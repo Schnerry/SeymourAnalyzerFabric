@@ -9,7 +9,7 @@ import net.minecraft.text.ClickEvent;
 import net.minecraft.text.HoverEvent;
 import net.minecraft.text.Style;
 import net.minecraft.text.Text;
-import schnerry.seymouranalyzer.config.ModConfig;
+import schnerry.seymouranalyzer.config.ClothConfig;
 import schnerry.seymouranalyzer.data.ArmorPiece;
 import schnerry.seymouranalyzer.data.CollectionManager;
 import schnerry.seymouranalyzer.data.ColorDatabase;
@@ -356,7 +356,7 @@ public class SeymourCommand {
             return 0;
         }
 
-        ModConfig config = ModConfig.getInstance();
+        ClothConfig config = ClothConfig.getInstance();
         config.getCustomColors().put(colorName, hex);
         config.saveData();
 
@@ -369,7 +369,7 @@ public class SeymourCommand {
 
     private static int removeCustomColor(CommandContext<FabricClientCommandSource> ctx) {
         String colorName = StringArgumentType.getString(ctx, "name");
-        ModConfig config = ModConfig.getInstance();
+        ClothConfig config = ClothConfig.getInstance();
 
         if (!config.getCustomColors().containsKey(colorName)) {
             ctx.getSource().sendError(Text.literal("§cCustom color not found: §f" + colorName));
@@ -387,7 +387,7 @@ public class SeymourCommand {
     }
 
     private static int listCustomColors(CommandContext<FabricClientCommandSource> ctx) {
-        ModConfig config = ModConfig.getInstance();
+        ClothConfig config = ClothConfig.getInstance();
         var colors = config.getCustomColors();
 
         if (colors.isEmpty()) {
@@ -418,7 +418,7 @@ public class SeymourCommand {
             return 0;
         }
 
-        ModConfig config = ModConfig.getInstance();
+        ClothConfig config = ClothConfig.getInstance();
 
         // Check if word already exists
         if (config.getWordList().containsKey(word)) {
@@ -438,7 +438,7 @@ public class SeymourCommand {
 
     private static int removeWord(CommandContext<FabricClientCommandSource> ctx) {
         String word = StringArgumentType.getString(ctx, "word").toUpperCase();
-        ModConfig config = ModConfig.getInstance();
+        ClothConfig config = ClothConfig.getInstance();
 
         if (!config.getWordList().containsKey(word)) {
             ctx.getSource().sendError(Text.literal("§cWord not found: §f" + word));
@@ -454,7 +454,7 @@ public class SeymourCommand {
     }
 
     private static int listWords(CommandContext<FabricClientCommandSource> ctx) {
-        ModConfig config = ModConfig.getInstance();
+        ClothConfig config = ClothConfig.getInstance();
         var words = config.getWordList();
 
         if (words.isEmpty()) {
@@ -529,7 +529,7 @@ public class SeymourCommand {
                 if (bestMatch.colorName != null) {
                     if (bestMatch.colorName.contains(" - Stage ")) {
                         fadeDyeCount++;
-                    } else if (ModConfig.getInstance().getCustomColors().containsKey(bestMatch.colorName)) {
+                    } else if (ClothConfig.getInstance().getCustomColors().containsKey(bestMatch.colorName)) {
                         customColorCount++;
                     } else {
                         normalColorCount++;

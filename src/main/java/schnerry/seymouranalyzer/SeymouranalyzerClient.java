@@ -4,7 +4,6 @@ import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import schnerry.seymouranalyzer.command.SeymourCommand;
-import schnerry.seymouranalyzer.config.ModConfig;
 import schnerry.seymouranalyzer.data.CollectionManager;
 import schnerry.seymouranalyzer.keybind.KeyBindings;
 import schnerry.seymouranalyzer.scanner.ChestScanner;

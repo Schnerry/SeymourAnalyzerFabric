@@ -1,6 +1,6 @@
 package schnerry.seymouranalyzer.analyzer;
 
-import schnerry.seymouranalyzer.config.ModConfig;
+import schnerry.seymouranalyzer.config.ClothConfig;
 
 import java.util.HashSet;
 import java.util.Map;
@@ -49,7 +49,7 @@ public class PatternDetector {
 
         // Check AxBxCx pattern
         if (chars[0] == chars[2] && chars[2] == chars[4]) {
-            return "axbxcx_" + Character.toLowerCase(chars[0]);
+            return "axbxcx_" + Character.toUpperCase(chars[0]);
         }
 
         return null;
@@ -59,8 +59,8 @@ public class PatternDetector {
      * Check if hex contains a word pattern from the word list
      */
     public String detectWordMatch(String hex) {
-        ModConfig config = ModConfig.getInstance();
-        if (!config.wordsEnabled()) return null;
+        ClothConfig config = ClothConfig.getInstance();
+        if (!config.isWordsEnabled()) return null;
 
         hex = hex.toUpperCase();
         Map<String, String> wordList = config.getWordList();

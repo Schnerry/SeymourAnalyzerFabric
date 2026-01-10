@@ -211,16 +211,33 @@ public class ArmorChecklistScreen extends ModScreen {
 
         // If we have valid cached data, use it
         if (categoryCache != null && categoryCache.matchesByIndex != null) {
-            Seymouranalyzer.LOGGER.info("Using cached matches for category: {}", currentCategory);
-
-            // Restore matches from cache
+            // Validate that cached hex values match current entries
+            boolean cacheValid = true;
             for (int i = 0; i < entries.size(); i++) {
                 ChecklistEntry entry = entries.get(i);
-                entry.foundPieces.clear();
-                entry.foundPieceUuids.clear();
-
                 ChecklistCache.StageMatches stageMatches = categoryCache.matchesByIndex.get(i);
-                if (stageMatches != null && stageMatches.calculated) {
+                if (stageMatches != null && stageMatches.stageHex != null) {
+                    // Compare hex values (case-insensitive)
+                    if (!stageMatches.stageHex.equalsIgnoreCase(entry.hex)) {
+                        Seymouranalyzer.LOGGER.info("Cache invalidated: hex mismatch for stage {}, cached={}, current={}",
+                            i, stageMatches.stageHex, entry.hex);
+                        cacheValid = false;
+                        break;
+                    }
+                }
+            }
+
+            if (cacheValid) {
+                Seymouranalyzer.LOGGER.info("Using cached matches for category: {}", currentCategory);
+
+                // Restore matches from cache
+                for (int i = 0; i < entries.size(); i++) {
+                    ChecklistEntry entry = entries.get(i);
+                    entry.foundPieces.clear();
+                    entry.foundPieceUuids.clear();
+
+                    ChecklistCache.StageMatches stageMatches = categoryCache.matchesByIndex.get(i);
+                    if (stageMatches != null && stageMatches.calculated) {
                     // Restore each piece match
                     if (stageMatches.helmet != null) {
                         ArmorPiece piece = collection.get(stageMatches.helmet.uuid);
@@ -253,7 +270,16 @@ public class ArmorChecklistScreen extends ModScreen {
                 }
             }
 
-            return; // Cache hit, no need to recalculate
+                return; // Cache hit, no need to recalculate
+            } else {
+                // Cache invalid, clear it for this category
+                if (fadeDyeMode) {
+                    cache.getFadeDyeOptimalCache().remove(currentCategory);
+                } else {
+                    cache.getNormalColorCache().remove(currentCategory);
+                }
+                Seymouranalyzer.LOGGER.info("Cache cleared for category {} due to hex value changes", currentCategory);
+            }
         }
 
         // No cache - calculate optimal matches

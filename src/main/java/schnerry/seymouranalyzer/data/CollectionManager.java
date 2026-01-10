@@ -162,6 +162,14 @@ public class CollectionManager {
     private void checkAndRegenerateCache() {
         int currentSize = collection.size();
         if (currentSize != lastCollectionSize && currentSize > 0) {
+            // Don't regenerate during active scanning/exporting to avoid lag
+            schnerry.seymouranalyzer.scanner.ChestScanner scanner = schnerry.seymouranalyzer.SeymouranalyzerClient.getScanner();
+            if (scanner != null && (scanner.isScanningEnabled() || scanner.isExportingEnabled())) {
+                // Update size but skip regeneration during scanning
+                lastCollectionSize = currentSize;
+                return;
+            }
+
             lastCollectionSize = currentSize;
 
             // Regenerate cache in background thread to avoid lag
