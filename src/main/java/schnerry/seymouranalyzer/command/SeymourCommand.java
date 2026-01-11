@@ -362,6 +362,9 @@ public class SeymourCommand {
 
         ColorDatabase.getInstance().rebuildLabCache();
 
+        // Mark custom colors for reload in checklist GUI
+        schnerry.seymouranalyzer.gui.ArmorChecklistScreen.markCustomColorsForReload();
+
         ctx.getSource().sendFeedback(Text.literal("§a[Seymour Analyzer] §7Added custom color: §f" +
             colorName + " §7(#" + hex + ")"));
         return 1;
@@ -380,6 +383,9 @@ public class SeymourCommand {
         config.saveData();
 
         ColorDatabase.getInstance().rebuildLabCache();
+
+        // Mark custom colors for reload in checklist GUI
+        schnerry.seymouranalyzer.gui.ArmorChecklistScreen.markCustomColorsForReload();
 
         ctx.getSource().sendFeedback(Text.literal("§a[Seymour Analyzer] §7Removed custom color: §f" +
             colorName + " §7(#" + hex + ")"));

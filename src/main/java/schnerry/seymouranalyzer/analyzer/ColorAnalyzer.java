@@ -138,9 +138,9 @@ public class ColorAnalyzer {
                 continue;
             }
 
-            // 3-piece set filtering for top hats
-            if (config.isThreePieceSetsEnabled() && pieceType != null && pieceType.equals("helmet")) {
-                if (colorName.contains("3p") && !colorName.toLowerCase().contains("top hat")) {
+            // 3-piece set filtering: skip 3p entries on helmets when disabled
+            if (!config.isThreePieceSetsEnabled() && pieceType != null && pieceType.equals("helmet")) {
+                if (colorName.contains("3p")) {
                     continue;
                 }
             }

@@ -117,8 +117,8 @@ public class ConfigScreen {
         filterCategory.addEntry(entryBuilder.startBooleanToggle(
                 Text.literal("3-Piece Sets"),
                 config.isThreePieceSetsEnabled())
-                .setDefaultValue(false)
-                .setTooltip(Text.literal("Show matches for 3-piece sets (helmet + chestplate + boots)"))
+                .setDefaultValue(true)
+                .setTooltip(Text.literal("Show matches for 3-piece sets (chestplate + leggings + boots) on helmets"))
                 .setSaveConsumer(config::setThreePieceSetsEnabled)
                 .build());
 

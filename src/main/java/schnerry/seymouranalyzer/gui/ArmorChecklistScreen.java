@@ -7,6 +7,7 @@ import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.text.Text;
 import schnerry.seymouranalyzer.Seymouranalyzer;
+import schnerry.seymouranalyzer.config.ClothConfig;
 import schnerry.seymouranalyzer.data.ArmorPiece;
 import schnerry.seymouranalyzer.data.ChecklistCache;
 import schnerry.seymouranalyzer.data.CollectionManager;
@@ -41,11 +42,16 @@ public class ArmorChecklistScreen extends ModScreen {
     // Context menu
     private ContextMenu contextMenu = null;
 
+    // Flag to track when custom colors need reloading
+    private static boolean customColorsNeedReload = false;
+
     private static class ContextMenu {
-        ArmorPiece piece;
-        String targetHex;
+        ArmorPiece piece; // For individual piece context menu
+        String targetHex; // The target hex from the checklist entry
+        List<ArmorPiece> allPieces; // For "Find all pieces" on row hex/name
         int x, y;
         int width = 140;
+        boolean isRowMenu; // true if right-clicked on hex/name area, false if on piece slot
     }
 
     private static class ChecklistEntry {
@@ -68,6 +74,13 @@ public class ArmorChecklistScreen extends ModScreen {
         cache.checkAndInvalidate(collection.size());
 
         calculateOptimalMatches();
+    }
+
+    /**
+     * Call this method when custom colors are added or removed to reload the Custom category
+     */
+    public static void markCustomColorsForReload() {
+        customColorsNeedReload = true;
     }
 
     private void loadChecklistData() {
@@ -114,6 +127,9 @@ public class ArmorChecklistScreen extends ModScreen {
 
             // Load fade dyes from colors.json
             loadFadeDyes();
+
+            // Load custom colors from config
+            loadCustomColors();
 
             // Build fade dye page order from fade dye categories
             String[] fadeDyes = {"Aurora", "Black Ice", "Frog", "Lava", "Lucky", "Marine",
@@ -188,6 +204,82 @@ public class ArmorChecklistScreen extends ModScreen {
 
         } catch (Exception e) {
             Seymouranalyzer.LOGGER.error("Error loading fade dyes", e);
+        }
+    }
+
+    private void loadCustomColors() {
+        try {
+            ClothConfig config = ClothConfig.getInstance();
+            Map<String, String> customColors = config.getCustomColors();
+
+            // Remove existing Custom category if it exists (for reload support)
+            categories.remove("Custom");
+            normalPageOrder.remove("Custom");
+
+            if (customColors.isEmpty()) {
+                Seymouranalyzer.LOGGER.info("No custom colors to load for checklist");
+                return;
+            }
+
+            List<ChecklistEntry> customEntries = new ArrayList<>();
+
+            for (Map.Entry<String, String> colorEntry : customColors.entrySet()) {
+                String colorName = colorEntry.getKey();
+                String hexValue = colorEntry.getValue().toUpperCase();
+
+                ChecklistEntry entry = new ChecklistEntry();
+                entry.hex = hexValue;
+                entry.name = colorName;
+                entry.pieces = new ArrayList<>();
+                // Custom colors apply to all piece types
+                entry.pieces.add("helmet");
+                entry.pieces.add("chestplate");
+                entry.pieces.add("leggings");
+                entry.pieces.add("boots");
+
+                customEntries.add(entry);
+            }
+
+            // Add Custom category to categories map
+            categories.put("Custom", customEntries);
+
+            // Add "Custom" to the normal page order (at the end, before "Other" if it exists, or just at the end)
+            int otherIndex = normalPageOrder.indexOf("Other Armor");
+            if (otherIndex != -1) {
+                // Insert before "Other Armor"
+                normalPageOrder.add(otherIndex, "Custom");
+            } else {
+                // Add at the end
+                normalPageOrder.add("Custom");
+            }
+
+            Seymouranalyzer.LOGGER.info("Loaded {} custom colors for checklist", customEntries.size());
+
+        } catch (Exception e) {
+            Seymouranalyzer.LOGGER.error("Error loading custom colors for checklist", e);
+        }
+    }
+
+    /**
+     * Reload custom colors if they were modified
+     */
+    private void reloadCustomColorsIfNeeded() {
+        if (customColorsNeedReload) {
+            loadCustomColors();
+
+            // Update page order
+            pageOrder = fadeDyeMode ? fadeDyePageOrder : normalPageOrder;
+
+            // Recalculate matches for the Custom category if we're viewing it
+            if (!fadeDyeMode && pageOrder.contains("Custom")) {
+                String currentCategory = currentPage < pageOrder.size() ? pageOrder.get(currentPage) : null;
+                if ("Custom".equals(currentCategory)) {
+                    calculateOptimalMatches();
+                }
+            }
+
+            customColorsNeedReload = false;
+            Seymouranalyzer.LOGGER.info("Reloaded custom colors in checklist GUI");
         }
     }
 
@@ -534,7 +626,7 @@ public class ArmorChecklistScreen extends ModScreen {
                 this.addDrawableChild(btn);
             }
         } else {
-            // Normal mode: 2 rows (8 and 7 buttons)
+            // Normal mode: 2 rows of 8 buttons each (16 total to accommodate Custom category)
             int row1Y = this.height - 60;
             int row2Y = this.height - 35;
             int row1Count = 8;
@@ -558,9 +650,9 @@ public class ArmorChecklistScreen extends ModScreen {
                 this.addDrawableChild(btn);
             }
 
-            // Row 2: next 7 buttons
+            // Row 2: next 8 buttons
             int row2Start = row1Count;
-            int row2Count = Math.min(7, pageOrder.size() - row2Start);
+            int row2Count = Math.min(8, pageOrder.size() - row2Start);
 
             for (int i = 0; i < row2Count; i++) {
                 int pageIndex = row2Start + i;
@@ -593,6 +685,7 @@ public class ArmorChecklistScreen extends ModScreen {
             case "Dragon Armor" -> "Dragon";
             case "Dungeon Armor" -> "Dungeon";
             case "Other Armor" -> "Other";
+            case "Custom" -> "Custom";
             // Fade dye abbreviations
             case "Black Ice" -> "BIce";
             case "Pastel Sky" -> "PSky";
@@ -605,6 +698,9 @@ public class ArmorChecklistScreen extends ModScreen {
 
     @Override
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
+        // Check if custom colors need reloading (e.g., from /seymour add command)
+        reloadCustomColorsIfNeeded();
+
         // Title
         String titleStr = "§l§nArmor Set Checklist";
         int titleWidth = this.textRenderer.getWidth(titleStr);
@@ -656,11 +752,15 @@ public class ArmorChecklistScreen extends ModScreen {
         context.fill(x, y, x + 2, y + h, 0xFF646464);
         context.fill(x + w - 2, y, x + w, y + h, 0xFF646464);
 
-        // Option 1: "Find Piece"
-        context.drawTextWithShadow(this.textRenderer, "Find Piece", x + 5, y + 6, 0xFFFFFFFF);
-
-        // Option 2: "Find in Database"
-        context.drawTextWithShadow(this.textRenderer, "Find in Database", x + 5, y + 26, 0xFFFFFFFF);
+        if (contextMenu.isRowMenu) {
+            // Row menu: "Find all pieces" and "Find in Database"
+            context.drawTextWithShadow(this.textRenderer, "Find all pieces", x + 5, y + 6, 0xFFFFFFFF);
+            context.drawTextWithShadow(this.textRenderer, "Find in Database", x + 5, y + 26, 0xFFFFFFFF);
+        } else {
+            // Piece menu: "Find Piece" and "Find in Database"
+            context.drawTextWithShadow(this.textRenderer, "Find Piece", x + 5, y + 6, 0xFFFFFFFF);
+            context.drawTextWithShadow(this.textRenderer, "Find in Database", x + 5, y + 26, 0xFFFFFFFF);
+        }
     }
 
     private void drawStatsCounter(DrawContext context, List<ChecklistEntry> entries) {
@@ -820,12 +920,9 @@ public class ArmorChecklistScreen extends ModScreen {
 
                 context.fill(boxX, y, boxX + 100, y + 20, qualityColor);
 
-                // Show piece name (truncated)
-                String pieceHex = match.getHexcode();
-                if (pieceHex.length() > 10) {
-                    pieceHex = pieceHex.substring(0, 10) + "...";
-                }
-                context.drawTextWithShadow(this.textRenderer, pieceHex, boxX + 3, y + 6, 0xFFFFFFFF);
+                // Show piece name and delta to row hex
+                String pieceHexAndDelta = match.getHexcode().concat(" - ").concat(String.format("ΔE: %.1f", deltaE));
+                context.drawTextWithShadow(this.textRenderer, pieceHexAndDelta, boxX + 3, y + 6, 0xFFFFFFFF);
             }
         }
     }
@@ -908,7 +1005,39 @@ public class ArmorChecklistScreen extends ModScreen {
 
         ChecklistEntry entry = entries.get(entryIndex);
 
-        // Check which column was clicked
+        // Check if clicked on hex/name area (left side of the row)
+        if (mouseX >= 10 && mouseX <= 230) {
+            // Right-clicked on hex/name area - show "Find all pieces" menu
+            List<ArmorPiece> allPieces = new ArrayList<>();
+
+            // Collect all pieces that exist in this row
+            String[] pieceTypes = {"helmet", "chestplate", "leggings", "boots"};
+            for (String pieceType : pieceTypes) {
+                ArmorPiece piece = entry.foundPieces.get(pieceType);
+                if (piece != null) {
+                    allPieces.add(piece);
+                }
+            }
+
+            if (allPieces.isEmpty()) {
+                if (client != null && client.player != null) {
+                    client.player.sendMessage(Text.literal("§c[Armor Checklist] No pieces found for this entry!"), false);
+                }
+                return false;
+            }
+
+            // Show row context menu
+            contextMenu = new ContextMenu();
+            contextMenu.allPieces = allPieces;
+            contextMenu.targetHex = entry.hex;
+            contextMenu.x = (int) mouseX;
+            contextMenu.y = (int) mouseY;
+            contextMenu.isRowMenu = true;
+
+            return true;
+        }
+
+        // Check which piece column was clicked
         String clickedPieceType = null;
         if (mouseX >= 250 && mouseX <= 350) {
             clickedPieceType = "helmet";
@@ -931,12 +1060,13 @@ public class ArmorChecklistScreen extends ModScreen {
             return false;
         }
 
-        // Show context menu
+        // Show piece context menu
         contextMenu = new ContextMenu();
         contextMenu.piece = match;
         contextMenu.targetHex = entry.hex;
         contextMenu.x = (int) mouseX;
         contextMenu.y = (int) mouseY;
+        contextMenu.isRowMenu = false;
 
         return true;
     }
@@ -958,20 +1088,44 @@ public class ArmorChecklistScreen extends ModScreen {
 
         // Check which option was clicked
         if (mouseY >= y && mouseY < y + optionHeight) {
-            // Option 1: "Find Piece" - search for pieces with this hex
-            if (client != null && client.player != null) {
-                client.player.sendMessage(Text.literal("§a[Armor Checklist] Searching for pieces with hex " + contextMenu.piece.getHexcode() + "..."), false);
-                // Execute search command
-                client.player.networkHandler.sendChatCommand("seymour search " + contextMenu.piece.getHexcode());
+            // Option 1: "Find Piece" or "Find all pieces"
+            if (contextMenu.isRowMenu) {
+                // Find all pieces in this row
+                if (client != null && client.player != null && contextMenu.allPieces != null && !contextMenu.allPieces.isEmpty()) {
+                    // Build hex list from all pieces
+                    List<String> hexList = new ArrayList<>();
+                    for (ArmorPiece piece : contextMenu.allPieces) {
+                        if (!hexList.contains(piece.getHexcode())) {
+                            hexList.add(piece.getHexcode());
+                        }
+                    }
+
+                    String hexString = String.join(" ", hexList);
+                    client.player.sendMessage(Text.literal("§a[Armor Checklist] Searching for " + contextMenu.allPieces.size() + " piece(s)..."), false);
+                    // Execute search command with all hexes
+                    client.player.networkHandler.sendChatCommand("seymour search " + hexString);
+                }
+            } else {
+                // Find single piece
+                if (client != null && client.player != null && contextMenu.piece != null) {
+                    client.player.sendMessage(Text.literal("§a[Armor Checklist] Searching for pieces with hex " + contextMenu.piece.getHexcode() + "..."), false);
+                    // Execute search command
+                    client.player.networkHandler.sendChatCommand("seymour search " + contextMenu.piece.getHexcode());
+                }
             }
             contextMenu = null;
             return true;
         } else if (mouseY >= y + optionHeight && mouseY < y + h) {
-            // Option 2: "Find in Database" - open database with hex search
-            DatabaseScreen dbScreen = new DatabaseScreen(this);
-            dbScreen.setHexSearch(contextMenu.piece.getHexcode());
-            if (client != null) {
-                client.setScreen(dbScreen);
+            // Option 2: "Find in Database"
+            String hexToSearch = contextMenu.isRowMenu ? contextMenu.targetHex :
+                                (contextMenu.piece != null ? contextMenu.piece.getHexcode() : null);
+
+            if (hexToSearch != null) {
+                DatabaseScreen dbScreen = new DatabaseScreen(this);
+                dbScreen.setHexSearch(hexToSearch);
+                if (client != null) {
+                    client.setScreen(dbScreen);
+                }
             }
             contextMenu = null;
             return true;
