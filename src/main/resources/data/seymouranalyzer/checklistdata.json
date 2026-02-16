@@ -321,8 +321,8 @@
       {"hex": "FFD700", "name": "Eleanor's Set", "pieces": ["helmet", "chestplate", "leggings", "boots"]}
     ],
     "Other Armor": [
-      {"hex": "7C3756", "name": "Challenger's Leggings + Boots", "pieces": ["leggings", "boots"]},
-      {"hex": "2A5B48", "name": "Mythos Leggings + Boots", "pieces": ["leggings", "boots"]},
+      {"hex": "2A5B48", "name": "Challenger's Leggings + Boots", "pieces": ["leggings", "boots"]},
+      {"hex": "7C3756", "name": "Mythos Leggings + Boots", "pieces": ["leggings", "boots"]},
       {"hex": "8D3592", "name": "Melody Shoes", "pieces": ["boots"]},
       {"hex": "586158", "name": "Fallen Star 3p", "pieces": ["chestplate", "leggings", "boots"]},
       {"hex": "F6DE51", "name": "Charlie's Trousers", "pieces": ["leggings"]},
