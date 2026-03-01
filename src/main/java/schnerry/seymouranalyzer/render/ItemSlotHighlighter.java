@@ -1,25 +1,21 @@
 package schnerry.seymouranalyzer.render;
 
-import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.screen.ingame.HandledScreen;
-import net.minecraft.item.ItemStack;
-import net.minecraft.screen.slot.Slot;
 import schnerry.seymouranalyzer.analyzer.ColorAnalyzer;
 import schnerry.seymouranalyzer.analyzer.PatternDetector;
 import schnerry.seymouranalyzer.config.ClothConfig;
+import schnerry.seymouranalyzer.config.MatchPriority;
 import schnerry.seymouranalyzer.data.ArmorPiece;
 import schnerry.seymouranalyzer.data.CollectionManager;
 import schnerry.seymouranalyzer.scanner.ChestScanner;
+import schnerry.seymouranalyzer.util.ItemStackUtils;
+import schnerry.seymouranalyzer.util.StringUtility;
 
-import java.util.HashSet;
-import java.util.Set;
-import java.util.WeakHashMap;
+import java.util.*;
+import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
+import net.minecraft.world.inventory.Slot;
+import net.minecraft.world.item.ItemStack;
 
-/**
- * Highlights armor pieces in inventory GUIs based on tier, custom colors, fade dyes, etc.
- * Ported from ChatTriggers index.js renderItemIntoGui event
- */
 public class ItemSlotHighlighter {
     private static ItemSlotHighlighter instance;
     private final Set<String> searchHexes = new HashSet<>();
@@ -57,16 +53,7 @@ public class ItemSlotHighlighter {
     /**
      * Cached data for an item to avoid re-analysis every frame
      */
-    private static class CachedItemData {
-        final String hex;
-        final String uuid;
-        final Integer highlightColor;
-
-        CachedItemData(String hex, String uuid, Integer highlightColor) {
-            this.hex = hex;
-            this.uuid = uuid;
-            this.highlightColor = highlightColor;
-        }
+    private record CachedItemData(String hex, String uuid, Integer highlightColor) {
     }
 
     private ItemSlotHighlighter() {
@@ -116,26 +103,26 @@ public class ItemSlotHighlighter {
      * Render highlight for a single slot (called by mixin)
      * This method is called during slot rendering, so it's in the correct coordinate space
      */
-    public void renderSlotHighlight(DrawContext context, Slot slot) {
+    public void renderSlotHighlight(GuiGraphics context, Slot slot) {
         ClothConfig config = ClothConfig.getInstance();
         if (!config.isHighlightsEnabled()) return;
 
-        ItemStack stack = slot.getStack();
+        ItemStack stack = slot.getItem();
         if (stack.isEmpty()) return;
 
         // Check if it's a Seymour armor piece (fast name check)
-        String itemName = stack.getName().getString();
-        if (!ChestScanner.isSeymourArmor(itemName)) return;
+        String itemName = stack.getHoverName().getString();
+        if (!StringUtility.isSeymourArmor(itemName)) return;
 
         // Check cache first
         CachedItemData cachedData = itemCache.get(stack);
 
         if (cachedData == null) {
             // Not in cache - analyze and cache it
-            String hex = scanner.extractHex(stack);
+            String hex = ItemStackUtils.extractHex(stack);
             if (hex == null) return;
 
-            String uuid = scanner.getOrCreateItemUUID(stack);
+            String uuid = ItemStackUtils.getOrCreateItemUUID(stack);
             Integer highlightColor = getHighlightColor(stack, hex, itemName, uuid);
 
             // Cache for next frame
@@ -157,29 +144,29 @@ public class ItemSlotHighlighter {
      * Render highlights in slot coordinate space
      * This is called during beforeRenderForeground which already has the correct translation applied
      */
-    private void renderHighlightsInSlotSpace(HandledScreen<?> screen, DrawContext context) {
+    private void renderHighlightsInSlotSpace(AbstractContainerScreen<?> screen, GuiGraphics context) {
         ClothConfig config = ClothConfig.getInstance();
         if (!config.isHighlightsEnabled()) return;
 
         try {
             if (DEBUG_POSITIONS) {
                 System.out.println("=== DEBUG POSITIONS (Slot Space) ===");
-                System.out.println("Total slots: " + screen.getScreenHandler().slots.size());
+                System.out.println("Total slots: " + screen.getMenu().slots.size());
             }
 
             int debugCount = 0;
             // Iterate through all slots in the screen
-            for (Slot slot : screen.getScreenHandler().slots) {
-                ItemStack stack = slot.getStack();
+            for (Slot slot : screen.getMenu().slots) {
+                ItemStack stack = slot.getItem();
 
                 // Debug first 3 slots regardless of content
                 if (DEBUG_POSITIONS && debugCount < 3) {
-                    System.out.println("\nSlot #" + slot.id + ":");
+                    System.out.println("\nSlot #" + slot.index + ":");
                     System.out.println("  slot.x=" + slot.x + ", slot.y=" + slot.y);
                     System.out.println("  (using slot position directly, no offset needed)");
                     System.out.println("  has item: " + !stack.isEmpty());
                     if (!stack.isEmpty()) {
-                        System.out.println("  item: " + stack.getName().getString());
+                        System.out.println("  item: " + stack.getHoverName().getString());
                     }
                     debugCount++;
                 }
@@ -187,18 +174,18 @@ public class ItemSlotHighlighter {
                 if (stack.isEmpty()) continue;
 
                 // Check if it's a Seymour armor piece (fast name check)
-                String itemName = stack.getName().getString();
-                if (!ChestScanner.isSeymourArmor(itemName)) continue;
+                String itemName = stack.getHoverName().getString();
+                if (!StringUtility.isSeymourArmor(itemName)) continue;
 
                 // Check cache first - if we've already analyzed this ItemStack, use cached data
                 CachedItemData cachedData = itemCache.get(stack);
 
                 if (cachedData == null) {
                     // Not in cache - analyze and cache it
-                    String hex = scanner.extractHex(stack);
+                    String hex = ItemStackUtils.extractHex(stack);
                     if (hex == null) continue;
 
-                    String uuid = scanner.getOrCreateItemUUID(stack);
+                    String uuid = ItemStackUtils.getOrCreateItemUUID(stack);
                     Integer highlightColor = getHighlightColor(stack, hex, itemName, uuid);
 
                     // Cache for next frame
@@ -216,7 +203,7 @@ public class ItemSlotHighlighter {
                     if (DEBUG_POSITIONS) {
                         System.out.println("\n*** HIGHLIGHTING SEYMOUR PIECE ***");
                         System.out.println("Item: " + itemName);
-                        System.out.println("Slot #" + slot.id + " at x=" + slotX + ", y=" + slotY);
+                        System.out.println("Slot #" + slot.index + " at x=" + slotX + ", y=" + slotY);
                         System.out.println("Color: " + Integer.toHexString(cachedData.highlightColor));
                     }
 
@@ -247,7 +234,7 @@ public class ItemSlotHighlighter {
     /**
      * Old render method - kept for reference, can be removed later
      */
-    private void renderHighlights(HandledScreen<?> screen, DrawContext context, int mouseX, int mouseY, float delta) {
+    private void renderHighlights(AbstractContainerScreen<?> screen, GuiGraphics context, int mouseX, int mouseY, float delta) {
         ClothConfig config = ClothConfig.getInstance();
         if (!config.isHighlightsEnabled()) return;
 
@@ -260,22 +247,22 @@ public class ItemSlotHighlighter {
                 System.out.println("=== DEBUG POSITIONS ===");
                 System.out.println("Screen dimensions: " + screen.width + "x" + screen.height);
                 System.out.println("Calculated screen position: x=" + screenX + ", y=" + screenY);
-                System.out.println("Total slots: " + screen.getScreenHandler().slots.size());
+                System.out.println("Total slots: " + screen.getMenu().slots.size());
             }
 
             int debugCount = 0;
             // Iterate through all slots in the screen
-            for (Slot slot : screen.getScreenHandler().slots) {
-                ItemStack stack = slot.getStack();
+            for (Slot slot : screen.getMenu().slots) {
+                ItemStack stack = slot.getItem();
 
                 // Debug first 3 slots regardless of content
                 if (DEBUG_POSITIONS && debugCount < 3) {
-                    System.out.println("\nSlot #" + slot.id + ":");
+                    System.out.println("\nSlot #" + slot.index + ":");
                     System.out.println("  slot.x=" + slot.x + ", slot.y=" + slot.y);
                     System.out.println("  calculated screen pos: " + (screenX + slot.x) + ", " + (screenY + slot.y));
                     System.out.println("  has item: " + !stack.isEmpty());
                     if (!stack.isEmpty()) {
-                        System.out.println("  item: " + stack.getName().getString());
+                        System.out.println("  item: " + stack.getHoverName().getString());
                     }
                     debugCount++;
                 }
@@ -283,18 +270,18 @@ public class ItemSlotHighlighter {
                 if (stack.isEmpty()) continue;
 
                 // Check if it's a Seymour armor piece (fast name check)
-                String itemName = stack.getName().getString();
-                if (!ChestScanner.isSeymourArmor(itemName)) continue;
+                String itemName = stack.getHoverName().getString();
+                if (!StringUtility.isSeymourArmor(itemName)) continue;
 
                 // Check cache first - if we've already analyzed this ItemStack, use cached data
                 CachedItemData cachedData = itemCache.get(stack);
 
                 if (cachedData == null) {
                     // Not in cache - analyze and cache it
-                    String hex = scanner.extractHex(stack);
+                    String hex = ItemStackUtils.extractHex(stack);
                     if (hex == null) continue;
 
-                    String uuid = scanner.getOrCreateItemUUID(stack);
+                    String uuid = ItemStackUtils.getOrCreateItemUUID(stack);
                     Integer highlightColor = getHighlightColor(stack, hex, itemName, uuid);
 
                     // Cache for next frame
@@ -311,7 +298,7 @@ public class ItemSlotHighlighter {
                     if (DEBUG_POSITIONS) {
                         System.out.println("\n*** HIGHLIGHTING SEYMOUR PIECE ***");
                         System.out.println("Item: " + itemName);
-                        System.out.println("Slot #" + slot.id + " at slot.x=" + slot.x + ", slot.y=" + slot.y);
+                        System.out.println("Slot #" + slot.index + " at slot.x=" + slot.x + ", slot.y=" + slot.y);
                         System.out.println("Final highlight position: " + slotScreenX + ", " + slotScreenY);
                         System.out.println("Color: " + Integer.toHexString(cachedData.highlightColor));
                     }
@@ -343,13 +330,13 @@ public class ItemSlotHighlighter {
     /**
      * Get the screen X position using reflection, trying multiple field names
      */
-    private int getScreenX(HandledScreen<?> screen) {
+    private int getScreenX(AbstractContainerScreen<?> screen) {
         try {
             // Try common field names used in different mappings
             String[] fieldNames = {"x", "field_2888", "backgroundLeft"};
             for (String fieldName : fieldNames) {
                 try {
-                    var field = HandledScreen.class.getDeclaredField(fieldName);
+                    var field = AbstractContainerScreen.class.getDeclaredField(fieldName);
                     field.setAccessible(true);
                     int value = (int) field.get(screen);
                     if (DEBUG_POSITIONS) {
@@ -377,13 +364,13 @@ public class ItemSlotHighlighter {
     /**
      * Get the screen Y position using reflection, trying multiple field names
      */
-    private int getScreenY(HandledScreen<?> screen) {
+    private int getScreenY(AbstractContainerScreen<?> screen) {
         try {
             // Try common field names used in different mappings
             String[] fieldNames = {"y", "field_2890", "backgroundTop"};
             for (String fieldName : fieldNames) {
                 try {
-                    var field = HandledScreen.class.getDeclaredField(fieldName);
+                    var field = AbstractContainerScreen.class.getDeclaredField(fieldName);
                     field.setAccessible(true);
                     int value = (int) field.get(screen);
                     if (DEBUG_POSITIONS) {
@@ -417,23 +404,23 @@ public class ItemSlotHighlighter {
         String hexUpper = hex.toUpperCase();
 
         // Collect all possible matches with their priorities
-        java.util.Map<schnerry.seymouranalyzer.config.MatchPriority, Integer> possibleMatches = new java.util.HashMap<>();
+        Map<MatchPriority, Integer> possibleMatches = new HashMap<>();
 
         // Check dupe
         if (config.isDupesEnabled() && uuid != null && isDuplicateHex(hex, uuid)) {
-            possibleMatches.put(schnerry.seymouranalyzer.config.MatchPriority.DUPE, COLOR_DUPE);
+            possibleMatches.put(MatchPriority.DUPE, COLOR_DUPE);
         }
 
         // Check search match
         if (!searchHexes.isEmpty() && searchHexes.contains(hexUpper)) {
-            possibleMatches.put(schnerry.seymouranalyzer.config.MatchPriority.SEARCH, COLOR_SEARCH);
+            possibleMatches.put(MatchPriority.SEARCH, COLOR_SEARCH);
         }
 
         // Check word match
         if (config.isWordsEnabled()) {
             String wordMatch = PatternDetector.getInstance().detectWordMatch(hex);
             if (wordMatch != null) {
-                possibleMatches.put(schnerry.seymouranalyzer.config.MatchPriority.WORD, COLOR_WORD);
+                possibleMatches.put(MatchPriority.WORD, COLOR_WORD);
             }
         }
 
@@ -441,36 +428,36 @@ public class ItemSlotHighlighter {
         if (config.isPatternsEnabled()) {
             String pattern = PatternDetector.getInstance().detectPattern(hex);
             if (pattern != null) {
-                possibleMatches.put(schnerry.seymouranalyzer.config.MatchPriority.PATTERN, COLOR_PATTERN);
+                possibleMatches.put(MatchPriority.PATTERN, COLOR_PATTERN);
             }
         }
 
         // Check tier-based matches - check ALL top 3 matches, not just the best one
         // A piece can match multiple categories (e.g., T1 fade AND T2 normal)
         var analysis = ColorAnalyzer.getInstance().analyzeArmorColor(hex, itemName);
-        if (analysis != null && analysis.top3Matches != null) {
-            for (var match : analysis.top3Matches) {
-                int tier = calculateTier(match.deltaE, match.isCustom, match.isFade);
+        if (analysis != null && analysis.top3Matches() != null) {
+            for (var match : analysis.top3Matches()) {
+                int tier = calculateTier(match.deltaE(), match.isCustom(), match.isFade());
 
                 // Skip T3+ matches (too far away)
                 if (tier == 3) continue;
 
-                if (match.isCustom) {
+                if (match.isCustom()) {
                     switch (tier) {
-                        case 1 -> possibleMatches.putIfAbsent(schnerry.seymouranalyzer.config.MatchPriority.CUSTOM_T1, COLOR_CUSTOM_T1);
-                        case 2 -> possibleMatches.putIfAbsent(schnerry.seymouranalyzer.config.MatchPriority.CUSTOM_T2, COLOR_CUSTOM_T2);
+                        case 1 -> possibleMatches.putIfAbsent(MatchPriority.CUSTOM_T1, COLOR_CUSTOM_T1);
+                        case 2 -> possibleMatches.putIfAbsent(MatchPriority.CUSTOM_T2, COLOR_CUSTOM_T2);
                     }
-                } else if (match.isFade) {
+                } else if (match.isFade()) {
                     switch (tier) {
-                        case 0 -> possibleMatches.putIfAbsent(schnerry.seymouranalyzer.config.MatchPriority.FADE_T0, COLOR_FADE_T0);
-                        case 1 -> possibleMatches.putIfAbsent(schnerry.seymouranalyzer.config.MatchPriority.FADE_T1, COLOR_FADE_T1);
-                        case 2 -> possibleMatches.putIfAbsent(schnerry.seymouranalyzer.config.MatchPriority.FADE_T2, COLOR_FADE_T2);
+                        case 0 -> possibleMatches.putIfAbsent(MatchPriority.FADE_T0, COLOR_FADE_T0);
+                        case 1 -> possibleMatches.putIfAbsent(MatchPriority.FADE_T1, COLOR_FADE_T1);
+                        case 2 -> possibleMatches.putIfAbsent(MatchPriority.FADE_T2, COLOR_FADE_T2);
                     }
                 } else {
                     switch (tier) {
-                        case 0 -> possibleMatches.putIfAbsent(schnerry.seymouranalyzer.config.MatchPriority.NORMAL_T0, COLOR_NORMAL_T0);
-                        case 1 -> possibleMatches.putIfAbsent(schnerry.seymouranalyzer.config.MatchPriority.NORMAL_T1, COLOR_NORMAL_T1);
-                        case 2 -> possibleMatches.putIfAbsent(schnerry.seymouranalyzer.config.MatchPriority.NORMAL_T2, COLOR_NORMAL_T2);
+                        case 0 -> possibleMatches.putIfAbsent(MatchPriority.NORMAL_T0, COLOR_NORMAL_T0);
+                        case 1 -> possibleMatches.putIfAbsent(MatchPriority.NORMAL_T1, COLOR_NORMAL_T1);
+                        case 2 -> possibleMatches.putIfAbsent(MatchPriority.NORMAL_T2, COLOR_NORMAL_T2);
                     }
                 }
             }
@@ -482,8 +469,8 @@ public class ItemSlotHighlighter {
         }
 
         // Find the highest priority match based on user's priority order
-        java.util.List<schnerry.seymouranalyzer.config.MatchPriority> priorities = config.getMatchPriorities();
-        for (schnerry.seymouranalyzer.config.MatchPriority priority : priorities) {
+        List<MatchPriority> priorities = config.getMatchPriorities();
+        for (MatchPriority priority : priorities) {
             if (possibleMatches.containsKey(priority)) {
                 return possibleMatches.get(priority);
             }
@@ -498,13 +485,6 @@ public class ItemSlotHighlighter {
      */
     private int calculateTier(double deltaE, boolean isCustom, boolean isFade) {
         if (isCustom) {
-            if (deltaE <= 2) return 1;
-            if (deltaE <= 5) return 2;
-            return 3;
-        }
-
-        if (isFade) {
-            if (deltaE <= 1) return 0;
             if (deltaE <= 2) return 1;
             if (deltaE <= 5) return 2;
             return 3;
@@ -546,7 +526,7 @@ public class ItemSlotHighlighter {
     /**
      * Draw a colored highlight overlay on a slot
      */
-    private void drawSlotHighlight(DrawContext context, int x, int y, int color) {
+    private void drawSlotHighlight(GuiGraphics context, int x, int y, int color) {
         // Draw colored rectangle over the slot
         context.fill(x, y, x + 16, y + 16, color);
     }

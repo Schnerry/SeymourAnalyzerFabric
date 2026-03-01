@@ -3,6 +3,8 @@ package schnerry.seymouranalyzer.data;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
+import lombok.Getter;
+import lombok.Setter;
 import net.fabricmc.loader.api.FabricLoader;
 import schnerry.seymouranalyzer.Seymouranalyzer;
 
@@ -22,8 +24,12 @@ public class ChecklistCache {
     private static ChecklistCache instance;
 
     // Cache data (matches the JS structure)
+    @Getter
     private Map<String, CategoryCache> normalColorCache = new HashMap<>();
+    @Getter
     private Map<String, CategoryCache> fadeDyeOptimalCache = new HashMap<>();
+    @Setter
+    @Getter
     private int collectionSize = 0;
     private long lastUpdated = 0;
 
@@ -201,14 +207,6 @@ public class ChecklistCache {
 
     // Getters and setters
 
-    public Map<String, CategoryCache> getNormalColorCache() {
-        return normalColorCache;
-    }
-
-    public Map<String, CategoryCache> getFadeDyeOptimalCache() {
-        return fadeDyeOptimalCache;
-    }
-
     public CategoryCache getNormalColorCache(String category) {
         return normalColorCache.get(category);
     }
@@ -223,14 +221,6 @@ public class ChecklistCache {
 
     public void setFadeDyeOptimalCache(String category, CategoryCache cache) {
         fadeDyeOptimalCache.put(category, cache);
-    }
-
-    public int getCollectionSize() {
-        return collectionSize;
-    }
-
-    public void setCollectionSize(int size) {
-        this.collectionSize = size;
     }
 
     /**

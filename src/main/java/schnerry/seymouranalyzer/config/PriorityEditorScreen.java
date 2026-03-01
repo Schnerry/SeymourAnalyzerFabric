@@ -1,13 +1,15 @@
 package schnerry.seymouranalyzer.config;
 
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.widget.ButtonWidget;
-import net.minecraft.client.gui.Click;
-import net.minecraft.text.Text;
+import org.jspecify.annotations.NonNull;
 import schnerry.seymouranalyzer.gui.ModScreen;
 
 import java.util.ArrayList;
 import java.util.List;
+import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.input.MouseButtonEvent;
+import net.minecraft.network.chat.Component;
 
 /**
  * Custom GUI screen for editing match priorities with drag-and-drop reordering
@@ -25,8 +27,8 @@ public class PriorityEditorScreen extends ModScreen {
     private static final int LIST_WIDTH = 400;
     private static final int LIST_START_Y = 60;
 
-    public PriorityEditorScreen(net.minecraft.client.gui.screen.Screen parent) {
-        super(Text.literal("Match Priority Editor"), parent);
+    public PriorityEditorScreen(Screen parent) {
+        super(Component.literal("Match Priority Editor"), parent);
         this.priorities = new ArrayList<>(ClothConfig.getInstance().getMatchPriorities());
     }
 
@@ -35,31 +37,31 @@ public class PriorityEditorScreen extends ModScreen {
         super.init();
 
         // Done button
-        this.addDrawableChild(ButtonWidget.builder(Text.literal("Done"), button -> {
+        this.addRenderableWidget(Button.builder(Component.literal("Done"), button -> {
             ClothConfig.getInstance().setMatchPriorities(priorities);
             ClothConfig.getInstance().save();
-            this.close();
-        }).dimensions(this.width / 2 - 155, this.height - 28, 150, 20).build());
+            this.onClose();
+        }).bounds(this.width / 2 - 155, this.height - 28, 150, 20).build());
 
         // Cancel button
-        this.addDrawableChild(ButtonWidget.builder(Text.literal("Cancel"), button -> this.close())
-            .dimensions(this.width / 2 + 5, this.height - 28, 150, 20).build());
+        this.addRenderableWidget(Button.builder(Component.literal("Cancel"), button -> this.onClose())
+            .bounds(this.width / 2 + 5, this.height - 28, 150, 20).build());
 
         // Reset to defaults button
-        this.addDrawableChild(ButtonWidget.builder(Text.literal("Reset to Defaults"), button -> {
+        this.addRenderableWidget(Button.builder(Component.literal("Reset to Defaults"), button -> {
             priorities.clear();
             priorities.addAll(ClothConfig.getDefaultMatchPriorities());
-        }).dimensions(this.width / 2 - 75, this.height - 52, 150, 20).build());
+        }).bounds(this.width / 2 - 75, this.height - 52, 150, 20).build());
     }
 
     @Override
-    public void render(DrawContext context, int mouseX, int mouseY, float delta) {
+    public void render(@NonNull GuiGraphics context, int mouseX, int mouseY, float delta) {
         // Title
-        context.drawCenteredTextWithShadow(this.textRenderer, this.title, this.width / 2, 15, 0xFFFFFFFF);
+        context.drawCenteredString(this.font, this.title, this.width / 2, 15, 0xFFFFFFFF);
 
         // Instructions
-        context.drawCenteredTextWithShadow(this.textRenderer,
-            Text.literal("Drag to reorder • Higher = Priority for highlights"),
+        context.drawCenteredString(this.font,
+            Component.literal("Drag to reorder • Higher = Priority for highlights"),
             this.width / 2, 35, 0xFFAAAAAA);
 
         // Calculate list position
@@ -96,7 +98,7 @@ public class PriorityEditorScreen extends ModScreen {
         super.render(context, mouseX, mouseY, delta);
     }
 
-    private void renderPriorityItem(DrawContext context, MatchPriority priority, int x, int y, int index) {
+    private void renderPriorityItem(GuiGraphics context, MatchPriority priority, int x, int y, int index) {
         boolean isHovered = index == hoveredIndex || index == draggedIndex;
         boolean isDragged = index == draggedIndex;
 
@@ -117,13 +119,13 @@ public class PriorityEditorScreen extends ModScreen {
 
         // Priority number
         String priorityNum = "#" + (index + 1);
-        context.drawTextWithShadow(this.textRenderer, priorityNum, x + 8, y + 6, 0xFFFFAA00);
+        context.drawString(this.font, priorityNum, x + 8, y + 6, 0xFFFFAA00);
 
         // Display name
-        context.drawTextWithShadow(this.textRenderer, priority.getDisplayName(), x + 40, y + 6, 0xFFFFFFFF);
+        context.drawString(this.font, priority.getDisplayName(), x + 40, y + 6, 0xFFFFFFFF);
 
         // Description
-        context.drawTextWithShadow(this.textRenderer, priority.getDescription(), x + 40, y + 17, 0xFF888888);
+        context.drawString(this.font, priority.getDescription(), x + 40, y + 17, 0xFF888888);
 
         // Drag handle (three lines)
         //noinspection ConstantValue - isDragged is evaluated at render time and can be true
@@ -137,7 +139,7 @@ public class PriorityEditorScreen extends ModScreen {
     }
 
     @Override
-    public boolean mouseClicked(Click click, boolean isOutOfBounds) {
+    public boolean mouseClicked(MouseButtonEvent click, boolean isOutOfBounds) {
         if (click.button() == 0) { // Left click
             int listX = (this.width - LIST_WIDTH) / 2;
 
@@ -157,7 +159,7 @@ public class PriorityEditorScreen extends ModScreen {
     }
 
     @Override
-    public boolean mouseReleased(Click click) {
+    public boolean mouseReleased(MouseButtonEvent click) {
         if (click.button() == 0 && draggedIndex >= 0) {
             // Calculate drop position
             int listY = LIST_START_Y;
@@ -183,7 +185,7 @@ public class PriorityEditorScreen extends ModScreen {
     }
 
     @Override
-    public boolean mouseDragged(Click click, double deltaX, double deltaY) {
+    public boolean mouseDragged(@NonNull MouseButtonEvent click, double deltaX, double deltaY) {
         if (click.button() == 0 && draggedIndex >= 0) {
             currentDragY = click.y();
             return true;

@@ -1,5 +1,6 @@
 package schnerry.seymouranalyzer.analyzer;
 
+import schnerry.seymouranalyzer.Seymouranalyzer;
 import schnerry.seymouranalyzer.data.ColorDatabase;
 import schnerry.seymouranalyzer.config.ClothConfig;
 import schnerry.seymouranalyzer.config.MatchPriority;
@@ -8,11 +9,9 @@ import schnerry.seymouranalyzer.util.ColorMath;
 import java.util.*;
 import java.util.stream.Collectors;
 
-/**
- * Analyzes armor colors and finds best matches from the database
- */
 public class ColorAnalyzer {
     private static ColorAnalyzer INSTANCE;
+    private static final double PRIORITY_DELTA_E_WINDOW = 0.75;
     private final ColorDatabase colorDatabase;
 
     private ColorAnalyzer() {
@@ -28,7 +27,7 @@ public class ColorAnalyzer {
 
     /**
      * Analyze an armor piece and find best color matches
-     *
+     * <p>
      * Strategy:
      * 1. Collect matches from each category (customs, normals, fades) separately
      * 2. Sort each category by deltaE
@@ -37,7 +36,7 @@ public class ColorAnalyzer {
      * 5. Separate exact matches (always prioritized)
      * 6. Apply user-defined priority order to non-exact matches
      * 7. Return top 3 matches after prioritization
-     *
+     * <p>
      * This ensures that custom colors and normal colors aren't excluded when there are
      * many fade dye matches, which was causing issues when showHighFades was enabled.
      */
@@ -47,7 +46,7 @@ public class ColorAnalyzer {
 
         // Collect matches from each category separately to prevent one category from crowding out others
         List<ColorMatch> customMatches = new ArrayList<>();
-        List<ColorMatch> normalMatches = new ArrayList<>();
+        List<ColorMatch> normalMatches;
         List<ColorMatch> fadeMatches = new ArrayList<>();
 
         // Check custom colors first if enabled
@@ -77,9 +76,9 @@ public class ColorAnalyzer {
         // Take top 5 from each category to prevent any single category from dominating
         // This ensures customs and normals aren't crowded out by fades
         List<ColorMatch> allMatches = new ArrayList<>();
-        allMatches.addAll(customMatches.stream().limit(5).collect(Collectors.toList()));
-        allMatches.addAll(normalMatches.stream().limit(5).collect(Collectors.toList()));
-        allMatches.addAll(fadeMatches.stream().limit(5).collect(Collectors.toList()));
+        allMatches.addAll(customMatches.stream().limit(5).toList());
+        allMatches.addAll(normalMatches.stream().limit(5).toList());
+        allMatches.addAll(fadeMatches.stream().limit(5).toList());
 
         // Step 1: Sort all selected matches by deltaE
         allMatches.sort(Comparator.comparingDouble(m -> m.deltaE));
@@ -87,7 +86,7 @@ public class ColorAnalyzer {
         // Step 2: Take top 10 closest matches by deltaE
         List<ColorMatch> top10ByDeltaE = allMatches.stream()
             .limit(10)
-            .collect(Collectors.toList());
+            .toList();
 
         // Step 3: Separate exact matches (deltaE ~= 0) from regular matches
         // Exact matches should ALWAYS be prioritized above everything else
@@ -139,20 +138,68 @@ public class ColorAnalyzer {
         finalList.addAll(prioritizedMatches);
         finalList.addAll(unprioritizedMatches);
 
-        // Step 6: Get top 3 from the combined list
+        // Step 7: Apply safety guards to avoid inaccurate best-match picks
+        // - Do not allow a T3+ result if any T0-T2 candidate exists
+        // - Do not let priority override a materially closer normal/custom candidate
+        finalList = applySelectionGuards(finalList);
+
+        // Step 8: Get top 3 from the combined list
         List<ColorMatch> top3 = finalList.stream()
             .limit(3)
             .collect(Collectors.toList());
 
         if (top3.isEmpty()) {
-            schnerry.seymouranalyzer.Seymouranalyzer.LOGGER.warn("[ColorAnalyzer] No matches found for hex: " + hexcode);
+            Seymouranalyzer.LOGGER.warn("[ColorAnalyzer] No matches found for hex: {}", hexcode);
             return null;
         }
 
-        ColorMatch best = top3.get(0);
+        ColorMatch best = top3.getFirst();
         int tier = calculateTier(best.deltaE, best.isCustom, best.isFade);
 
         return new AnalysisResult(best, top3, tier);
+    }
+
+    /**
+     * Guardrails for final selection to reduce false positives where priority pushes a worse match to the top.
+     */
+    private List<ColorMatch> applySelectionGuards(List<ColorMatch> input) {
+        if (input == null || input.isEmpty()) {
+            return input;
+        }
+
+        List<ColorMatch> guarded = new ArrayList<>(input);
+        ColorMatch currentBest = guarded.getFirst();
+
+        // Guard 1: if best is T3+, prefer the closest T0-T2 candidate if one exists.
+        if (currentBest.tier > 2) {
+            Optional<ColorMatch> bestTier2OrLower = guarded.stream()
+                .filter(m -> m.tier <= 2)
+                .min(Comparator.comparingDouble(m -> m.deltaE));
+
+            if (bestTier2OrLower.isPresent()) {
+                ColorMatch better = bestTier2OrLower.get();
+                guarded.remove(better);
+                guarded.addFirst(better);
+                currentBest = better;
+            }
+        }
+
+        // Guard 2: if best is fade, but a normal/custom match is close in deltaE, prefer non-fade.
+        // This avoids selecting fade T2 over plausible normal T1/T2 due to priority settings.
+        if (currentBest.isFade) {
+            double maxAllowedDeltaE = currentBest.deltaE + PRIORITY_DELTA_E_WINDOW;
+            Optional<ColorMatch> bestNonFadeNear = guarded.stream()
+                .filter(m -> !m.isFade && m.tier <= 2 && m.deltaE <= maxAllowedDeltaE)
+                .min(Comparator.comparingDouble(m -> m.deltaE));
+
+            if (bestNonFadeNear.isPresent()) {
+                ColorMatch better = bestNonFadeNear.get();
+                guarded.remove(better);
+                guarded.addFirst(better);
+            }
+        }
+
+        return guarded;
     }
 
     private List<ColorMatch> findMatchesInMap(String itemHex, String pieceType,
@@ -197,6 +244,12 @@ public class ColorAnalyzer {
 
         String lower = colorName.toLowerCase();
 
+        // 3p entries are multi-piece sets (chestplate/leggings/boots), never helmets.
+        // Treat them as valid for non-helmet pieces when piece-specific matching is enabled.
+        if (lower.contains("3p")) {
+            return !"helmet".equals(pieceType);
+        }
+
         // Special handling for multi-piece names (e.g., "Challenger's Leggings+Boots", "Speedster Set/Mercenary Boots")
         // If the name contains the current piece type, allow it
         if (pieceType.equals("helmet") && (lower.contains("helmet") || lower.contains("hat") || lower.contains("hood") || lower.contains("cap") || lower.contains("crown") || lower.contains("mask"))) {
@@ -217,8 +270,7 @@ public class ColorAnalyzer {
             lower.contains("helmet") || lower.contains("hat") || lower.contains("hood") || lower.contains("cap") || lower.contains("crown") || lower.contains("mask") ||
             lower.contains("chestplate") || lower.contains("chest") || lower.contains("tunic") || lower.contains("jacket") || lower.contains("shirt") || lower.contains("vest") || lower.contains("robe") ||
             lower.contains("leggings") || lower.contains("pants") || lower.contains("trousers") ||
-            lower.contains("boots") || lower.contains("shoes") || lower.contains("sandals") || lower.contains("sneakers") ||
-            lower.contains("3p");
+            lower.contains("boots") || lower.contains("shoes") || lower.contains("sandals") || lower.contains("sneakers");
 
         if (!containsAnyPieceType) {
             return true; // Generic color, works for all piece types
@@ -300,37 +352,11 @@ public class ColorAnalyzer {
         return MatchPriority.NORMAL_T2;
     }
 
-    public static class AnalysisResult {
-        public final ColorMatch bestMatch;
-        public final List<ColorMatch> top3Matches;
-        public final int tier;
-
-        public AnalysisResult(ColorMatch bestMatch, List<ColorMatch> top3Matches, int tier) {
-            this.bestMatch = bestMatch;
-            this.top3Matches = top3Matches;
-            this.tier = tier;
-        }
+    public record AnalysisResult(ColorMatch bestMatch, List<ColorMatch> top3Matches, int tier) {
     }
 
-    public static class ColorMatch {
-        public final String name;
-        public final String targetHex;
-        public final double deltaE;
-        public final int absoluteDistance;
-        public final int tier;
-        public final boolean isCustom;
-        public final boolean isFade;
-
-        public ColorMatch(String name, String targetHex, double deltaE, int absoluteDistance,
-                         int tier, boolean isCustom, boolean isFade) {
-            this.name = name;
-            this.targetHex = targetHex;
-            this.deltaE = deltaE;
-            this.absoluteDistance = absoluteDistance;
-            this.tier = tier;
-            this.isCustom = isCustom;
-            this.isFade = isFade;
-        }
+    public record ColorMatch(String name, String targetHex, double deltaE, int absoluteDistance, int tier,
+                             boolean isCustom, boolean isFade) {
     }
 }
 

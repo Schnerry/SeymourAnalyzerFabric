@@ -1,10 +1,10 @@
 package schnerry.seymouranalyzer.keybind;
 
+import com.mojang.blaze3d.platform.InputConstants;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
-import net.minecraft.client.option.KeyBinding;
-import net.minecraft.client.util.InputUtil;
-import net.minecraft.util.Identifier;
+import net.minecraft.client.KeyMapping;
+import net.minecraft.resources.Identifier;
 import org.lwjgl.glfw.GLFW;
 import schnerry.seymouranalyzer.config.ConfigScreen;
 import schnerry.seymouranalyzer.gui.DatabaseScreen;
@@ -15,37 +15,37 @@ import schnerry.seymouranalyzer.gui.DatabaseScreen;
 public class KeyBindings {
 
     // 1.21.9+: Categories must be created as KeyBinding.Category objects
-    private static final KeyBinding.Category SEYMOURANALYZER_CATEGORY =
-        KeyBinding.Category.create(Identifier.of("seymouranalyzer", "main"));
+    private static final KeyMapping.Category SEYMOURANALYZER_CATEGORY =
+        KeyMapping.Category.register(Identifier.fromNamespaceAndPath("seymouranalyzer", "main"));
 
-    private static KeyBinding openDatabaseGuiKey;
-    private static KeyBinding openConfigGuiKey;
+    private static KeyMapping openDatabaseGuiKey;
+    private static KeyMapping openConfigGuiKey;
 
     public static void register() {
         // P for Database GUI
-        openDatabaseGuiKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
+        openDatabaseGuiKey = KeyBindingHelper.registerKeyBinding(new KeyMapping(
             "key.seymouranalyzer.opendatabasegui",
-            InputUtil.Type.KEYSYM,
+            InputConstants.Type.KEYSYM,
             GLFW.GLFW_KEY_P,
             SEYMOURANALYZER_CATEGORY
         ));
 
         // I for Config GUI
-        openConfigGuiKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
+        openConfigGuiKey = KeyBindingHelper.registerKeyBinding(new KeyMapping(
             "key.seymouranalyzer.openconfiggui",
-            InputUtil.Type.KEYSYM,
+            InputConstants.Type.KEYSYM,
             GLFW.GLFW_KEY_I,
             SEYMOURANALYZER_CATEGORY
         ));
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
 
-            if (openDatabaseGuiKey.wasPressed()) {
+            if (openDatabaseGuiKey.consumeClick()) {
                 client.setScreen(new DatabaseScreen(null));
             }
 
-            if (openConfigGuiKey.wasPressed()) {
-                client.setScreen(ConfigScreen.createConfigScreen(client.currentScreen));
+            if (openConfigGuiKey.consumeClick()) {
+                client.setScreen(ConfigScreen.createConfigScreen(client.screen));
             }
         });
     }

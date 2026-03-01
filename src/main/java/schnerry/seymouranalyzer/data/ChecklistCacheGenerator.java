@@ -3,17 +3,15 @@ package schnerry.seymouranalyzer.data;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import schnerry.seymouranalyzer.Seymouranalyzer;
+import schnerry.seymouranalyzer.render.InfoBoxRenderer;
 import schnerry.seymouranalyzer.util.ColorMath;
+import schnerry.seymouranalyzer.util.PieceTypeUtil;
 
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 
-/**
- * Utility class to generate checklist caches for all categories
- * Called on mod init and after collection changes
- */
 public class ChecklistCacheGenerator {
 
     private static class ChecklistEntry {
@@ -90,7 +88,7 @@ public class ChecklistCacheGenerator {
         cache.save();
 
         // Clear InfoBoxRenderer's cached hover data so it will be regenerated with new cache data
-        schnerry.seymouranalyzer.render.InfoBoxRenderer.forceCloseHoveredDataCache();
+        InfoBoxRenderer.forceCloseHoveredDataCache();
 
         Seymouranalyzer.LOGGER.info("Completed full checklist cache generation for {} normal and {} fade dye categories",
             normalCategories.size(), fadeDyeCategories.size());
@@ -230,21 +228,7 @@ public class ChecklistCacheGenerator {
      * Check if a piece name matches a piece type
      */
     private static boolean matchesPieceType(String pieceName, String pieceType) {
-        String lowerName = pieceName.toLowerCase();
-
-        return switch (pieceType) {
-            case "helmet" -> lowerName.contains("helm") || lowerName.contains("hat") ||
-                             lowerName.contains("hood") || lowerName.contains("crown") ||
-                             lowerName.contains("cap") || lowerName.contains("mask");
-            case "chestplate" -> lowerName.contains("chest") || lowerName.contains("tunic") ||
-                                lowerName.contains("jacket") || lowerName.contains("shirt") ||
-                                lowerName.contains("vest") || lowerName.contains("robe");
-            case "leggings" -> lowerName.contains("legging") || lowerName.contains("pants") ||
-                              lowerName.contains("trousers");
-            case "boots" -> lowerName.contains("boot") || lowerName.contains("shoes") ||
-                           lowerName.contains("sneakers") || lowerName.contains("sandals");
-            default -> false;
-        };
+        return PieceTypeUtil.matchesPieceType(pieceName, pieceType);
     }
 
     /**

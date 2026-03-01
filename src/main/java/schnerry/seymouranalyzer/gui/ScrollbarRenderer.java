@@ -1,6 +1,6 @@
 package schnerry.seymouranalyzer.gui;
 
-import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.gui.GuiGraphics;
 
 /**
  * Utility class for rendering scrollbars in GUI screens
@@ -18,7 +18,7 @@ public class ScrollbarRenderer {
      * @param totalItems Total number of items
      * @param visibleItems Number of visible items at once
      */
-    public static void renderVerticalScrollbar(DrawContext context, int x, int y, int height,
+    public static void renderVerticalScrollbar(GuiGraphics context, int x, int y, int height,
                                                int scrollOffset, int totalItems, int visibleItems) {
         if (totalItems <= visibleItems) {
             // No need for scrollbar
@@ -58,7 +58,7 @@ public class ScrollbarRenderer {
      * @param trackColor Color of the scrollbar track
      * @param thumbColor Color of the scrollbar thumb
      */
-    public static void renderVerticalScrollbar(DrawContext context, int x, int y, int height,
+    public static void renderVerticalScrollbar(GuiGraphics context, int x, int y, int height,
                                                int scrollOffset, int totalItems, int visibleItems,
                                                int trackColor, int thumbColor) {
         if (totalItems <= visibleItems) {

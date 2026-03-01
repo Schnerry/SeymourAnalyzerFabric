@@ -3,8 +3,12 @@ package schnerry.seymouranalyzer.data;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
+import lombok.Getter;
 import net.fabricmc.loader.api.FabricLoader;
 import schnerry.seymouranalyzer.Seymouranalyzer;
+import schnerry.seymouranalyzer.SeymouranalyzerClient;
+import schnerry.seymouranalyzer.gui.GuiScaleManager;
+import schnerry.seymouranalyzer.scanner.ChestScanner;
 
 import java.io.File;
 import java.io.FileReader;
@@ -16,10 +20,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-/**
- * Manages the collection of scanned armor pieces
- * Optimized for batch operations with async saving
- */
 public class CollectionManager {
     private static CollectionManager INSTANCE;
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
@@ -30,6 +30,7 @@ public class CollectionManager {
     });
 
     private final File collectionFile;
+    @Getter
     private final Map<String, ArmorPiece> collection = new ConcurrentHashMap<>();
     private final AtomicBoolean isDirty = new AtomicBoolean(false);
     private final AtomicBoolean isSaving = new AtomicBoolean(false);
@@ -161,7 +162,7 @@ public class CollectionManager {
         int currentSize = collection.size();
         if (currentSize != lastCollectionSize && currentSize > 0) {
             // Don't regenerate during active scanning/exporting to avoid lag
-            schnerry.seymouranalyzer.scanner.ChestScanner scanner = schnerry.seymouranalyzer.SeymouranalyzerClient.getScanner();
+            ChestScanner scanner = SeymouranalyzerClient.getScanner();
             if (scanner != null && (scanner.isScanningEnabled() || scanner.isExportingEnabled())) {
                 // Don't update lastCollectionSize during scanning - this way when scanning stops,
                 // the size mismatch will trigger regeneration
@@ -170,7 +171,7 @@ public class CollectionManager {
 
             // Don't regenerate while in a mod GUI (e.g., database screen, checklist screen)
             // to avoid lag while browsing
-            schnerry.seymouranalyzer.gui.GuiScaleManager guiManager = schnerry.seymouranalyzer.gui.GuiScaleManager.getInstance();
+            GuiScaleManager guiManager = GuiScaleManager.getInstance();
             if (guiManager != null && guiManager.isInModGui()) {
                 // Don't update lastCollectionSize while in GUI - this way when GUI closes,
                 // the size mismatch will trigger regeneration
@@ -226,10 +227,6 @@ public class CollectionManager {
 
     public boolean hasPiece(String uuid) {
         return collection.containsKey(uuid);
-    }
-
-    public Map<String, ArmorPiece> getCollection() {
-        return collection;
     }
 
     public void clear() {

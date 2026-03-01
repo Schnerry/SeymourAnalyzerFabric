@@ -1,16 +1,17 @@
 package schnerry.seymouranalyzer.gui;
 
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.screen.Screen;
-import net.minecraft.client.gui.widget.ButtonWidget;
-import net.minecraft.client.gui.Click;
-import net.minecraft.text.Text;
+import org.jspecify.annotations.NonNull;
 import schnerry.seymouranalyzer.analyzer.PatternDetector;
 import schnerry.seymouranalyzer.data.ArmorPiece;
 import schnerry.seymouranalyzer.data.CollectionManager;
 import schnerry.seymouranalyzer.util.ColorMath;
 
 import java.util.*;
+import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.input.MouseButtonEvent;
+import net.minecraft.network.chat.Component;
 import java.awt.Toolkit;
 import java.awt.datatransfer.StringSelection;
 
@@ -44,7 +45,7 @@ public class PatternMatchesScreen extends ModScreen {
     }
 
     public PatternMatchesScreen(Screen parent) {
-        super(Text.literal("Pattern Matches"), parent);
+        super(Component.literal("Pattern Matches"), parent);
         loadPatternMatches();
     }
 
@@ -94,26 +95,26 @@ public class PatternMatchesScreen extends ModScreen {
         super.init();
 
         // Back button
-        ButtonWidget backBtn = ButtonWidget.builder(Text.literal("← Back to Database"), button -> {
-            this.client.setScreen(parent);
-        }).dimensions(20, 10, 150, 20).build();
-        this.addDrawableChild(backBtn);
+        Button backBtn = Button.builder(Component.literal("← Back to Database"), button -> {
+            this.minecraft.setScreen(parent);
+        }).bounds(20, 10, 150, 20).build();
+        this.addRenderableWidget(backBtn);
     }
 
     @Override
-    public void render(DrawContext context, int mouseX, int mouseY, float delta) {
+    public void render(@NonNull GuiGraphics context, int mouseX, int mouseY, float delta) {
         // Don't fill background - let text render properly
 
         // Title
-        context.drawCenteredTextWithShadow(this.textRenderer, "§l§nPattern Matches", this.width / 2, 10, 0xFFFFFFFF);
+        context.drawCenteredString(this.font, "§l§nPattern Matches", this.width / 2, 10, 0xFFFFFFFF);
 
         // Count
         int totalPieces = patternMatches.stream().mapToInt(e -> e.pieces.size()).sum();
         String info = "§7Total: §e" + patternMatches.size() + " §7pattern types | §e" + totalPieces + " §7pieces";
-        context.drawCenteredTextWithShadow(this.textRenderer, info, this.width / 2, 30, 0xFFFFFFFF);
+        context.drawCenteredString(this.font, info, this.width / 2, 30, 0xFFFFFFFF);
 
         if (patternMatches.isEmpty()) {
-            context.drawCenteredTextWithShadow(this.textRenderer, "§7No pattern matches found!", this.width / 2, this.height / 2, 0xFFFFFFFF);
+            context.drawCenteredString(this.font, "§7No pattern matches found!", this.width / 2, this.height / 2, 0xFFFFFFFF);
         } else {
             drawPatternList(context);
             drawPatternCounter(context);
@@ -127,7 +128,7 @@ public class PatternMatchesScreen extends ModScreen {
         super.render(context, mouseX, mouseY, delta);
     }
 
-    private void drawContextMenu(DrawContext context) {
+    private void drawContextMenu(GuiGraphics context) {
         int x = contextMenu.x;
         int y = contextMenu.y;
         int w = contextMenu.width;
@@ -143,18 +144,18 @@ public class PatternMatchesScreen extends ModScreen {
         context.fill(x + w - 2, y, x + w, y + h, 0xFF646464);
 
         // Option text
-        context.drawTextWithShadow(this.textRenderer, "Find in Database", x + 5, y + 6, 0xFFFFFFFF);
+        context.drawString(this.font, "Find in Database", x + 5, y + 6, 0xFFFFFFFF);
     }
 
-    private void drawPatternList(DrawContext context) {
+    private void drawPatternList(GuiGraphics context) {
         int startY = 55;
         int rowHeight = 20;
 
         // Headers
-        context.drawTextWithShadow(this.textRenderer, "§l§7Pattern Type", 20, startY, 0xFFFFFFFF);
-        context.drawTextWithShadow(this.textRenderer, "§l§7Description", 180, startY, 0xFFFFFFFF);
-        context.drawTextWithShadow(this.textRenderer, "§l§7Piece Name", 370, startY, 0xFFFFFFFF);
-        context.drawTextWithShadow(this.textRenderer, "§l§7Hex", 580, startY, 0xFFFFFFFF);
+        context.drawString(this.font, "§l§7Pattern Type", 20, startY, 0xFFFFFFFF);
+        context.drawString(this.font, "§l§7Description", 180, startY, 0xFFFFFFFF);
+        context.drawString(this.font, "§l§7Piece Name", 370, startY, 0xFFFFFFFF);
+        context.drawString(this.font, "§l§7Hex", 580, startY, 0xFFFFFFFF);
 
         // Separator
         context.fill(20, startY + 12, this.width - 20, startY + 13, 0xFF555555);
@@ -200,41 +201,41 @@ public class PatternMatchesScreen extends ModScreen {
 
         // Footer
         String footer = "§7Showing " + (scrollOffset + 1) + "-" + endIndex + " of " + rows.size();
-        context.drawCenteredTextWithShadow(this.textRenderer, footer, this.width / 2, this.height - 25, 0xFFFFFFFF);
+        context.drawCenteredString(this.font, footer, this.width / 2, this.height - 25, 0xFFFFFFFF);
     }
 
-    private void drawPatternRow(DrawContext context, PatternRow row, int y) {
+    private void drawPatternRow(GuiGraphics context, PatternRow row, int y) {
         // Pattern type (only on first piece)
         if (row.isFirst) {
             String patternName = getPatternName(row.patternType);
-            context.drawTextWithShadow(this.textRenderer, "§5§l" + patternName, 20, y, 0xFFFFFFFF);
+            context.drawString(this.font, "§5§l" + patternName, 20, y, 0xFFFFFFFF);
         }
 
         // Description
-        context.drawTextWithShadow(this.textRenderer, "§f" + row.description, 180, y, 0xFFFFFFFF);
+        context.drawString(this.font, "§f" + row.description, 180, y, 0xFFFFFFFF);
 
         // Piece name
         String name = row.piece.getPieceName();
         if (name.length() > 30) {
             name = name.substring(0, 30) + "...";
         }
-        context.drawTextWithShadow(this.textRenderer, "§7" + name, 370, y, 0xFFFFFFFF);
+        context.drawString(this.font, "§7" + name, 370, y, 0xFFFFFFFF);
 
         // Hex box
         ColorMath.RGB rgb = ColorMath.hexToRgb(row.piece.getHexcode());
-        int color = 0xFF000000 | (rgb.r << 16) | (rgb.g << 8) | rgb.b;
+        int color = 0xFF000000 | (rgb.r() << 16) | (rgb.g() << 8) | rgb.b();
         context.fill(580, y - 2, 665, y + 12, color);
 
         // Hex text - with alpha channel
         String hexText = "#" + row.piece.getHexcode();
         if (ColorMath.isColorDark(row.piece.getHexcode())) {
-            context.drawTextWithShadow(this.textRenderer, hexText, 582, y, 0xFFFFFFFF);
+            context.drawString(this.font, hexText, 582, y, 0xFFFFFFFF);
         } else {
-            context.drawTextWithShadow(this.textRenderer, hexText, 582, y, 0xFF000000);
+            context.drawString(this.font, hexText, 582, y, 0xFF000000);
         }
     }
 
-    private void drawPatternCounter(DrawContext context) {
+    private void drawPatternCounter(GuiGraphics context) {
         int boxX = this.width - 170;
         int boxY = 70;
         int boxWidth = 150;
@@ -252,7 +253,7 @@ public class PatternMatchesScreen extends ModScreen {
         context.fill(boxX + boxWidth - 2, boxY, boxX + boxWidth, boxY + boxHeight, 0xFF646464);
 
         // Title
-        context.drawTextWithShadow(this.textRenderer, "§l§7Pattern Counts", boxX + 5, boxY + 5, 0xFFFFFFFF);
+        context.drawString(this.font, "§l§7Pattern Counts", boxX + 5, boxY + 5, 0xFFFFFFFF);
 
         int currentY = boxY + 18;
         for (Map.Entry<String, Integer> entry : patternCounts.entrySet()) {
@@ -264,14 +265,14 @@ public class PatternMatchesScreen extends ModScreen {
                 char c = entry.getKey().charAt(7);
                 String hex = String.valueOf(c).repeat(6);
                 ColorMath.RGB rgb = ColorMath.hexToRgb(hex);
-                int color = 0xFF000000 | (rgb.r << 16) | (rgb.g << 8) | rgb.b;
+                int color = 0xFF000000 | (rgb.r() << 16) | (rgb.g() << 8) | rgb.b();
                 context.fill(boxX + 10, currentY, boxX + 55, currentY + 10, color);
 
                 boolean isDark = ColorMath.isColorDark(hex);
-                context.drawTextWithShadow(this.textRenderer, label + ":", boxX + 12, currentY + 1, isDark ? 0xFFFFFFFF : 0xFF000000);
-                context.drawTextWithShadow(this.textRenderer, "§f" + entry.getValue(), boxX + 60, currentY + 1, 0xFFFFFFFF);
+                context.drawString(this.font, label + ":", boxX + 12, currentY + 1, isDark ? 0xFFFFFFFF : 0xFF000000);
+                context.drawString(this.font, "§f" + entry.getValue(), boxX + 60, currentY + 1, 0xFFFFFFFF);
             } else {
-                context.drawTextWithShadow(this.textRenderer, text, boxX + 10, currentY, 0xFFFFFFFF);
+                context.drawString(this.font, text, boxX + 10, currentY, 0xFFFFFFFF);
             }
 
             currentY += 12;
@@ -279,9 +280,17 @@ public class PatternMatchesScreen extends ModScreen {
     }
 
     private String getPatternName(String patternType) {
-        if (patternType.equals("paired")) return "PAIRED";
-        if (patternType.equals("repeating")) return "REPEATING";
-        if (patternType.equals("palindrome")) return "PALINDROME";
+        switch (patternType) {
+            case "paired" -> {
+                return "PAIRED";
+            }
+            case "repeating" -> {
+                return "REPEATING";
+            }
+            case "palindrome" -> {
+                return "PALINDROME";
+            }
+        }
         if (patternType.startsWith("axbxcx_")) {
             char c = patternType.charAt(7);
             return c + "x" + c + "x" + c + "x";
@@ -290,9 +299,17 @@ public class PatternMatchesScreen extends ModScreen {
     }
 
     private String getPatternDescription(String patternType, String hex) {
-        if (patternType.equals("paired")) return "AABBCC";
-        if (patternType.equals("repeating")) return "ABCABC";
-        if (patternType.equals("palindrome")) return "ABCCBA";
+        switch (patternType) {
+            case "paired" -> {
+                return "AABBCC";
+            }
+            case "repeating" -> {
+                return "ABCABC";
+            }
+            case "palindrome" -> {
+                return "ABCCBA";
+            }
+        }
         if (patternType.startsWith("axbxcx_")) {
             char c = patternType.charAt(7);
             return c + "x" + c + "x" + c + "x";
@@ -312,7 +329,7 @@ public class PatternMatchesScreen extends ModScreen {
     }
 
     @Override
-    public boolean mouseClicked(Click click, boolean isOutOfBounds) {
+    public boolean mouseClicked(MouseButtonEvent click, boolean isOutOfBounds) {
         double mouseX = click.x();
         double mouseY = click.y();
         int button = click.button();
@@ -389,11 +406,9 @@ public class PatternMatchesScreen extends ModScreen {
                 contextMenu = null;
 
                 // Open database screen with hex search pre-filled
-                if (client != null) {
-                    DatabaseScreen dbScreen = new DatabaseScreen();
-                    dbScreen.setHexSearch(hex);
-                    client.setScreen(dbScreen);
-                }
+                DatabaseScreen dbScreen = new DatabaseScreen();
+                dbScreen.setHexSearch(hex);
+                minecraft.setScreen(dbScreen);
                 return true;
             }
         }
@@ -428,7 +443,7 @@ public class PatternMatchesScreen extends ModScreen {
     }
 
     @Override
-    public boolean mouseDragged(Click click, double deltaX, double deltaY) {
+    public boolean mouseDragged(@NonNull MouseButtonEvent click, double deltaX, double deltaY) {
         if (isDraggingScrollbar && click.button() == 0) {
             int totalRows = patternMatches.stream().mapToInt(e -> e.pieces.size()).sum();
             int maxVisible = (this.height - 100) / 20;
@@ -448,7 +463,7 @@ public class PatternMatchesScreen extends ModScreen {
     }
 
     @Override
-    public boolean mouseReleased(Click click) {
+    public boolean mouseReleased(MouseButtonEvent click) {
         if (click.button() == 0 && isDraggingScrollbar) {
             isDraggingScrollbar = false;
             return true;
@@ -458,14 +473,12 @@ public class PatternMatchesScreen extends ModScreen {
     }
 
     @Override
-    public void close() {
-        if (this.client != null) {
-            this.client.setScreen(parent);
-        }
+    public void onClose() {
+        this.minecraft.setScreen(parent);
     }
 
     @Override
-    public boolean shouldPause() {
+    public boolean isPauseScreen() {
         return false;
     }
 }

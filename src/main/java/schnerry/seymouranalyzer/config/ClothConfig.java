@@ -3,19 +3,17 @@ package schnerry.seymouranalyzer.config;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
+import lombok.Getter;
+import lombok.Setter;
 import net.fabricmc.loader.api.FabricLoader;
 import schnerry.seymouranalyzer.Seymouranalyzer;
+import schnerry.seymouranalyzer.render.ItemSlotHighlighter;
 
 import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 
-/**
- * Configuration class compatible with Cloth Config
- * Stores all mod settings with proper getters/setters
- */
 public class ClothConfig {
     private static ClothConfig INSTANCE;
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
@@ -24,32 +22,56 @@ public class ClothConfig {
     private final File configFile;
     private final File dataFile;
 
-    // Toggle settings - Analysis Features
+    @Setter
+    @Getter
     private boolean infoBoxEnabled = true;
+    @Setter
+    @Getter
     private boolean highlightsEnabled = true;
+    @Getter
+    @Setter
     private boolean wordsEnabled = true;
+    @Getter
+    @Setter
     private boolean patternsEnabled = true;
+    @Getter
+    @Setter
     private boolean dupesEnabled = true;
 
     // Toggle settings - Filter Options
+    @Getter
+    @Setter
     private boolean fadeDyesEnabled = true;
+    @Getter
+    @Setter
     private boolean customColorsEnabled = true;
+    @Getter
+    @Setter
     private boolean showHighFades = true;
+    @Getter
+    @Setter
     private boolean threePieceSetsEnabled = true;
+    @Getter
+    @Setter
     private boolean pieceSpecificEnabled = false;
 
-    // Toggle settings - Scanning
+    @Getter
+    @Setter
     private boolean itemFramesEnabled = false;
 
-    // InfoBox position
+    @Getter
+    @Setter
     private int infoBoxX = 50;
+    @Getter
+    @Setter
     private int infoBoxY = 80;
 
-    // Match priorities - Higher in list = higher priority for highlights
-    private java.util.List<MatchPriority> matchPriorities = getDefaultMatchPriorities();
+    @Getter
+    private List<MatchPriority> matchPriorities = getDefaultMatchPriorities();
 
-    // Custom data
+    @Getter
     private Map<String, String> customColors = new HashMap<>();
+    @Getter
     private Map<String, String> wordList = new HashMap<>();
 
     private ClothConfig() {
@@ -92,7 +114,7 @@ public class ClothConfig {
                 if (json.has("infoBoxY")) infoBoxY = json.get("infoBoxY").getAsInt();
 
                 if (json.has("matchPriorities")) {
-                    matchPriorities = new java.util.ArrayList<>();
+                    matchPriorities = new ArrayList<>();
                     json.getAsJsonArray("matchPriorities").forEach(element -> {
                         MatchPriority priority = MatchPriority.fromName(element.getAsString());
                         if (priority != null) {
@@ -189,132 +211,10 @@ public class ClothConfig {
         }
     }
 
-    // Getters and Setters for Analysis Features
-    public boolean isInfoBoxEnabled() {
-        return infoBoxEnabled;
-    }
-
-    public void setInfoBoxEnabled(boolean infoBoxEnabled) {
-        this.infoBoxEnabled = infoBoxEnabled;
-    }
-
-    public boolean isHighlightsEnabled() {
-        return highlightsEnabled;
-    }
-
-    public void setHighlightsEnabled(boolean highlightsEnabled) {
-        this.highlightsEnabled = highlightsEnabled;
-    }
-
-    public boolean isWordsEnabled() {
-        return wordsEnabled;
-    }
-
-    public void setWordsEnabled(boolean wordsEnabled) {
-        this.wordsEnabled = wordsEnabled;
-    }
-
-    public boolean isPatternsEnabled() {
-        return patternsEnabled;
-    }
-
-    public void setPatternsEnabled(boolean patternsEnabled) {
-        this.patternsEnabled = patternsEnabled;
-    }
-
-    public boolean isDupesEnabled() {
-        return dupesEnabled;
-    }
-
-    public void setDupesEnabled(boolean dupesEnabled) {
-        this.dupesEnabled = dupesEnabled;
-    }
-
-    // Getters and Setters for Filter Options
-    public boolean isFadeDyesEnabled() {
-        return fadeDyesEnabled;
-    }
-
-    public void setFadeDyesEnabled(boolean fadeDyesEnabled) {
-        this.fadeDyesEnabled = fadeDyesEnabled;
-    }
-
-    public boolean isCustomColorsEnabled() {
-        return customColorsEnabled;
-    }
-
-    public void setCustomColorsEnabled(boolean customColorsEnabled) {
-        this.customColorsEnabled = customColorsEnabled;
-    }
-
-    public boolean isShowHighFades() {
-        return showHighFades;
-    }
-
-    public void setShowHighFades(boolean showHighFades) {
-        this.showHighFades = showHighFades;
-    }
-
-    public boolean isThreePieceSetsEnabled() {
-        return threePieceSetsEnabled;
-    }
-
-    public void setThreePieceSetsEnabled(boolean threePieceSetsEnabled) {
-        this.threePieceSetsEnabled = threePieceSetsEnabled;
-    }
-
-    public boolean isPieceSpecificEnabled() {
-        return pieceSpecificEnabled;
-    }
-
-    public void setPieceSpecificEnabled(boolean pieceSpecificEnabled) {
-        this.pieceSpecificEnabled = pieceSpecificEnabled;
-    }
-
-    // Getters and Setters for Scanning
-    public boolean isItemFramesEnabled() {
-        return itemFramesEnabled;
-    }
-
-    public void setItemFramesEnabled(boolean itemFramesEnabled) {
-        this.itemFramesEnabled = itemFramesEnabled;
-    }
-
-    // InfoBox Position
-    public int getInfoBoxX() {
-        return infoBoxX;
-    }
-
-    public void setInfoBoxX(int infoBoxX) {
-        this.infoBoxX = infoBoxX;
-    }
-
-    public int getInfoBoxY() {
-        return infoBoxY;
-    }
-
-    public void setInfoBoxY(int infoBoxY) {
-        this.infoBoxY = infoBoxY;
-    }
-
-    // Custom data
-    public Map<String, String> getCustomColors() {
-        return customColors;
-    }
-
-    public Map<String, String> getWordList() {
-        return wordList;
-    }
-
-    // Match Priorities
-    public java.util.List<MatchPriority> getMatchPriorities() {
-        return matchPriorities;
-    }
-
-    public void setMatchPriorities(java.util.List<MatchPriority> matchPriorities) {
+    public void setMatchPriorities(List<MatchPriority> matchPriorities) {
         this.matchPriorities = matchPriorities;
         // Clear highlight cache so items re-calculate with new priorities
-        schnerry.seymouranalyzer.render.ItemSlotHighlighter.getInstance().clearCache();
+        ItemSlotHighlighter.getInstance().clearCache();
     }
 
     /**
@@ -330,8 +230,8 @@ public class ClothConfig {
      * Search > Dupe > Word > Pattern > Custom T1/T2 > Normal T0/T1/T2 > Fade T0/T1/T2
      * Note: Custom colors only have T1 and T2 (no T0)
      */
-    public static java.util.List<MatchPriority> getDefaultMatchPriorities() {
-        return java.util.Arrays.asList(
+    public static List<MatchPriority> getDefaultMatchPriorities() {
+        return Arrays.asList(
             MatchPriority.SEARCH,
             MatchPriority.DUPE,
             MatchPriority.WORD,

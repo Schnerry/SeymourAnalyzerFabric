@@ -1,10 +1,15 @@
 package schnerry.seymouranalyzer.data;
 
+import lombok.Getter;
+import lombok.Setter;
+
 import java.util.List;
 
 /**
  * Represents a scanned armor piece with color analysis
  */
+@Getter
+@Setter
 public class ArmorPiece {
     private String uuid;
     private String pieceName;
@@ -70,47 +75,9 @@ public class ArmorPiece {
         }
     }
 
-    // Getters and Setters
-    public String getUuid() { return uuid; }
-    public void setUuid(String uuid) { this.uuid = uuid; }
-
-    public String getPieceName() { return pieceName; }
-    public void setPieceName(String pieceName) { this.pieceName = pieceName; }
-
-    public String getHexcode() { return hexcode; }
-    public void setHexcode(String hexcode) { this.hexcode = hexcode; }
-
-    public ChestLocation getChestLocation() { return chestLocation; }
-    public void setChestLocation(ChestLocation chestLocation) { this.chestLocation = chestLocation; }
-
-    public BestMatch getBestMatch() { return bestMatch; }
-    public void setBestMatch(BestMatch bestMatch) { this.bestMatch = bestMatch; }
-
     // Convenience method for rebuild commands
     public void setBestMatch(String colorName, String targetHex, double deltaE, int absoluteDistance, int tier) {
         this.bestMatch = new BestMatch(colorName, targetHex, deltaE, absoluteDistance, tier);
     }
-
-    public List<ColorMatch> getAllMatches() { return allMatches; }
-    public void setAllMatches(List<ColorMatch> allMatches) { this.allMatches = allMatches; }
-
-    public String getWordMatch() { return wordMatch; }
-    public void setWordMatch(String wordMatch) { this.wordMatch = wordMatch; }
-
-    public String getSpecialPattern() { return specialPattern; }
-    public void setSpecialPattern(String specialPattern) { this.specialPattern = specialPattern; }
-
-    public long getTimestamp() { return timestamp; }
-    public void setTimestamp(long timestamp) { this.timestamp = timestamp; }
-
-    // Getters and setters for cached search fields
-    public String getCachedSearchHex() { return cachedSearchHex; }
-    public void setCachedSearchHex(String cachedSearchHex) { this.cachedSearchHex = cachedSearchHex; }
-
-    public Double getCachedSearchDeltaE() { return cachedSearchDeltaE; }
-    public void setCachedSearchDeltaE(Double cachedSearchDeltaE) { this.cachedSearchDeltaE = cachedSearchDeltaE; }
-
-    public Integer getCachedSearchDistance() { return cachedSearchDistance; }
-    public void setCachedSearchDistance(Integer cachedSearchDistance) { this.cachedSearchDistance = cachedSearchDistance; }
 }
 

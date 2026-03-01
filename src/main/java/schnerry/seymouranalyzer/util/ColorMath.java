@@ -1,48 +1,23 @@
 package schnerry.seymouranalyzer.util;
 
-/**
- * Color conversion utilities for RGB, XYZ, and LAB color spaces.
- * Implements CIEDE2000 color difference calculations.
- */
 public class ColorMath {
 
     /**
      * Convert hex string to RGB values
      */
-    public static class RGB {
-        public final int r, g, b;
-
-        public RGB(int r, int g, int b) {
-            this.r = r;
-            this.g = g;
-            this.b = b;
-        }
+    public record RGB(int r, int g, int b) {
     }
 
     /**
      * XYZ color space representation
      */
-    public static class XYZ {
-        public final double x, y, z;
-
-        public XYZ(double x, double y, double z) {
-            this.x = x;
-            this.y = y;
-            this.z = z;
-        }
+    public record XYZ(double x, double y, double z) {
     }
 
     /**
      * LAB color space representation
      */
-    public static class LAB {
-        public final double L, a, b;
-
-        public LAB(double L, double a, double b) {
-            this.L = L;
-            this.a = a;
-            this.b = b;
-        }
+    public record LAB(double L, double a, double b) {
     }
 
     /**
@@ -161,11 +136,23 @@ public class ColorMath {
         return luminance < 0.5;
     }
 
-    /**
-     * Convert RGB to hex string
-     */
-    public static String rgbToHex(int r, int g, int b) {
-        return String.format("%02X%02X%02X", r, g, b);
+    public static String rgbStringToHex(String rgbString) {
+        try {
+            String[] parts = rgbString.split(":");
+            if (parts.length == 3) {
+                int r = Integer.parseInt(parts[0].trim());
+                int g = Integer.parseInt(parts[1].trim());
+                int b = Integer.parseInt(parts[2].trim());
+                return String.format("%02X%02X%02X",
+                        Math.max(0, Math.min(255, r)),
+                        Math.max(0, Math.min(255, g)),
+                        Math.max(0, Math.min(255, b))
+                );
+            }
+        } catch (NumberFormatException e) {
+            // Invalid format
+        }
+        return null;
     }
 }
 

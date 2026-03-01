@@ -3,8 +3,8 @@ package schnerry.seymouranalyzer.config;
 import me.shedaniel.clothconfig2.api.ConfigBuilder;
 import me.shedaniel.clothconfig2.api.ConfigCategory;
 import me.shedaniel.clothconfig2.api.ConfigEntryBuilder;
-import net.minecraft.client.gui.screen.Screen;
-import net.minecraft.text.Text;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.network.chat.Component;
 
 /**
  * Cloth Config GUI screen provider
@@ -16,60 +16,60 @@ public class ConfigScreen {
 
         ConfigBuilder builder = ConfigBuilder.create()
                 .setParentScreen(parent)
-                .setTitle(Text.literal("Seymour Analyzer Config"))
+                .setTitle(Component.literal("Seymour Analyzer Config"))
                 .setSavingRunnable(config::save);
 
         ConfigEntryBuilder entryBuilder = builder.entryBuilder();
 
         // Analysis Features Category
-        ConfigCategory analysisCategory = builder.getOrCreateCategory(Text.literal("Analysis Features"));
+        ConfigCategory analysisCategory = builder.getOrCreateCategory(Component.literal("Analysis Features"));
 
         analysisCategory.addEntry(entryBuilder.startBooleanToggle(
-                Text.literal("Info Box"),
+                Component.literal("Info Box"),
                 config.isInfoBoxEnabled())
                 .setDefaultValue(true)
-                .setTooltip(Text.literal("Show detailed color analysis info box when hovering items"))
+                .setTooltip(Component.literal("Show detailed color analysis info box when hovering items"))
                 .setSaveConsumer(config::setInfoBoxEnabled)
                 .build());
 
 
         analysisCategory.addEntry(entryBuilder.startBooleanToggle(
-                Text.literal("Item Highlights"),
+                Component.literal("Item Highlights"),
                 config.isHighlightsEnabled())
                 .setDefaultValue(true)
-                .setTooltip(Text.literal("Highlight items in chests based on tier and duplicate status"))
+                .setTooltip(Component.literal("Highlight items in chests based on tier and duplicate status"))
                 .setSaveConsumer(config::setHighlightsEnabled)
                 .build());
 
         analysisCategory.addEntry(entryBuilder.startBooleanToggle(
-                Text.literal("Word Matches"),
+                Component.literal("Word Matches"),
                 config.isWordsEnabled())
                 .setDefaultValue(true)
-                .setTooltip(Text.literal("Detect and highlight hexes that spell words"))
+                .setTooltip(Component.literal("Detect and highlight hexes that spell words"))
                 .setSaveConsumer(config::setWordsEnabled)
                 .build());
 
         analysisCategory.addEntry(entryBuilder.startBooleanToggle(
-                Text.literal("Pattern Detection"),
+                Component.literal("Pattern Detection"),
                 config.isPatternsEnabled())
                 .setDefaultValue(true)
-                .setTooltip(Text.literal("Detect special patterns (palindrome, repeating, etc.)"))
+                .setTooltip(Component.literal("Detect special patterns (palindrome, repeating, etc.)"))
                 .setSaveConsumer(config::setPatternsEnabled)
                 .build());
 
         analysisCategory.addEntry(entryBuilder.startBooleanToggle(
-                Text.literal("Duplicate Detection"),
+                Component.literal("Duplicate Detection"),
                 config.isDupesEnabled())
                 .setDefaultValue(true)
-                .setTooltip(Text.literal("Warn when you have duplicate colors in your collection"))
+                .setTooltip(Component.literal("Warn when you have duplicate colors in your collection"))
                 .setSaveConsumer(config::setDupesEnabled)
                 .build());
 
         // Match Priority Editor - Create a subcategory
-        ConfigCategory priorityCategory = builder.getOrCreateCategory(Text.literal("Match Priorities"));
+        ConfigCategory priorityCategory = builder.getOrCreateCategory(Component.literal("Match Priorities"));
 
         priorityCategory.addEntry(entryBuilder.startTextDescription(
-                Text.literal("§7Configure which match types take priority for highlights.\n§7Drag items to reorder - higher = priority.")
+                Component.literal("§7Configure which match types take priority for highlights.\n§7Drag items to reorder - higher = priority.")
         ).build());
 
         // Current priority order display
@@ -80,64 +80,64 @@ public class ConfigScreen {
         }
 
         priorityCategory.addEntry(entryBuilder.startTextDescription(
-                Text.literal(priorityDisplay.toString())
+                Component.literal(priorityDisplay.toString())
         ).build());
 
         priorityCategory.addEntry(entryBuilder.startTextDescription(
-                Text.literal("§c(Note: This config is available with /seymour priorities)"))
+                Component.literal("§c(Note: This config is available with /seymour priorities)"))
                 .build());
 
         // Filter Options Category
-        ConfigCategory filterCategory = builder.getOrCreateCategory(Text.literal("Filter Options"));
+        ConfigCategory filterCategory = builder.getOrCreateCategory(Component.literal("Filter Options"));
 
         filterCategory.addEntry(entryBuilder.startBooleanToggle(
-                Text.literal("Fade Dyes"),
+                Component.literal("Fade Dyes"),
                 config.isFadeDyesEnabled())
                 .setDefaultValue(true)
-                .setTooltip(Text.literal("Include fade dyes in color matching"))
+                .setTooltip(Component.literal("Include fade dyes in color matching"))
                 .setSaveConsumer(config::setFadeDyesEnabled)
                 .build());
 
         filterCategory.addEntry(entryBuilder.startBooleanToggle(
-                Text.literal("Custom Colors"),
+                Component.literal("Custom Colors"),
                 config.isCustomColorsEnabled())
                 .setDefaultValue(true)
-                .setTooltip(Text.literal("Include custom colors in color matching"))
+                .setTooltip(Component.literal("Include custom colors in color matching"))
                 .setSaveConsumer(config::setCustomColorsEnabled)
                 .build());
 
         filterCategory.addEntry(entryBuilder.startBooleanToggle(
-                Text.literal("Show High Fades"),
+                Component.literal("Show High Fades"),
                 config.isShowHighFades())
                 .setDefaultValue(false)
-                .setTooltip(Text.literal("Show fade dye matches with ΔE > 2.00 (T3+)"))
+                .setTooltip(Component.literal("Show fade dye matches with ΔE > 2.00 (T3+)"))
                 .setSaveConsumer(config::setShowHighFades)
                 .build());
 
         filterCategory.addEntry(entryBuilder.startBooleanToggle(
-                Text.literal("3-Piece Sets"),
+                Component.literal("3-Piece Sets"),
                 config.isThreePieceSetsEnabled())
                 .setDefaultValue(true)
-                .setTooltip(Text.literal("Show matches for 3-piece sets (chestplate + leggings + boots) on helmets"))
+                .setTooltip(Component.literal("Show matches for 3-piece sets (chestplate + leggings + boots) on helmets"))
                 .setSaveConsumer(config::setThreePieceSetsEnabled)
                 .build());
 
         filterCategory.addEntry(entryBuilder.startBooleanToggle(
-                Text.literal("Piece Specific"),
+                Component.literal("Piece Specific"),
                 config.isPieceSpecificEnabled())
                 .setDefaultValue(false)
-                .setTooltip(Text.literal("Only show matches for the specific piece type"))
+                .setTooltip(Component.literal("Only show matches for the specific piece type"))
                 .setSaveConsumer(config::setPieceSpecificEnabled)
                 .build());
 
         // Scanning Category
-        ConfigCategory scanningCategory = builder.getOrCreateCategory(Text.literal("Scanning"));
+        ConfigCategory scanningCategory = builder.getOrCreateCategory(Component.literal("Scanning"));
 
         scanningCategory.addEntry(entryBuilder.startBooleanToggle(
-                Text.literal("Item Frames"),
+                Component.literal("Item Frames"),
                 config.isItemFramesEnabled())
                 .setDefaultValue(false)
-                .setTooltip(Text.literal("Enable scanning of items in item frames"))
+                .setTooltip(Component.literal("Enable scanning of items in item frames"))
                 .setSaveConsumer(config::setItemFramesEnabled)
                 .build());
 
