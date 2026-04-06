@@ -2,11 +2,11 @@ package schnerry.seymouranalyzer.gui;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.screen.Screen;
-import net.minecraft.client.gui.widget.ButtonWidget;
-import net.minecraft.client.gui.Click;
-import net.minecraft.text.Text;
+import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.input.MouseButtonEvent;
+import net.minecraft.network.chat.Component;
 import schnerry.seymouranalyzer.Seymouranalyzer;
 import schnerry.seymouranalyzer.config.ClothConfig;
 import schnerry.seymouranalyzer.data.ArmorPiece;
@@ -66,7 +66,7 @@ public class ArmorChecklistScreen extends ModScreen {
     }
 
     public ArmorChecklistScreen(Screen parent) {
-        super(Text.literal("Armor Set Checklist"), parent);
+        super(Component.literal("Armor Set Checklist"), parent);
         loadChecklistData();
 
         // Check if cache needs invalidation (collection size changed)
@@ -133,7 +133,8 @@ public class ArmorChecklistScreen extends ModScreen {
             loadCustomColors();
 
             // Build fade dye page order from fade dye categories
-            String[] fadeDyes = {"Aurora", "Black Ice", "Frog", "Hellebore", "Kingfisher", "Lava", "Lucky", "Marine",
+            String[] fadeDyes = {"Aurora", "Black Ice", "Black Opal", "Dusk Dye", "Forest Dye", "Frog", "Hellebore", "Jerry",
+                                "Kingfisher", "Lava", "Lucky", "Marine",
                                 "Oasis", "Ocean", "Pastel Sky", "Portal", "Red Tulip", "Rose",
                                 "Snowflake", "Spooky", "Sunflower", "Sunset", "Warden"};
             for (String fadeDye : fadeDyes) {
@@ -539,37 +540,43 @@ public class ArmorChecklistScreen extends ModScreen {
         super.init();
 
         // Back to database button
-        ButtonWidget backBtn = ButtonWidget.builder(Text.literal("← Back to Database"),
-            button -> this.client.setScreen(parent))
-            .dimensions(20, 10, 150, 20).build();
-        this.addDrawableChild(backBtn);
+        Button backBtn = Button.builder(Component.literal("← Back to Database"),
+            button -> this.minecraft.setScreen(parent))
+            .bounds(20, 10, 150, 20).build();
+        this.addRenderableWidget(backBtn);
 
         // Piece filter toggle button (only shown in normal mode)
         if (!fadeDyeMode) {
             String filterLabel = pieceToPieceMode ? "§aPiece Filter: §aON" : "Piece Filter: §7OFF";
-            ButtonWidget filterBtn = ButtonWidget.builder(Text.literal(filterLabel),
+            Button filterBtn = Button.builder(Component.literal(filterLabel),
                 button -> {
                     pieceToPieceMode = !pieceToPieceMode;
                     calculateOptimalMatches();
-                    this.clearAndInit();
+                    this.rebuildWidgets();
                 })
-                .dimensions(this.width - 200, 10, 180, 20).build();
-            this.addDrawableChild(filterBtn);
+                .bounds(this.width - 200, 10, 180, 20).build();
+            this.addRenderableWidget(filterBtn);
         }
 
         // Fade Dye mode toggle button (bottom right, above page buttons)
         String modeLabel = fadeDyeMode ? "§dMode: §dFade Dyes" : "Mode: §9Normal";
-        ButtonWidget fadeDyeBtn = ButtonWidget.builder(Text.literal(modeLabel),
+        Button fadeDyeBtn = Button.builder(Component.literal(modeLabel),
             button -> {
                 fadeDyeMode = !fadeDyeMode;
                 pageOrder = fadeDyeMode ? fadeDyePageOrder : normalPageOrder;
                 currentPage = 0;
                 scrollOffset = 0;
                 calculateOptimalMatches();
-                this.clearAndInit();
+                this.rebuildWidgets();
             })
-            .dimensions(this.width - 140, this.height - 90, 120, 20).build();
-        this.addDrawableChild(fadeDyeBtn);
+            .bounds(this.width - 140, this.height - 110, 120, 20).build();
+        this.addRenderableWidget(fadeDyeBtn);
+
+        // Copy Missing button (above mode toggle)
+        Button copyMissingBtn = Button.builder(Component.literal("§eCopy Missing"),
+            button -> copyMissingToClipboard())
+            .bounds(this.width - 140, this.height - 135, 120, 20).build();
+        this.addRenderableWidget(copyMissingBtn);
 
         // Category page buttons (bottom two rows)
         initPageButtons();
@@ -581,33 +588,35 @@ public class ArmorChecklistScreen extends ModScreen {
         int buttonSpacing = 10;
 
         if (fadeDyeMode) {
-            // Fade dye mode: 2 rows of 10 and 9 buttons (19 total)
-            int row1Y = this.height - 60;
-            int row2Y = this.height - 35;
-            int buttonsPerRow1 = 10;
+            // Fade dye mode: 3 rows of 8, 8, and remaining buttons (23 total)
+            int row1Y = this.height - 85;
+            int row2Y = this.height - 60;
+            int row3Y = this.height - 35;
+            int buttonsPerRow = 8;
 
-            // Row 1: 10 buttons
-            for (int i = 0; i < Math.min(buttonsPerRow1, pageOrder.size()); i++) {
+            // Row 1: first 8 buttons
+            int row1Count = Math.min(buttonsPerRow, pageOrder.size());
+            for (int i = 0; i < row1Count; i++) {
                 int pageIndex = i;
                 String categoryName = pageOrder.get(i);
                 String shortName = getShortenedName(categoryName);
 
-                int totalWidth = (buttonsPerRow1 * (buttonWidth + buttonSpacing) - buttonSpacing);
+                int totalWidth = (row1Count * (buttonWidth + buttonSpacing) - buttonSpacing);
                 int x = (this.width - totalWidth) / 2 + i * (buttonWidth + buttonSpacing);
 
-                ButtonWidget btn = ButtonWidget.builder(Text.literal(shortName),
+                Button btn = Button.builder(Component.literal(shortName),
                     button -> {
                         currentPage = pageIndex;
                         scrollOffset = 0;
                         calculateOptimalMatches();
                     })
-                    .dimensions(x, row1Y, buttonWidth, buttonHeight).build();
-                this.addDrawableChild(btn);
+                    .bounds(x, row1Y, buttonWidth, buttonHeight).build();
+                this.addRenderableWidget(btn);
             }
 
-            // Row 2: remaining buttons
-            int row2Start = buttonsPerRow1;
-            int row2Count = Math.min(9, pageOrder.size() - row2Start);
+            // Row 2: next 8 buttons
+            int row2Start = buttonsPerRow;
+            int row2Count = Math.min(buttonsPerRow, pageOrder.size() - row2Start);
 
             for (int i = 0; i < row2Count; i++) {
                 int pageIndex = row2Start + i;
@@ -617,14 +626,36 @@ public class ArmorChecklistScreen extends ModScreen {
                 int totalWidth = (row2Count * (buttonWidth + buttonSpacing) - buttonSpacing);
                 int x = (this.width - totalWidth) / 2 + i * (buttonWidth + buttonSpacing);
 
-                ButtonWidget btn = ButtonWidget.builder(Text.literal(shortName),
+                Button btn = Button.builder(Component.literal(shortName),
                     button -> {
                         currentPage = pageIndex;
                         scrollOffset = 0;
                         calculateOptimalMatches();
                     })
-                    .dimensions(x, row2Y, buttonWidth, buttonHeight).build();
-                this.addDrawableChild(btn);
+                    .bounds(x, row2Y, buttonWidth, buttonHeight).build();
+                this.addRenderableWidget(btn);
+            }
+
+            // Row 3: remaining buttons
+            int row3Start = buttonsPerRow * 2;
+            int row3Count = Math.max(0, pageOrder.size() - row3Start);
+
+            for (int i = 0; i < row3Count; i++) {
+                int pageIndex = row3Start + i;
+                String categoryName = pageOrder.get(pageIndex);
+                String shortName = getShortenedName(categoryName);
+
+                int totalWidth = (row3Count * (buttonWidth + buttonSpacing) - buttonSpacing);
+                int x = (this.width - totalWidth) / 2 + i * (buttonWidth + buttonSpacing);
+
+                Button btn = Button.builder(Component.literal(shortName),
+                    button -> {
+                        currentPage = pageIndex;
+                        scrollOffset = 0;
+                        calculateOptimalMatches();
+                    })
+                    .bounds(x, row3Y, buttonWidth, buttonHeight).build();
+                this.addRenderableWidget(btn);
             }
         } else {
             // Normal mode: 2 rows of 8 buttons each (16 total to accommodate Custom category)
@@ -641,14 +672,14 @@ public class ArmorChecklistScreen extends ModScreen {
                 int totalWidth = (row1Count * (buttonWidth + buttonSpacing) - buttonSpacing);
                 int x = (this.width - totalWidth) / 2 + i * (buttonWidth + buttonSpacing);
 
-                ButtonWidget btn = ButtonWidget.builder(Text.literal(shortName),
+                Button btn = Button.builder(Component.literal(shortName),
                     button -> {
                         currentPage = pageIndex;
                         scrollOffset = 0;
                         calculateOptimalMatches();
                     })
-                    .dimensions(x, row1Y, buttonWidth, buttonHeight).build();
-                this.addDrawableChild(btn);
+                    .bounds(x, row1Y, buttonWidth, buttonHeight).build();
+                this.addRenderableWidget(btn);
             }
 
             // Row 2: next 8 buttons
@@ -663,14 +694,14 @@ public class ArmorChecklistScreen extends ModScreen {
                 int totalWidth = (row2Count * (buttonWidth + buttonSpacing) - buttonSpacing);
                 int x = (this.width - totalWidth) / 2 + i * (buttonWidth + buttonSpacing);
 
-                ButtonWidget btn = ButtonWidget.builder(Text.literal(shortName),
+                Button btn = Button.builder(Component.literal(shortName),
                     button -> {
                         currentPage = pageIndex;
                         scrollOffset = 0;
                         calculateOptimalMatches();
                     })
-                    .dimensions(x, row2Y, buttonWidth, buttonHeight).build();
-                this.addDrawableChild(btn);
+                    .bounds(x, row2Y, buttonWidth, buttonHeight).build();
+                this.addRenderableWidget(btn);
             }
         }
     }
@@ -689,6 +720,9 @@ public class ArmorChecklistScreen extends ModScreen {
             case "Custom" -> "Custom";
             // Fade dye abbreviations
             case "Black Ice" -> "BIce";
+            case "Black Opal" -> "BOpal";
+            case "Dusk Dye" -> "Dusk";
+            case "Forest Dye" -> "Forest";
             case "Hellebore" -> "Helle";
             case "Kingfisher" -> "Kingf";
             case "Pastel Sky" -> "PSky";
@@ -700,46 +734,46 @@ public class ArmorChecklistScreen extends ModScreen {
     }
 
     @Override
-    public void render(DrawContext context, int mouseX, int mouseY, float delta) {
+    public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float delta) {
         // Check if custom colors need reloading (e.g., from /seymour add command)
         reloadCustomColorsIfNeeded();
 
         // Title
         String titleStr = "§l§nArmor Set Checklist";
-        int titleWidth = this.textRenderer.getWidth(titleStr);
-        context.drawTextWithShadow(this.textRenderer, titleStr, this.width / 2 - titleWidth / 2, 10, 0xFFFFFFFF);
+        int titleWidth = this.font.width(titleStr);
+        guiGraphics.drawString(this.font, titleStr, this.width / 2 - titleWidth / 2, 10, 0xFFFFFFFF);
 
         if (pageOrder.isEmpty() || currentPage >= pageOrder.size()) {
-            context.drawTextWithShadow(this.textRenderer, "No checklist data loaded!", this.width / 2 - 70, this.height / 2, 0xFFFF5555);
-            super.render(context, mouseX, mouseY, delta);
+            guiGraphics.drawString(this.font, "No checklist data loaded!", this.width / 2 - 70, this.height / 2, 0xFFFF5555);
+            super.render(guiGraphics, mouseX, mouseY, delta);
             return;
         }
 
         // Current page info
         String currentCategory = pageOrder.get(currentPage);
         String pageInfo = "§7Page " + (currentPage + 1) + "/" + pageOrder.size() + " - §e" + currentCategory;
-        int pageInfoWidth = this.textRenderer.getWidth(pageInfo);
-        context.drawTextWithShadow(this.textRenderer, pageInfo, this.width / 2 - pageInfoWidth / 2, 30, 0xFFFFFFFF);
+        int pageInfoWidth = this.font.width(pageInfo);
+        guiGraphics.drawString(this.font, pageInfo, this.width / 2 - pageInfoWidth / 2, 30, 0xFFFFFFFF);
 
         // Draw checklist entries
         List<ChecklistEntry> entries = categories.get(currentCategory);
         if (entries != null) {
-            drawChecklist(context, entries);
-            drawStatsCounter(context, entries);
+            drawChecklist(guiGraphics, entries);
+            drawStatsCounter(guiGraphics, entries);
         }
 
         // Draw context menu on top if open
         if (contextMenu != null) {
-            drawContextMenu(context);
+            drawContextMenu(guiGraphics);
         }
 
         // Footer
-        context.drawTextWithShadow(this.textRenderer, "§7Press §eESC §7to close | Click pages below to switch", this.width / 2 - 120, this.height - 10, 0xFFFFFFFF);
+        guiGraphics.drawString(this.font, "§7Press §eESC §7to close | Click pages below to switch", this.width / 2 - 120, this.height - 10, 0xFFFFFFFF);
 
-        super.render(context, mouseX, mouseY, delta);
+        super.render(guiGraphics, mouseX, mouseY, delta);
     }
 
-    private void drawContextMenu(DrawContext context) {
+    private void drawContextMenu(GuiGraphics guiGraphics) {
         int x = contextMenu.x;
         int y = contextMenu.y;
         int w = contextMenu.width;
@@ -747,39 +781,39 @@ public class ArmorChecklistScreen extends ModScreen {
         int h = optionHeight * 2; // 2 options
 
         // Background
-        context.fill(x, y, x + w, y + h, 0xF0282828);
+        guiGraphics.fill(x, y, x + w, y + h, 0xF0282828);
 
         // Border
-        context.fill(x, y, x + w, y + 2, 0xFF646464);
-        context.fill(x, y + h - 2, x + w, y + h, 0xFF646464);
-        context.fill(x, y, x + 2, y + h, 0xFF646464);
-        context.fill(x + w - 2, y, x + w, y + h, 0xFF646464);
+        guiGraphics.fill(x, y, x + w, y + 2, 0xFF646464);
+        guiGraphics.fill(x, y + h - 2, x + w, y + h, 0xFF646464);
+        guiGraphics.fill(x, y, x + 2, y + h, 0xFF646464);
+        guiGraphics.fill(x + w - 2, y, x + w, y + h, 0xFF646464);
 
         if (contextMenu.isRowMenu) {
             // Row menu: "Find all pieces" and "Find in Database"
-            context.drawTextWithShadow(this.textRenderer, "Find all pieces", x + 5, y + 6, 0xFFFFFFFF);
-            context.drawTextWithShadow(this.textRenderer, "Find in Database", x + 5, y + 26, 0xFFFFFFFF);
+            guiGraphics.drawString(this.font, "Find all pieces", x + 5, y + 6, 0xFFFFFFFF);
+            guiGraphics.drawString(this.font, "Find in Database", x + 5, y + 26, 0xFFFFFFFF);
         } else {
             // Piece menu: "Find Piece" and "Find in Database"
-            context.drawTextWithShadow(this.textRenderer, "Find Piece", x + 5, y + 6, 0xFFFFFFFF);
-            context.drawTextWithShadow(this.textRenderer, "Find in Database", x + 5, y + 26, 0xFFFFFFFF);
+            guiGraphics.drawString(this.font, "Find Piece", x + 5, y + 6, 0xFFFFFFFF);
+            guiGraphics.drawString(this.font, "Find in Database", x + 5, y + 26, 0xFFFFFFFF);
         }
     }
 
-    private void drawStatsCounter(DrawContext context, List<ChecklistEntry> entries) {
+    private void drawStatsCounter(GuiGraphics guiGraphics, List<ChecklistEntry> entries) {
         int boxWidth = 180;
         int boxHeight = 40;
         int boxX = this.width - boxWidth - 20;
         int boxY = 35;
 
         // Background
-        context.fill(boxX, boxY, boxX + boxWidth, boxY + boxHeight, 0xC8282828);
+        guiGraphics.fill(boxX, boxY, boxX + boxWidth, boxY + boxHeight, 0xC8282828);
 
         // Border
-        context.fill(boxX, boxY, boxX + boxWidth, boxY + 2, 0xFF646464);
-        context.fill(boxX, boxY + boxHeight - 2, boxX + boxWidth, boxY + boxHeight, 0xFF646464);
-        context.fill(boxX, boxY, boxX + 2, boxY + boxHeight, 0xFF646464);
-        context.fill(boxX + boxWidth - 2, boxY, boxX + boxWidth, boxY + boxHeight, 0xFF646464);
+        guiGraphics.fill(boxX, boxY, boxX + boxWidth, boxY + 2, 0xFF646464);
+        guiGraphics.fill(boxX, boxY + boxHeight - 2, boxX + boxWidth, boxY + boxHeight, 0xFF646464);
+        guiGraphics.fill(boxX, boxY, boxX + 2, boxY + boxHeight, 0xFF646464);
+        guiGraphics.fill(boxX + boxWidth - 2, boxY, boxX + boxWidth, boxY + boxHeight, 0xFF646464);
 
         // Calculate stats
         int t1Count = 0, t2Count = 0, missingCount = 0, totalSlots = 0;
@@ -819,24 +853,24 @@ public class ArmorChecklistScreen extends ModScreen {
 
         // Line 1: T1 and T2 with percentages
         String line1 = "§7T1: §c" + t1Count + " §7(" + t1Color + t1PercentStr + "%§7) | T2: §6" + t2Count + " §7(§f" + t2PercentStr + "%§7)";
-        int line1Width = this.textRenderer.getWidth(line1);
+        int line1Width = this.font.width(line1);
         int line1X = boxX + (boxWidth - line1Width) / 2;
-        context.drawTextWithShadow(this.textRenderer, line1, line1X, boxY + 6, 0xFFFFFFFF);
+        guiGraphics.drawString(this.font, line1, line1X, boxY + 6, 0xFFFFFFFF);
 
         // Line 2: Missing and total filled
         String line2 = "§7Missing: §c" + missingCount + " §7| §e" + filledCount + "/" + totalSlots + " §7(§f" + percentStr + "%§7)";
-        int line2Width = this.textRenderer.getWidth(line2);
+        int line2Width = this.font.width(line2);
         int line2X = boxX + (boxWidth - line2Width) / 2;
-        context.drawTextWithShadow(this.textRenderer, line2, line2X, boxY + 22, 0xFFFFFFFF);
+        guiGraphics.drawString(this.font, line2, line2X, boxY + 22, 0xFFFFFFFF);
     }
 
-    private void drawChecklist(DrawContext context, List<ChecklistEntry> entries) {
+    private void drawChecklist(GuiGraphics guiGraphics, List<ChecklistEntry> entries) {
         // Draw headers
-        context.drawTextWithShadow(this.textRenderer, "§l§7Target Color", 80, START_Y - 15, 0xFFFFFFFF);
-        context.drawTextWithShadow(this.textRenderer, "§l§7Helmet", 250, START_Y - 15, 0xFFFFFFFF);
-        context.drawTextWithShadow(this.textRenderer, "§l§7Chestplate", 370, START_Y - 15, 0xFFFFFFFF);
-        context.drawTextWithShadow(this.textRenderer, "§l§7Leggings", 490, START_Y - 15, 0xFFFFFFFF);
-        context.drawTextWithShadow(this.textRenderer, "§l§7Boots", 610, START_Y - 15, 0xFFFFFFFF);
+        guiGraphics.drawString(this.font, "§l§7Target Color", 80, START_Y - 15, 0xFFFFFFFF);
+        guiGraphics.drawString(this.font, "§l§7Helmet", 250, START_Y - 15, 0xFFFFFFFF);
+        guiGraphics.drawString(this.font, "§l§7Chestplate", 370, START_Y - 15, 0xFFFFFFFF);
+        guiGraphics.drawString(this.font, "§l§7Leggings", 490, START_Y - 15, 0xFFFFFFFF);
+        guiGraphics.drawString(this.font, "§l§7Boots", 610, START_Y - 15, 0xFFFFFFFF);
 
         int availableHeight = this.height - START_Y - 80;
         int maxVisible = Math.max(1, availableHeight / ROW_HEIGHT);
@@ -846,41 +880,41 @@ public class ArmorChecklistScreen extends ModScreen {
         for (int i = scrollOffset; i < endIndex; i++) {
             ChecklistEntry entry = entries.get(i);
             int y = START_Y + ((i - scrollOffset) * ROW_HEIGHT);
-            drawChecklistRow(context, entry, y);
+            drawChecklistRow(guiGraphics, entry, y);
         }
 
         // Scroll indicator
         if (entries.size() > maxVisible) {
             String scrollText = "§7(" + (scrollOffset + 1) + "-" + endIndex + " of " + entries.size() + ") §eScroll for more";
-            context.drawTextWithShadow(this.textRenderer, scrollText, 20, START_Y + (maxVisible * ROW_HEIGHT) + 5, 0xFFFFFFFF);
+            guiGraphics.drawString(this.font, scrollText, 20, START_Y + (maxVisible * ROW_HEIGHT) + 5, 0xFFFFFFFF);
 
             // Draw scrollbar
             int scrollbarX = this.width - 15;
             int scrollbarY = START_Y;
             int scrollbarHeight = maxVisible * ROW_HEIGHT;
-            ScrollbarRenderer.renderVerticalScrollbar(context, scrollbarX, scrollbarY, scrollbarHeight,
+            ScrollbarRenderer.renderVerticalScrollbar(guiGraphics, scrollbarX, scrollbarY, scrollbarHeight,
                 scrollOffset, entries.size(), maxVisible);
         }
     }
 
-    private void drawChecklistRow(DrawContext context, ChecklistEntry entry, int y) {
+    private void drawChecklistRow(GuiGraphics guiGraphics, ChecklistEntry entry, int y) {
         // Draw hex color box (50px wide to fit hex code)
         ColorMath.RGB rgb = ColorMath.hexToRgb(entry.hex);
-        int color = 0xFF000000 | (rgb.r << 16) | (rgb.g << 8) | rgb.b;
-        context.fill(20, y, 70, y + 20, color);
+        int color = 0xFF000000 | (rgb.r() << 16) | (rgb.g() << 8) | rgb.b();
+        guiGraphics.fill(20, y, 70, y + 20, color);
 
         // Draw hex text on the color box
         boolean isDark = ColorMath.isColorDark(entry.hex);
         int textColor = isDark ? 0xFFFFFFFF : 0xFF000000;
         String hexText = "#" + entry.hex;
-        context.drawTextWithShadow(this.textRenderer, hexText, 22, y + 6, textColor);
+        guiGraphics.drawString(this.font, hexText, 22, y + 6, textColor);
 
         // Draw armor set name
         String displayName = entry.name;
         if (displayName.length() > 25) {
             displayName = displayName.substring(0, 25) + "...";
         }
-        context.drawTextWithShadow(this.textRenderer, displayName, 80, y + 6, 0xFFFFFFFF);
+        guiGraphics.drawString(this.font, displayName, 80, y + 6, 0xFFFFFFFF);
 
         // Draw piece match boxes (helmet, chestplate, leggings, boots)
         int[] xPositions = {250, 370, 490, 610};
@@ -896,8 +930,8 @@ public class ArmorChecklistScreen extends ModScreen {
             // Only hide non-required pieces when piece filter is enabled
             if (!isRequired && pieceToPieceMode) {
                 // Gray out - not needed for this set (only when filter is ON)
-                context.fill(boxX, y, boxX + 100, y + 20, 0xB0606060);
-                context.drawTextWithShadow(this.textRenderer, "§8-", boxX + 45, y + 6, 0xFF666666);
+                guiGraphics.fill(boxX, y, boxX + 100, y + 20, 0xB0606060);
+                guiGraphics.drawString(this.font, "§8-", boxX + 45, y + 6, 0xFF666666);
                 continue;
             }
 
@@ -906,8 +940,8 @@ public class ArmorChecklistScreen extends ModScreen {
 
             if (match == null) {
                 // No match found - RED
-                context.fill(boxX, y, boxX + 100, y + 20, 0xFFC80000);
-                context.drawTextWithShadow(this.textRenderer, "§c✗ Missing", boxX + 5, y + 6, 0xFFFFFFFF);
+                guiGraphics.fill(boxX, y, boxX + 100, y + 20, 0xFFC80000);
+                guiGraphics.drawString(this.font, "§c✗ Missing", boxX + 5, y + 6, 0xFFFFFFFF);
             } else {
                 // Match found - show with quality color
                 double deltaE = ColorMath.calculateDeltaE(entry.hex, match.getHexcode());
@@ -921,17 +955,17 @@ public class ArmorChecklistScreen extends ModScreen {
                     qualityColor = 0xFFC8C800; // Yellow for good match
                 }
 
-                context.fill(boxX, y, boxX + 100, y + 20, qualityColor);
+                guiGraphics.fill(boxX, y, boxX + 100, y + 20, qualityColor);
 
                 // Show piece name and delta to row hex
                 String pieceHexAndDelta = match.getHexcode().concat(" - ").concat(String.format("ΔE: %.2f", deltaE));
-                context.drawTextWithShadow(this.textRenderer, pieceHexAndDelta, boxX + 3, y + 6, 0xFFFFFFFF);
+                guiGraphics.drawString(this.font, pieceHexAndDelta, boxX + 3, y + 6, 0xFFFFFFFF);
             }
         }
     }
 
     @Override
-    public boolean mouseClicked(Click click, boolean isOutOfBounds) {
+    public boolean mouseClicked(MouseButtonEvent click, boolean isOutOfBounds) {
         double mouseX = click.x();
         double mouseY = click.y();
         int button = click.button();
@@ -1027,8 +1061,8 @@ public class ArmorChecklistScreen extends ModScreen {
             }
 
             if (allPieces.isEmpty()) {
-                if (client != null && client.player != null) {
-                    client.player.sendMessage(Text.literal("§c[Armor Checklist] No pieces found for this entry!"), false);
+                if (minecraft != null && minecraft.player != null) {
+                    minecraft.player.displayClientMessage(Component.literal("§c[Armor Checklist] No pieces found for this entry!"), false);
                 }
                 return false;
             }
@@ -1061,8 +1095,8 @@ public class ArmorChecklistScreen extends ModScreen {
         // Check if we have a match for this piece
         ArmorPiece match = entry.foundPieces.get(clickedPieceType);
         if (match == null) {
-            if (client != null && client.player != null) {
-                client.player.sendMessage(Text.literal("§c[Armor Checklist] No piece found for this slot!"), false);
+            if (minecraft != null && minecraft.player != null) {
+                minecraft.player.displayClientMessage(Component.literal("§c[Armor Checklist] No piece found for this slot!"), false);
             }
             return false;
         }
@@ -1098,7 +1132,7 @@ public class ArmorChecklistScreen extends ModScreen {
             // Option 1: "Find Piece" or "Find all pieces"
             if (contextMenu.isRowMenu) {
                 // Find all pieces in this row
-                if (client != null && client.player != null && contextMenu.allPieces != null && !contextMenu.allPieces.isEmpty()) {
+                if (minecraft != null && minecraft.player != null && contextMenu.allPieces != null && !contextMenu.allPieces.isEmpty()) {
                     // Build hex list from all pieces
                     List<String> hexList = new ArrayList<>();
                     for (ArmorPiece piece : contextMenu.allPieces) {
@@ -1108,16 +1142,16 @@ public class ArmorChecklistScreen extends ModScreen {
                     }
 
                     String hexString = String.join(" ", hexList);
-                    client.player.sendMessage(Text.literal("§a[Armor Checklist] Searching for " + contextMenu.allPieces.size() + " piece(s)..."), false);
+                    minecraft.player.displayClientMessage(Component.literal("§a[Armor Checklist] Searching for " + contextMenu.allPieces.size() + " piece(s)..."), false);
                     // Execute search command with all hexes
-                    client.player.networkHandler.sendChatCommand("seymour search " + hexString);
+                    minecraft.player.connection.sendCommand("seymour search " + hexString);
                 }
             } else {
                 // Find single piece
-                if (client != null && client.player != null && contextMenu.piece != null) {
-                    client.player.sendMessage(Text.literal("§a[Armor Checklist] Searching for pieces with hex " + contextMenu.piece.getHexcode() + "..."), false);
+                if (minecraft != null && minecraft.player != null && contextMenu.piece != null) {
+                    minecraft.player.displayClientMessage(Component.literal("§a[Armor Checklist] Searching for pieces with hex " + contextMenu.piece.getHexcode() + "..."), false);
                     // Execute search command
-                    client.player.networkHandler.sendChatCommand("seymour search " + contextMenu.piece.getHexcode());
+                    minecraft.player.connection.sendCommand("seymour search " + contextMenu.piece.getHexcode());
                 }
             }
             contextMenu = null;
@@ -1130,8 +1164,8 @@ public class ArmorChecklistScreen extends ModScreen {
             if (hexToSearch != null) {
                 DatabaseScreen dbScreen = new DatabaseScreen(this);
                 dbScreen.setHexSearch(hexToSearch);
-                if (client != null) {
-                    client.setScreen(dbScreen);
+                if (minecraft != null) {
+                    minecraft.setScreen(dbScreen);
                 }
             }
             contextMenu = null;
@@ -1164,7 +1198,7 @@ public class ArmorChecklistScreen extends ModScreen {
     }
 
     @Override
-    public boolean mouseDragged(Click click, double deltaX, double deltaY) {
+    public boolean mouseDragged(MouseButtonEvent click, double deltaX, double deltaY) {
         if (isDraggingScrollbar && click.button() == 0) {
             if (pageOrder.isEmpty() || currentPage >= pageOrder.size()) {
                 isDraggingScrollbar = false;
@@ -1193,7 +1227,7 @@ public class ArmorChecklistScreen extends ModScreen {
     }
 
     @Override
-    public boolean mouseReleased(Click click) {
+    public boolean mouseReleased(MouseButtonEvent click) {
         if (click.button() == 0 && isDraggingScrollbar) {
             isDraggingScrollbar = false;
             return true;
@@ -1202,15 +1236,81 @@ public class ArmorChecklistScreen extends ModScreen {
         return super.mouseReleased(click);
     }
 
+    private void copyMissingToClipboard() {
+        // Ensure ALL categories have their matches calculated, not just the current page
+        int savedPage = currentPage;
+        for (int p = 0; p < pageOrder.size(); p++) {
+            currentPage = p;
+            calculateOptimalMatches();
+        }
+        currentPage = savedPage;
+
+        StringBuilder sb = new StringBuilder();
+        sb.append("Seymour Missing Checklist Entries\n");
+        sb.append("=================================\n");
+        sb.append("Mode: ").append(fadeDyeMode ? "Fade Dyes" : "Normal").append("\n\n");
+
+        String[] allPieceTypes = {"helmet", "chestplate", "leggings", "boots"};
+        int totalMissing = 0;
+
+        // Iterate all categories in current page order
+        for (String category : pageOrder) {
+            List<ChecklistEntry> entries = categories.get(category);
+            if (entries == null) continue;
+
+            // Ensure matches are calculated for this category
+            // (they may not be if the user hasn't visited this page yet)
+            // We check all entries for missing pieces
+            List<String> missingLines = new ArrayList<>();
+
+            for (ChecklistEntry entry : entries) {
+                List<String> missingPieces = new ArrayList<>();
+
+                for (String pieceType : allPieceTypes) {
+                    if (pieceToPieceMode && !entry.pieces.contains(pieceType)) {
+                        continue;
+                    }
+                    ArmorPiece match = entry.foundPieces.get(pieceType);
+                    if (match == null) {
+                        missingPieces.add(pieceType);
+                    }
+                }
+
+                if (!missingPieces.isEmpty()) {
+                    missingLines.add("  #" + entry.hex + " " + entry.name + " | Missing: " + String.join(", ", missingPieces));
+                    totalMissing += missingPieces.size();
+                }
+            }
+
+            if (!missingLines.isEmpty()) {
+                sb.append("[").append(category).append("]\n");
+                for (String line : missingLines) {
+                    sb.append(line).append("\n");
+                }
+                sb.append("\n");
+            }
+        }
+
+        sb.append("Total missing slots: ").append(totalMissing);
+
+        try {
+            this.minecraft.keyboardHandler.setClipboard(sb.toString());
+            if (minecraft != null && minecraft.player != null) {
+                minecraft.player.displayClientMessage(
+                    Component.literal("\u00a7a[Seymour] \u00a77Copied " + totalMissing + " missing checklist slots to clipboard!"), false);
+            }
+        } catch (Exception ignored) {}
+    }
+
     @Override
-    public void close() {
-        if (this.client != null) {
-            this.client.setScreen(parent);
+    public void onClose() {
+        if (this.minecraft != null) {
+            this.minecraft.setScreen(parent);
         }
     }
 
     @Override
-    public boolean shouldPause() {
+    public boolean isPauseScreen() {
         return false;
     }
 }

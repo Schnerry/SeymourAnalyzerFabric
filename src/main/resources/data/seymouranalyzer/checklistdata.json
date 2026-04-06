@@ -4,6 +4,7 @@
       {"hex": "FFFF00", "name": "Farm Suit", "pieces": ["helmet", "chestplate", "leggings", "boots"]},
       {"hex": "FFD700", "name": "Farm Armor", "pieces": ["helmet", "chestplate", "leggings", "boots"]},
       {"hex": "E0FCF7", "name": "Speedster", "pieces": ["helmet", "chestplate", "leggings", "boots"]},
+      {"hex": "FF700A", "name": "Thermodynamic 3p", "pieces": ["chestplate", "leggings", "boots"]},
       {"hex": "CBD2DB", "name": "Rabbit Armour", "pieces": ["helmet", "chestplate", "leggings", "boots"]},
       {"hex": "899E20", "name": "Melon Armour 3p", "pieces": ["chestplate", "leggings", "boots"]},
       {"hex": "7A2900", "name": "Cropie Chestplate", "pieces": ["chestplate"]},
@@ -197,7 +198,6 @@
       {"hex": "324D6C", "name": "Tentacle Dye", "pieces": ["helmet", "chestplate", "leggings", "boots"]},
       {"hex": "FF43A4", "name": "Strawberry Dye", "pieces": ["helmet", "chestplate", "leggings", "boots"]},
       {"hex": "FCD12A", "name": "Treasure Dye", "pieces": ["helmet", "chestplate", "leggings", "boots"]},
-      {"hex": "A06540", "name": "Bleached", "pieces": ["helmet", "chestplate", "leggings", "boots"]},
       {"hex": "6F6F0C", "name": "Mythological Dye", "pieces": ["helmet", "chestplate", "leggings", "boots"]},
       {"hex": "E7413C", "name": "Necron Dye", "pieces": ["helmet", "chestplate", "leggings", "boots"]}
     ],
@@ -303,7 +303,8 @@
       {"hex": "E76E3C", "name": "Necron Boots", "pieces": ["boots"]},
       {"hex": "4A14B7", "name": "Maxor Chestplate", "pieces": ["chestplate"]},
       {"hex": "5D2FB9", "name": "Maxor Leggings", "pieces": ["leggings"]},
-      {"hex": "8969C8", "name": "Maxor Boots", "pieces": ["boots"]}
+      {"hex": "8969C8", "name": "Maxor Boots", "pieces": ["boots"]},
+      {"hex": "BFBFBF", "name": "Spirit Boots", "pieces": ["boots"]}
     ],
     "Rift Armor": [
       {"hex": "35B73B", "name": "Wyld Leggings", "pieces": ["leggings"]},
@@ -337,19 +338,15 @@
       {"hex": "FFB727", "name": "Berserker Leggings", "pieces": ["leggings"]},
       {"hex": "FFD427", "name": "Berserker Boots", "pieces": ["boots"]},
       {"hex": "C7C7C7", "name": "Cheap Tux Leggings", "pieces": ["leggings"]},
-      {"hex": "383838", "name": "Cheap Tux Chestplate", "pieces": ["chestplate"]},
-      {"hex": "383838", "name": "Cheap Tux Boots", "pieces": ["boots"]},
+      {"hex": "383838", "name": "Cheap Tux Chestplate + Boots", "pieces": ["chestplate", "boots"]},
       {"hex": "DEBC15", "name": "Rising Sun Leggings", "pieces": ["leggings"]},
       {"hex": "9F8609", "name": "Rising Sun Boots", "pieces": ["boots"]},
+      {"hex": "191919", "name": "Elegant Tux Chestplate + Boots", "pieces": ["chestplate", "boots"]},
       {"hex": "FEFDFC", "name": "Elegant Tux Leggings", "pieces": ["leggings"]},
       {"hex": "332A2A", "name": "Fancy Tux Chestplate + Boots", "pieces": ["chestplate", "boots"]},
       {"hex": "D4D4D4", "name": "Fancy Tux Leggings", "pieces": ["leggings"]},
       {"hex": "0A0011", "name": "Final Destination Chestplate + Boots", "pieces": ["chestplate", "boots"]},
       {"hex": "FF75FF", "name": "Final Destination Leggings", "pieces": ["leggings"]},
-      {"hex": "D9D9D9", "name": "Stone Chestplate", "pieces": ["chestplate"]},
-      {"hex": "D9D9D9", "name": "Metal Chestplate", "pieces": ["chestplate"]},
-      {"hex": "D9D9D9", "name": "Steel Chestplate", "pieces": ["chestplate"]},
-      {"hex": "BFBFBF", "name": "Spirit Boots", "pieces": ["boots"]},
       {"hex": "545454", "name": "Squire Boots", "pieces": ["boots"]},
       {"hex": "D48EF2", "name": "Celeste Helm", "pieces": ["helmet"]},
       {"hex": "FF8EDE", "name": "Celeste Chestplate", "pieces": ["chestplate"]},
@@ -378,7 +375,8 @@
       {"hex": "5B0DAE", "name": "Glossy Mineral Armour 3p", "pieces": ["chestplate", "leggings", "boots"]},
       {"hex": "1B1B1B", "name": "Reaper Armour 3p", "pieces": ["chestplate", "leggings", "boots"]},
       {"hex": "FF0000", "name": "Reaper Armour 3p (enraged)", "pieces": ["chestplate", "leggings", "boots"]},
-      {"hex": "3588FF", "name": "Vanguard 3p", "pieces": ["chestplate", "leggings", "boots"]}
+      {"hex": "3588FF", "name": "Vanguard 3p", "pieces": ["chestplate", "leggings", "boots"]},
+      {"hex": "A06540", "name": "Bleached", "pieces": ["helmet", "chestplate", "leggings", "boots"]}
     ]
   },
   "normalPageOrder": [

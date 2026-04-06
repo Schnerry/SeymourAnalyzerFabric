@@ -1,8 +1,10 @@
 package schnerry.seymouranalyzer.mixin;
 
-import net.minecraft.client.render.*;
-import net.minecraft.client.util.math.MatrixStack;
-import net.minecraft.util.math.Vec3d;
+import net.minecraft.client.renderer.*;
+import net.minecraft.client.renderer.culling.Frustum;
+import com.mojang.blaze3d.vertex.VertexConsumer;
+import com.mojang.blaze3d.vertex.PoseStack;
+import net.minecraft.world.phys.Vec3;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -15,7 +17,7 @@ import schnerry.seymouranalyzer.render.BlockHighlighter;
  * WorldRenderEvents was removed in 1.21.9, so we use a direct mixin.
  * Injects into DebugRenderer.render to draw block highlights alongside debug rendering.
  */
-@Mixin(net.minecraft.client.render.debug.DebugRenderer.class)
+@Mixin(net.minecraft.client.renderer.debug.DebugRenderer.class)
 public class DebugRendererMixin {
 
     /**
@@ -27,9 +29,9 @@ public class DebugRendererMixin {
         at = @At("TAIL")
     )
     private void onDebugRender(
-            MatrixStack matrices,
+            PoseStack poseStack,
             Frustum frustum,
-            VertexConsumerProvider.Immediate vertexConsumers,
+            MultiBufferSource.BufferSource vertexConsumers,
             double cameraX,
             double cameraY,
             double cameraZ,
@@ -42,8 +44,8 @@ public class DebugRendererMixin {
         BlockHighlighter highlighter = BlockHighlighter.getInstance();
         if (!highlighter.hasHighlights()) return;
 
-        Vec3d cameraPos = new Vec3d(cameraX, cameraY, cameraZ);
-        highlighter.renderHighlights(matrices, vertexConsumers, cameraPos);
+        Vec3 cameraPos = new Vec3(cameraX, cameraY, cameraZ);
+        highlighter.renderHighlights(poseStack, vertexConsumers, cameraPos);
     }
 }
 

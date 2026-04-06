@@ -1,17 +1,15 @@
 package schnerry.seymouranalyzer.gui;
 
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.screen.Screen;
-import net.minecraft.client.gui.widget.ButtonWidget;
-import net.minecraft.client.gui.Click;
-import net.minecraft.text.Text;
+import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.input.MouseButtonEvent;
+import net.minecraft.network.chat.Component;
 import schnerry.seymouranalyzer.data.ArmorPiece;
 import schnerry.seymouranalyzer.data.CollectionManager;
 import schnerry.seymouranalyzer.util.ColorMath;
 
 import java.util.*;
-import java.awt.Toolkit;
-import java.awt.datatransfer.StringSelection;
 
 /**
  * Word Matches GUI - shows all pieces with word patterns
@@ -26,7 +24,7 @@ public class WordMatchesScreen extends ModScreen {
     // For row click handling
     private final List<WordRow> cachedRows = new ArrayList<>();
 
-    // Context menu state
+    // guiGraphics menu state
     private ContextMenu contextMenu = null;
 
     private static class ContextMenu {
@@ -42,7 +40,7 @@ public class WordMatchesScreen extends ModScreen {
     }
 
     public WordMatchesScreen(Screen parent) {
-        super(Text.literal("Word Matches"), parent);
+        super(Component.literal("Word Matches"), parent);
         loadWordMatches();
     }
 
@@ -71,71 +69,77 @@ public class WordMatchesScreen extends ModScreen {
         super.init();
 
         // Back button
-        ButtonWidget backBtn = ButtonWidget.builder(Text.literal("← Back to Database"), button -> {
-            if (this.client != null) {
-                this.client.setScreen(parent);
+        Button backBtn = Button.builder(Component.literal("← Back to Database"), button -> {
+            if (this.minecraft != null) {
+                this.minecraft.setScreen(parent);
             }
-        }).dimensions(20, 10, 150, 20).build();
-        this.addDrawableChild(backBtn);
+        }).bounds(20, 10, 150, 20).build();
+        this.addRenderableWidget(backBtn);
+
+        // Copy All button
+        Button copyBtn = Button.builder(Component.literal("§eCopy All"),
+            button -> copyAllToClipboard())
+            .bounds(this.width - 100, 10, 80, 20).build();
+        this.addRenderableWidget(copyBtn);
     }
 
     @Override
-    public void render(DrawContext context, int mouseX, int mouseY, float delta) {
+    public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float delta) {
         // Don't fill background - let text render properly
 
         // Title
-        context.drawCenteredTextWithShadow(this.textRenderer, "§l§nWord Matches", this.width / 2, 10, 0xFFFFFFFF);
+        guiGraphics.drawCenteredString(this.font, "§l§nWord Matches", this.width / 2, 10, 0xFFFFFFFF);
 
         // Count
         int totalPieces = wordMatches.stream().mapToInt(e -> e.pieces.size()).sum();
         String info = "§7Found §e" + wordMatches.size() + " §7words with §e" + totalPieces + " §7pieces total";
-        context.drawCenteredTextWithShadow(this.textRenderer, info, this.width / 2, 30, 0xFFFFFFFF);
+        guiGraphics.drawCenteredString(this.font, info, this.width / 2, 30, 0xFFFFFFFF);
 
         if (wordMatches.isEmpty()) {
-            context.drawCenteredTextWithShadow(this.textRenderer, "§7No word matches found!", this.width / 2, this.height / 2, 0xFFFFFFFF);
-            context.drawCenteredTextWithShadow(this.textRenderer, "§7Use §e/seymour word add <word> <pattern> §7to add words", this.width / 2, this.height / 2 + 15, 0xFFFFFFFF);
+            guiGraphics.drawCenteredString(this.font, "§7No word matches found!", this.width / 2, this.height / 2, 0xFFFFFFFF);
+            guiGraphics.drawCenteredString(this.font, "§7Use §e/seymour word add <word> <pattern> §7to add words", this.width / 2, this.height / 2 + 15, 0xFFFFFFFF);
         } else {
-            drawWordList(context);
+            drawWordList(guiGraphics);
         }
 
-        // Draw context menu on top if open
+        // Draw guiGraphics menu on top if open
         if (contextMenu != null) {
-            drawContextMenu(context);
+            drawContextMenu(guiGraphics);
         }
 
-        super.render(context, mouseX, mouseY, delta);
+        super.render(guiGraphics, mouseX, mouseY, delta);
     }
 
-    private void drawContextMenu(DrawContext context) {
+    private void drawContextMenu(GuiGraphics guiGraphics) {
         int x = contextMenu.x;
         int y = contextMenu.y;
         int w = contextMenu.width;
         int h = contextMenu.height;
 
         // Background
-        context.fill(x, y, x + w, y + h, 0xF0282828);
+        guiGraphics.fill(x, y, x + w, y + h, 0xF0282828);
 
         // Border
-        context.fill(x, y, x + w, y + 2, 0xFF646464);
-        context.fill(x, y + h - 2, x + w, y + h, 0xFF646464);
-        context.fill(x, y, x + 2, y + h, 0xFF646464);
-        context.fill(x + w - 2, y, x + w, y + h, 0xFF646464);
+        guiGraphics.fill(x, y, x + w, y + 2, 0xFF646464);
+        guiGraphics.fill(x, y + h - 2, x + w, y + h, 0xFF646464);
+        guiGraphics.fill(x, y, x + 2, y + h, 0xFF646464);
+        guiGraphics.fill(x + w - 2, y, x + w, y + h, 0xFF646464);
 
         // Option text
-        context.drawTextWithShadow(this.textRenderer, "Find in Database", x + 5, y + 6, 0xFFFFFFFF);
+        guiGraphics.drawString(this.font, "Find in Database", x + 5, y + 6, 0xFFFFFFFF);
     }
 
-    private void drawWordList(DrawContext context) {
+    private void drawWordList(GuiGraphics guiGraphics) {
         int startY = 55;
         int rowHeight = 20;
 
         // Headers
-        context.drawTextWithShadow(this.textRenderer, "§l§7Word", 20, startY, 0xFFFFFFFF);
-        context.drawTextWithShadow(this.textRenderer, "§l§7Piece Name", 150, startY, 0xFFFFFFFF);
-        context.drawTextWithShadow(this.textRenderer, "§l§7Hex", 400, startY, 0xFFFFFFFF);
+        guiGraphics.drawString(this.font, "§l§7Word", 20, startY, 0xFFFFFFFF);
+        guiGraphics.drawString(this.font, "§l§7Piece Name", 150, startY, 0xFFFFFFFF);
+        guiGraphics.drawString(this.font, "§l§7Hex", 400, startY, 0xFFFFFFFF);
 
         // Separator
-        context.fill(20, startY + 12, this.width - 20, startY + 13, 0xFF555555);
+        guiGraphics.fill(20, startY + 12, this.width - 20, startY + 13, 0xFF555555);
 
         // Build flat list of rows
         List<WordRow> rows = new ArrayList<>();
@@ -161,7 +165,7 @@ public class WordMatchesScreen extends ModScreen {
             row.clickY = y;
             row.clickHeight = rowHeight;
             cachedRows.add(row);
-            drawWordRow(context, row, y);
+            drawWordRow(guiGraphics, row, y);
         }
 
         // Draw scrollbar if needed
@@ -169,19 +173,19 @@ public class WordMatchesScreen extends ModScreen {
             int scrollbarX = this.width - 15;
             int scrollbarY = startY + 20;
             int scrollbarHeight = maxVisible * rowHeight;
-            ScrollbarRenderer.renderVerticalScrollbar(context, scrollbarX, scrollbarY, scrollbarHeight,
+            ScrollbarRenderer.renderVerticalScrollbar(guiGraphics, scrollbarX, scrollbarY, scrollbarHeight,
                 scrollOffset, rows.size(), maxVisible);
         }
 
         // Footer
         String footer = "§7Showing " + (scrollOffset + 1) + "-" + endIndex + " of " + rows.size();
-        context.drawCenteredTextWithShadow(this.textRenderer, footer, this.width / 2, this.height - 25, 0xFFFFFFFF);
+        guiGraphics.drawCenteredString(this.font, footer, this.width / 2, this.height - 25, 0xFFFFFFFF);
     }
 
-    private void drawWordRow(DrawContext context, WordRow row, int y) {
+    private void drawWordRow(GuiGraphics guiGraphics, WordRow row, int y) {
         // Word (only on first piece)
         if (row.isFirst) {
-            context.drawTextWithShadow(this.textRenderer, "§d§l" + row.word, 20, y, 0xFFFFFFFF);
+            guiGraphics.drawString(this.font, "§d§l" + row.word, 20, y, 0xFFFFFFFF);
         }
 
         // Piece name
@@ -189,19 +193,19 @@ public class WordMatchesScreen extends ModScreen {
         if (name.length() > 35) {
             name = name.substring(0, 35) + "...";
         }
-        context.drawTextWithShadow(this.textRenderer, "§7" + name, 150, y, 0xFFFFFFFF);
+        guiGraphics.drawString(this.font, "§7" + name, 150, y, 0xFFFFFFFF);
 
         // Hex box
         ColorMath.RGB rgb = ColorMath.hexToRgb(row.piece.getHexcode());
-        int color = 0xFF000000 | (rgb.r << 16) | (rgb.g << 8) | rgb.b;
-        context.fill(400, y - 2, 485, y + 12, color);
+        int color = 0xFF000000 | (rgb.r() << 16) | (rgb.g() << 8) | rgb.b();
+        guiGraphics.fill(400, y - 2, 485, y + 12, color);
 
         // Hex text - with alpha channel
         String hexText = "#" + row.piece.getHexcode();
         if (ColorMath.isColorDark(row.piece.getHexcode())) {
-            context.drawTextWithShadow(this.textRenderer, hexText, 402, y, 0xFFFFFFFF);
+            guiGraphics.drawString(this.font, hexText, 402, y, 0xFFFFFFFF);
         } else {
-            context.drawTextWithShadow(this.textRenderer, hexText, 402, y, 0xFF000000);
+            guiGraphics.drawString(this.font, hexText, 402, y, 0xFF000000);
         }
     }
 
@@ -230,7 +234,7 @@ public class WordMatchesScreen extends ModScreen {
     }
 
     @Override
-    public boolean mouseDragged(Click click, double deltaX, double deltaY) {
+    public boolean mouseDragged(MouseButtonEvent click, double deltaX, double deltaY) {
         if (isDraggingScrollbar && click.button() == 0) {
             int totalRows = wordMatches.stream().mapToInt(e -> e.pieces.size()).sum();
             int maxVisible = (this.height - 100) / 20;
@@ -250,7 +254,7 @@ public class WordMatchesScreen extends ModScreen {
     }
 
     @Override
-    public boolean mouseReleased(Click click) {
+    public boolean mouseReleased(MouseButtonEvent click) {
         if (click.button() == 0 && isDraggingScrollbar) {
             isDraggingScrollbar = false;
             return true;
@@ -260,12 +264,12 @@ public class WordMatchesScreen extends ModScreen {
     }
 
     @Override
-    public boolean mouseClicked(Click click, boolean isOutOfBounds) {
+    public boolean mouseClicked(MouseButtonEvent click, boolean isOutOfBounds) {
         double mouseX = click.x();
         double mouseY = click.y();
         int button = click.button();
 
-        // Handle context menu clicks first
+        // Handle guiGraphics menu clicks first
         if (contextMenu != null) {
             if (handleContextMenuClick(mouseX, mouseY, button)) {
                 return true;
@@ -295,7 +299,7 @@ public class WordMatchesScreen extends ModScreen {
             }
         }
 
-        // Right click on rows opens context menu
+        // Right click on rows opens guiGraphics menu
         if (button == 1) {
             for (WordRow row : cachedRows) {
                 if (mouseY >= row.clickY && mouseY <= row.clickY + row.clickHeight) {
@@ -305,7 +309,7 @@ public class WordMatchesScreen extends ModScreen {
             }
         }
 
-        // Left click closes context menu if clicking elsewhere
+        // Left click closes guiGraphics menu if clicking elsewhere
         if (button == 0 && contextMenu != null) {
             contextMenu = null;
             return true;
@@ -337,10 +341,10 @@ public class WordMatchesScreen extends ModScreen {
                 contextMenu = null;
 
                 // Open database screen with hex search pre-filled
-                if (client != null) {
+                if (minecraft != null) {
                     DatabaseScreen dbScreen = new DatabaseScreen();
                     dbScreen.setHexSearch(hex);
-                    client.setScreen(dbScreen);
+                    minecraft.setScreen(dbScreen);
                 }
                 return true;
             }
@@ -351,24 +355,47 @@ public class WordMatchesScreen extends ModScreen {
         return false;
     }
 
-    @SuppressWarnings("unused") // Reserved for future copy-to-clipboard feature
+    private void copyAllToClipboard() {
+        StringBuilder sb = new StringBuilder();
+        sb.append("Seymour Word Matches Export\n");
+        sb.append("===========================\n\n");
+
+        int totalPieces = 0;
+        for (WordMatchEntry entry : wordMatches) {
+            sb.append("Word: ").append(entry.word).append(" (").append(entry.pieces.size()).append(" pieces)\n");
+            for (ArmorPiece piece : entry.pieces) {
+                sb.append("  ").append(piece.getPieceName())
+                  .append(" | #").append(piece.getHexcode()).append("\n");
+                totalPieces++;
+            }
+            sb.append("\n");
+        }
+
+        sb.append("Total: ").append(wordMatches.size()).append(" words, ").append(totalPieces).append(" pieces");
+
+        copyToClipboard(sb.toString());
+        if (minecraft != null && minecraft.player != null) {
+            minecraft.player.displayClientMessage(
+                Component.literal("\u00a7a[Seymour] \u00a77Copied " + wordMatches.size() + " word matches to clipboard!"), false);
+        }
+    }
+
     private void copyToClipboard(String text) {
         try {
-            StringSelection selection = new StringSelection(text);
-            Toolkit.getDefaultToolkit().getSystemClipboard().setContents(selection, null);
+            this.minecraft.keyboardHandler.setClipboard(text);
         } catch (Exception ignored) {
         }
     }
 
     @Override
-    public void close() {
-        if (this.client != null) {
-            this.client.setScreen(parent);
+    public void onClose() {
+        if (this.minecraft != null) {
+            this.minecraft.setScreen(parent);
         }
     }
 
     @Override
-    public boolean shouldPause() {
+    public boolean isPauseScreen() {
         return false;
     }
 }

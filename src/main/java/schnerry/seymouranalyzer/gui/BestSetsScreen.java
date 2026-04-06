@@ -1,10 +1,10 @@
 package schnerry.seymouranalyzer.gui;
 
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.screen.Screen;
-import net.minecraft.client.gui.widget.ButtonWidget;
-import net.minecraft.client.gui.Click;
-import net.minecraft.text.Text;
+import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.input.MouseButtonEvent;
+import net.minecraft.network.chat.Component;
 import schnerry.seymouranalyzer.data.ArmorPiece;
 import schnerry.seymouranalyzer.data.CollectionManager;
 import schnerry.seymouranalyzer.util.ColorMath;
@@ -43,7 +43,7 @@ public class BestSetsScreen extends ModScreen {
     private static final long CACHE_VALIDITY_MS = 300000; // 5 minutes
 
     public BestSetsScreen(Screen parent) {
-        super(Text.literal("Best Matching Sets"), parent);
+        super(Component.literal("Best Matching Sets"), parent);
 
         // Load from cache if valid
         int currentSize = CollectionManager.getInstance().getCollection().size();
@@ -62,27 +62,27 @@ public class BestSetsScreen extends ModScreen {
         super.init();
 
         // Calculate button - updates text based on isCalculating state
-        ButtonWidget calculateButton = ButtonWidget.builder(
-            Text.literal(isCalculating ? "§7Calculating..." : "§aCalculate Best Sets"),
+        Button calculateButton = Button.builder(
+            Component.literal(isCalculating ? "§7Calculating..." : "§aCalculate Best Sets"),
             button -> {
                 if (!isCalculating) {
                     calculateBestSets();
                 }
             })
-            .dimensions(this.width / 2 - 75, 40, 150, 25)
+            .bounds(this.width / 2 - 75, 40, 150, 25)
             .build();
         calculateButton.active = !isCalculating; // Disable button while calculating
-        this.addDrawableChild(calculateButton);
+        this.addRenderableWidget(calculateButton);
     }
 
     @Override
-    public void render(DrawContext context, int mouseX, int mouseY, float delta) {
-        super.render(context, mouseX, mouseY, delta);
+    public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float delta) {
+        super.render(guiGraphics, mouseX, mouseY, delta);
 
         // Title
         String title = "§l§nBest Matching Sets";
-        int titleWidth = this.textRenderer.getWidth(title);
-        context.drawTextWithShadow(this.textRenderer, title, this.width / 2 - titleWidth / 2, 10, 0xFFFFFFFF);
+        int titleWidth = this.font.width(title);
+        guiGraphics.drawString(this.font, title, this.width / 2 - titleWidth / 2, 10, 0xFFFFFFFF);
 
         // Progress bar
         if (isCalculating && calculationProgress > 0) {
@@ -92,22 +92,22 @@ public class BestSetsScreen extends ModScreen {
             int progressBarHeight = 8;
 
             // Background
-            context.fill(progressBarX, progressBarY, progressBarX + progressBarWidth, progressBarY + progressBarHeight, 0xFF282828);
+            guiGraphics.fill(progressBarX, progressBarY, progressBarX + progressBarWidth, progressBarY + progressBarHeight, 0xFF282828);
 
             // Progress fill
             int fillWidth = (progressBarWidth * calculationProgress) / 100;
-            context.fill(progressBarX, progressBarY, progressBarX + fillWidth, progressBarY + progressBarHeight, 0xFF00C800);
+            guiGraphics.fill(progressBarX, progressBarY, progressBarX + fillWidth, progressBarY + progressBarHeight, 0xFF00C800);
 
             // Border
-            context.fill(progressBarX - 1, progressBarY - 1, progressBarX + progressBarWidth + 1, progressBarY, 0xFFFFFFFF);
-            context.fill(progressBarX - 1, progressBarY + progressBarHeight, progressBarX + progressBarWidth + 1, progressBarY + progressBarHeight + 1, 0xFFFFFFFF);
-            context.fill(progressBarX - 1, progressBarY, progressBarX, progressBarY + progressBarHeight, 0xFFFFFFFF);
-            context.fill(progressBarX + progressBarWidth, progressBarY, progressBarX + progressBarWidth + 1, progressBarY + progressBarHeight, 0xFFFFFFFF);
+            guiGraphics.fill(progressBarX - 1, progressBarY - 1, progressBarX + progressBarWidth + 1, progressBarY, 0xFFFFFFFF);
+            guiGraphics.fill(progressBarX - 1, progressBarY + progressBarHeight, progressBarX + progressBarWidth + 1, progressBarY + progressBarHeight + 1, 0xFFFFFFFF);
+            guiGraphics.fill(progressBarX - 1, progressBarY, progressBarX, progressBarY + progressBarHeight, 0xFFFFFFFF);
+            guiGraphics.fill(progressBarX + progressBarWidth, progressBarY, progressBarX + progressBarWidth + 1, progressBarY + progressBarHeight, 0xFFFFFFFF);
 
             // Percentage
             String percentText = "§e" + calculationProgress + "%";
-            int percentWidth = this.textRenderer.getWidth(percentText);
-            context.drawTextWithShadow(this.textRenderer, percentText, progressBarX + (progressBarWidth - percentWidth) / 2, progressBarY + 10, 0xFFFFFFFF);
+            int percentWidth = this.font.width(percentText);
+            guiGraphics.drawString(this.font, percentText, progressBarX + (progressBarWidth - percentWidth) / 2, progressBarY + 10, 0xFFFFFFFF);
         }
 
         // Draw sets or instructions
@@ -116,12 +116,12 @@ public class BestSetsScreen extends ModScreen {
             String line2 = "§7This will find 4-piece sets with lowest color difference";
             String line3 = "§7Each piece is used only ONCE across all sets";
 
-            context.drawTextWithShadow(this.textRenderer, line1, this.width / 2 - this.textRenderer.getWidth(line1) / 2, 100, 0xFF888888);
-            context.drawTextWithShadow(this.textRenderer, line2, this.width / 2 - this.textRenderer.getWidth(line2) / 2, 115, 0xFF888888);
-            context.drawTextWithShadow(this.textRenderer, line3, this.width / 2 - this.textRenderer.getWidth(line3) / 2, 130, 0xFF888888);
+            guiGraphics.drawString(this.font, line1, this.width / 2 - this.font.width(line1) / 2, 100, 0xFF888888);
+            guiGraphics.drawString(this.font, line2, this.width / 2 - this.font.width(line2) / 2, 115, 0xFF888888);
+            guiGraphics.drawString(this.font, line3, this.width / 2 - this.font.width(line3) / 2, 130, 0xFF888888);
         } else if (!bestSets.isEmpty()) {
             String setsInfo = "§7Top " + bestSets.size() + " sets (ΔE ≤ " + MAX_DELTA_E + ") - Each piece used once";
-            context.drawTextWithShadow(this.textRenderer, setsInfo, 20, START_Y - 10, 0xFF888888);
+            guiGraphics.drawString(this.font, setsInfo, 20, START_Y - 10, 0xFF888888);
 
             // Draw visible sets
             int maxVisible = 5;
@@ -130,26 +130,26 @@ public class BestSetsScreen extends ModScreen {
             for (int i = 0; i < visibleCount; i++) {
                 ArmorSet set = bestSets.get(scrollOffset + i);
                 int rowY = START_Y + (i * ROW_HEIGHT);
-                drawSetRow(context, set, rowY, scrollOffset + i + 1, mouseX, mouseY);
+                drawSetRow(guiGraphics, set, rowY, scrollOffset + i + 1, mouseX, mouseY);
             }
 
             // Scroll info
             if (bestSets.size() > maxVisible) {
                 String scrollText = "§7(" + (scrollOffset + 1) + "-" + Math.min(scrollOffset + maxVisible, bestSets.size()) +
                                    " of " + bestSets.size() + ") §eScroll for more";
-                context.drawTextWithShadow(this.textRenderer, scrollText, 20, START_Y + (maxVisible * ROW_HEIGHT) + 10, 0xFF888888);
+                guiGraphics.drawString(this.font, scrollText, 20, START_Y + (maxVisible * ROW_HEIGHT) + 10, 0xFF888888);
             }
         }
 
-        // Draw context menu
+        // Draw guiGraphics menu
         if (contextMenu != null) {
-            drawContextMenu(context, mouseX, mouseY);
+            drawContextMenu(guiGraphics, mouseX, mouseY);
         }
     }
 
-    private void drawSetRow(DrawContext context, ArmorSet set, int rowY, int rank, int mouseX, int mouseY) {
+    private void drawSetRow(GuiGraphics guiGraphics, ArmorSet set, int rowY, int rank, int mouseX, int mouseY) {
         // Rank
-        context.drawTextWithShadow(this.textRenderer, "§e#" + rank, 20, rowY, 0xFFFFFFFF);
+        guiGraphics.drawString(this.font, "§e#" + rank, 20, rowY, 0xFFFFFFFF);
 
         // Color squares (2x2 grid)
         int boxX = 20;
@@ -162,60 +162,60 @@ public class BestSetsScreen extends ModScreen {
         ColorMath.RGB bootsRgb = ColorMath.hexToRgb(set.boots.getHexcode());
 
         // Draw color boxes
-        context.fill(boxX, boxY, boxX + boxSize, boxY + boxSize,
-            0xFF000000 | (helmetRgb.r << 16) | (helmetRgb.g << 8) | helmetRgb.b);
-        context.fill(boxX + boxSize, boxY, boxX + boxSize * 2, boxY + boxSize,
-            0xFF000000 | (chestRgb.r << 16) | (chestRgb.g << 8) | chestRgb.b);
-        context.fill(boxX, boxY + boxSize, boxX + boxSize, boxY + boxSize * 2,
-            0xFF000000 | (legsRgb.r << 16) | (legsRgb.g << 8) | legsRgb.b);
-        context.fill(boxX + boxSize, boxY + boxSize, boxX + boxSize * 2, boxY + boxSize * 2,
-            0xFF000000 | (bootsRgb.r << 16) | (bootsRgb.g << 8) | bootsRgb.b);
+        guiGraphics.fill(boxX, boxY, boxX + boxSize, boxY + boxSize,
+            0xFF000000 | (helmetRgb.r() << 16) | (helmetRgb.g() << 8) | helmetRgb.b());
+        guiGraphics.fill(boxX + boxSize, boxY, boxX + boxSize * 2, boxY + boxSize,
+            0xFF000000 | (chestRgb.r() << 16) | (chestRgb.g() << 8) | chestRgb.b());
+        guiGraphics.fill(boxX, boxY + boxSize, boxX + boxSize, boxY + boxSize * 2,
+            0xFF000000 | (legsRgb.r() << 16) | (legsRgb.g() << 8) | legsRgb.b());
+        guiGraphics.fill(boxX + boxSize, boxY + boxSize, boxX + boxSize * 2, boxY + boxSize * 2,
+            0xFF000000 | (bootsRgb.r() << 16) | (bootsRgb.g() << 8) | bootsRgb.b());
 
         // Border around 2x2 grid
         int totalBoxSize = boxSize * 2;
-        context.fill(boxX - 1, boxY - 1, boxX + totalBoxSize + 1, boxY, 0xFFFFFFFF);
-        context.fill(boxX - 1, boxY + totalBoxSize, boxX + totalBoxSize + 1, boxY + totalBoxSize + 1, 0xFFFFFFFF);
-        context.fill(boxX - 1, boxY, boxX, boxY + totalBoxSize, 0xFFFFFFFF);
-        context.fill(boxX + totalBoxSize, boxY, boxX + totalBoxSize + 1, boxY + totalBoxSize, 0xFFFFFFFF);
+        guiGraphics.fill(boxX - 1, boxY - 1, boxX + totalBoxSize + 1, boxY, 0xFFFFFFFF);
+        guiGraphics.fill(boxX - 1, boxY + totalBoxSize, boxX + totalBoxSize + 1, boxY + totalBoxSize + 1, 0xFFFFFFFF);
+        guiGraphics.fill(boxX - 1, boxY, boxX, boxY + totalBoxSize, 0xFFFFFFFF);
+        guiGraphics.fill(boxX + totalBoxSize, boxY, boxX + totalBoxSize + 1, boxY + totalBoxSize, 0xFFFFFFFF);
 
         // Labels on boxes
-        context.drawTextWithShadow(this.textRenderer, "§8H", boxX + 3, boxY + 5, 0xFFFFFFFF);
-        context.drawTextWithShadow(this.textRenderer, "§8C", boxX + boxSize + 3, boxY + 5, 0xFFFFFFFF);
-        context.drawTextWithShadow(this.textRenderer, "§8L", boxX + 3, boxY + boxSize + 5, 0xFFFFFFFF);
-        context.drawTextWithShadow(this.textRenderer, "§8B", boxX + boxSize + 3, boxY + boxSize + 5, 0xFFFFFFFF);
+        guiGraphics.drawString(this.font, "§8H", boxX + 3, boxY + 5, 0xFFFFFFFF);
+        guiGraphics.drawString(this.font, "§8C", boxX + boxSize + 3, boxY + 5, 0xFFFFFFFF);
+        guiGraphics.drawString(this.font, "§8L", boxX + 3, boxY + boxSize + 5, 0xFFFFFFFF);
+        guiGraphics.drawString(this.font, "§8B", boxX + boxSize + 3, boxY + boxSize + 5, 0xFFFFFFFF);
 
         // Piece info (left side)
-        context.drawTextWithShadow(this.textRenderer, "§7Helmet: §f" + set.helmet.getPieceName(), 80, rowY, 0xFFFFFFFF);
-        context.drawTextWithShadow(this.textRenderer, "§8  #" + set.helmet.getHexcode().toUpperCase(), 80, rowY + 12, 0xFFFFFFFF);
+        guiGraphics.drawString(this.font, "§7Helmet: §f" + set.helmet.getPieceName(), 80, rowY, 0xFFFFFFFF);
+        guiGraphics.drawString(this.font, "§8  #" + set.helmet.getHexcode().toUpperCase(), 80, rowY + 12, 0xFFFFFFFF);
 
-        context.drawTextWithShadow(this.textRenderer, "§7Chest: §f" + set.chestplate.getPieceName(), 80, rowY + 24, 0xFFFFFFFF);
-        context.drawTextWithShadow(this.textRenderer, "§8  #" + set.chestplate.getHexcode().toUpperCase(), 80, rowY + 36, 0xFFFFFFFF);
+        guiGraphics.drawString(this.font, "§7Chest: §f" + set.chestplate.getPieceName(), 80, rowY + 24, 0xFFFFFFFF);
+        guiGraphics.drawString(this.font, "§8  #" + set.chestplate.getHexcode().toUpperCase(), 80, rowY + 36, 0xFFFFFFFF);
 
         // Piece info (middle)
-        context.drawTextWithShadow(this.textRenderer, "§7Legs: §f" + set.leggings.getPieceName(), 420, rowY, 0xFFFFFFFF);
-        context.drawTextWithShadow(this.textRenderer, "§8  #" + set.leggings.getHexcode().toUpperCase(), 420, rowY + 12, 0xFFFFFFFF);
+        guiGraphics.drawString(this.font, "§7Legs: §f" + set.leggings.getPieceName(), 420, rowY, 0xFFFFFFFF);
+        guiGraphics.drawString(this.font, "§8  #" + set.leggings.getHexcode().toUpperCase(), 420, rowY + 12, 0xFFFFFFFF);
 
-        context.drawTextWithShadow(this.textRenderer, "§7Boots: §f" + set.boots.getPieceName(), 420, rowY + 24, 0xFFFFFFFF);
-        context.drawTextWithShadow(this.textRenderer, "§8  #" + set.boots.getHexcode().toUpperCase(), 420, rowY + 36, 0xFFFFFFFF);
+        guiGraphics.drawString(this.font, "§7Boots: §f" + set.boots.getPieceName(), 420, rowY + 24, 0xFFFFFFFF);
+        guiGraphics.drawString(this.font, "§8  #" + set.boots.getHexcode().toUpperCase(), 420, rowY + 36, 0xFFFFFFFF);
 
         // Statistics (right side)
         String avgColor = set.avgDeltaE <= 1.0 ? "§a" : (set.avgDeltaE <= 2.0 ? "§e" : "§6");
-        context.drawTextWithShadow(this.textRenderer, "§7Avg ΔE: " + avgColor + String.format("%.2f", set.avgDeltaE), 770, rowY, 0xFFFFFFFF);
-        context.drawTextWithShadow(this.textRenderer, "§7W/o worst: §b" + String.format("%.2f", set.avgWithout1), 770, rowY + 12, 0xFFFFFFFF);
-        context.drawTextWithShadow(this.textRenderer, "§7W/o worst 2: §d" + String.format("%.2f", set.avgWithout2), 770, rowY + 24, 0xFFFFFFFF);
-        context.drawTextWithShadow(this.textRenderer, "§7Worst: §c" + set.worstPieceType, 770, rowY + 36, 0xFFFFFFFF);
+        guiGraphics.drawString(this.font, "§7Avg ΔE: " + avgColor + String.format("%.2f", set.avgDeltaE), 770, rowY, 0xFFFFFFFF);
+        guiGraphics.drawString(this.font, "§7W/o worst: §b" + String.format("%.2f", set.avgWithout1), 770, rowY + 12, 0xFFFFFFFF);
+        guiGraphics.drawString(this.font, "§7W/o worst 2: §d" + String.format("%.2f", set.avgWithout2), 770, rowY + 24, 0xFFFFFFFF);
+        guiGraphics.drawString(this.font, "§7Worst: §c" + set.worstPieceType, 770, rowY + 36, 0xFFFFFFFF);
 
         // Separator line
-        context.fill(20, rowY + 75, this.width - 40, rowY + 76, 0xFF3C3C3C);
+        guiGraphics.fill(20, rowY + 75, this.width - 40, rowY + 76, 0xFF3C3C3C);
     }
 
     @Override
-    public boolean mouseClicked(Click click, boolean isOutOfBounds) {
+    public boolean mouseClicked(MouseButtonEvent click, boolean isOutOfBounds) {
         double mouseX = click.x();
         double mouseY = click.y();
         int button = click.button();
 
-        // Handle context menu
+        // Handle guiGraphics menu
         if (contextMenu != null) {
             if (button == 0) {
                 if (handleContextMenuClick(mouseX, mouseY)) {
@@ -226,7 +226,7 @@ public class BestSetsScreen extends ModScreen {
             }
         }
 
-        // Right click to show context menu for hex codes
+        // Right click to show guiGraphics menu for hex codes
         if (button == 1 && !bestSets.isEmpty()) {
             handleHexRightClick(mouseX, mouseY);
             return true;
@@ -270,27 +270,27 @@ public class BestSetsScreen extends ModScreen {
         contextMenu = new ContextMenu(hex, (int) x, (int) y);
     }
 
-    private void drawContextMenu(DrawContext context, int mouseX, int mouseY) {
+    private void drawContextMenu(GuiGraphics guiGraphics, int mouseX, int mouseY) {
         int menuWidth = 120;
         int optionHeight = 20;
 
         // Background
-        context.fill(contextMenu.x, contextMenu.y, contextMenu.x + menuWidth, contextMenu.y + optionHeight, 0xF0282828);
+        guiGraphics.fill(contextMenu.x, contextMenu.y, contextMenu.x + menuWidth, contextMenu.y + optionHeight, 0xF0282828);
 
         // Border
-        context.fill(contextMenu.x, contextMenu.y, contextMenu.x + menuWidth, contextMenu.y + 2, 0xFF646464);
-        context.fill(contextMenu.x, contextMenu.y + optionHeight - 2, contextMenu.x + menuWidth, contextMenu.y + optionHeight, 0xFF646464);
-        context.fill(contextMenu.x, contextMenu.y, contextMenu.x + 2, contextMenu.y + optionHeight, 0xFF646464);
-        context.fill(contextMenu.x + menuWidth - 2, contextMenu.y, contextMenu.x + menuWidth, contextMenu.y + optionHeight, 0xFF646464);
+        guiGraphics.fill(contextMenu.x, contextMenu.y, contextMenu.x + menuWidth, contextMenu.y + 2, 0xFF646464);
+        guiGraphics.fill(contextMenu.x, contextMenu.y + optionHeight - 2, contextMenu.x + menuWidth, contextMenu.y + optionHeight, 0xFF646464);
+        guiGraphics.fill(contextMenu.x, contextMenu.y, contextMenu.x + 2, contextMenu.y + optionHeight, 0xFF646464);
+        guiGraphics.fill(contextMenu.x + menuWidth - 2, contextMenu.y, contextMenu.x + menuWidth, contextMenu.y + optionHeight, 0xFF646464);
 
         // Hover highlight
         if (mouseX >= contextMenu.x && mouseX <= contextMenu.x + menuWidth &&
             mouseY >= contextMenu.y && mouseY < contextMenu.y + optionHeight) {
-            context.fill(contextMenu.x, contextMenu.y, contextMenu.x + menuWidth, contextMenu.y + optionHeight, 0xC8505050);
+            guiGraphics.fill(contextMenu.x, contextMenu.y, contextMenu.x + menuWidth, contextMenu.y + optionHeight, 0xC8505050);
         }
 
         // Option text
-        context.drawTextWithShadow(this.textRenderer, "§fFind in Database", contextMenu.x + 5, contextMenu.y + 6, 0xFFFFFFFF);
+        guiGraphics.drawString(this.font, "§fFind in Database", contextMenu.x + 5, contextMenu.y + 6, 0xFFFFFFFF);
     }
 
     private boolean handleContextMenuClick(double mouseX, double mouseY) {
@@ -302,7 +302,7 @@ public class BestSetsScreen extends ModScreen {
             // Open database with hex search
             DatabaseScreen dbScreen = new DatabaseScreen(this);
             dbScreen.setHexSearch(contextMenu.hex);
-            this.client.setScreen(dbScreen);
+            this.minecraft.setScreen(dbScreen);
             return true;
         }
 
@@ -329,8 +329,8 @@ public class BestSetsScreen extends ModScreen {
         bestSets.clear();
 
         // Re-init to update button state
-        if (this.client != null) {
-            this.client.execute(this::init);
+        if (this.minecraft != null) {
+            this.minecraft.execute(this::init);
         }
 
         // Run calculation asynchronously
@@ -344,8 +344,8 @@ public class BestSetsScreen extends ModScreen {
                 calculationProgress = 100;
 
                 // Re-init to update button state back
-                if (this.client != null) {
-                    this.client.execute(this::init);
+                if (this.minecraft != null) {
+                    this.minecraft.execute(this::init);
                 }
             }
         });

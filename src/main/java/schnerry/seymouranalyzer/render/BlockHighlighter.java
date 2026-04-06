@@ -1,11 +1,12 @@
 package schnerry.seymouranalyzer.render;
 
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.render.*;
-import net.minecraft.client.render.debug.DebugRenderer;
-import net.minecraft.client.util.math.MatrixStack;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Vec3d;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.client.renderer.rendertype.RenderTypes;
+import com.mojang.blaze3d.vertex.VertexConsumer;
+import com.mojang.blaze3d.vertex.PoseStack;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
 
 import java.util.ArrayList;
@@ -69,11 +70,11 @@ public class BlockHighlighter {
     /**
      * Called by DebugRendererMixin to render block highlights.
      */
-    public void renderHighlights(MatrixStack matrices, VertexConsumerProvider vertexConsumers, Vec3d cameraPos) {
+    public void renderHighlights(PoseStack poseStack, MultiBufferSource vertexConsumers, Vec3 cameraPos) {
         if (highlightedBlocks.isEmpty()) return;
 
-        MinecraftClient client = MinecraftClient.getInstance();
-        if (client.world == null) return;
+        Minecraft client = Minecraft.getInstance();
+        if (client.level == null) return;
 
         for (BlockPos pos : highlightedBlocks) {
             // Calculate camera-relative coordinates for a 1x1x1 block
@@ -84,18 +85,18 @@ public class BlockHighlighter {
             float y2 = y1 + 1.0f;
             float z2 = z1 + 1.0f;
 
-            drawBoxOutline(matrices, vertexConsumers, x1, y1, z1, x2, y2, z2, r, g, b, a);
+            drawBoxOutline(poseStack, vertexConsumers, x1, y1, z1, x2, y2, z2, r, g, b, a);
         }
     }
 
     /**
      * Draws a box outline using lines.
      */
-    private void drawBoxOutline(MatrixStack matrices, VertexConsumerProvider vertexConsumers,
+    private void drawBoxOutline(PoseStack poseStack, MultiBufferSource vertexConsumers,
                                  float x1, float y1, float z1, float x2, float y2, float z2,
                                  float r, float g, float b, float a) {
-        VertexConsumer lines = vertexConsumers.getBuffer(RenderLayer.getLines());
-        Matrix4f matrix = matrices.peek().getPositionMatrix();
+        VertexConsumer lines = vertexConsumers.getBuffer(RenderTypes.lines());
+        Matrix4f matrix = poseStack.last().pose();
 
         // Bottom face edges
         drawLine(lines, matrix, x1, y1, z1, x2, y1, z1, r, g, b, a);
@@ -132,7 +133,7 @@ public class BlockHighlighter {
         float ny = dy / len;
         float nz = dz / len;
 
-        consumer.vertex(matrix, x1, y1, z1).color(r, g, b, a).normal(nx, ny, nz);
-        consumer.vertex(matrix, x2, y2, z2).color(r, g, b, a).normal(nx, ny, nz);
+        consumer.addVertex(matrix, x1, y1, z1).setColor(r, g, b, a).setNormal(nx, ny, nz).setLineWidth(2.0f);
+        consumer.addVertex(matrix, x2, y2, z2).setColor(r, g, b, a).setNormal(nx, ny, nz).setLineWidth(2.0f);
     }
 }

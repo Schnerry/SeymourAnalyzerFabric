@@ -1,9 +1,12 @@
 package schnerry.seymouranalyzer.config;
 
+import lombok.Getter;
+
 /**
  * Enum representing different types of color matches that can be prioritized
  * Order matches the current hardcoded priority in ItemSlotHighlighter
  */
+@Getter
 public enum MatchPriority {
     DUPE("Duplicate", "Same hex, different UUID (black)"),
     SEARCH("Search Match", "Hex matches current search (green)"),
@@ -26,13 +29,6 @@ public enum MatchPriority {
         this.description = description;
     }
 
-    public String getDisplayName() {
-        return displayName;
-    }
-
-    public String getDescription() {
-        return description;
-    }
 
     public static MatchPriority fromName(String name) {
         for (MatchPriority priority : values()) {

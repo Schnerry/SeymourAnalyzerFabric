@@ -1,48 +1,23 @@
 package schnerry.seymouranalyzer.util;
 
-/**
- * Color conversion utilities for RGB, XYZ, and LAB color spaces.
- * Implements CIEDE2000 color difference calculations.
- */
 public class ColorMath {
 
     /**
      * Convert hex string to RGB values
      */
-    public static class RGB {
-        public final int r, g, b;
-
-        public RGB(int r, int g, int b) {
-            this.r = r;
-            this.g = g;
-            this.b = b;
-        }
+    public record RGB(int r, int g, int b) {
     }
 
     /**
      * XYZ color space representation
      */
-    public static class XYZ {
-        public final double x, y, z;
-
-        public XYZ(double x, double y, double z) {
-            this.x = x;
-            this.y = y;
-            this.z = z;
-        }
+    public record XYZ(double x, double y, double z) {
     }
 
     /**
      * LAB color space representation
      */
-    public static class LAB {
-        public final double L, a, b;
-
-        public LAB(double L, double a, double b) {
-            this.L = L;
-            this.a = a;
-            this.b = b;
-        }
+    public record LAB(double L, double a, double b) {
     }
 
     /**
@@ -68,9 +43,9 @@ public class ColorMath {
      * Convert RGB to XYZ color space
      */
     public static XYZ rgbToXyz(RGB rgb) {
-        double r = rgb.r / 255.0;
-        double g = rgb.g / 255.0;
-        double b = rgb.b / 255.0;
+        double r = rgb.r() / 255.0;
+        double g = rgb.g() / 255.0;
+        double b = rgb.b() / 255.0;
 
         r = r > 0.04045 ? Math.pow((r + 0.055) / 1.055, 2.4) : r / 12.92;
         g = g > 0.04045 ? Math.pow((g + 0.055) / 1.055, 2.4) : g / 12.92;
@@ -91,9 +66,9 @@ public class ColorMath {
         final double yn = 100.0;
         final double zn = 108.883;
 
-        double x = xyz.x / xn;
-        double y = xyz.y / yn;
-        double z = xyz.z / zn;
+        double x = xyz.x() / xn;
+        double y = xyz.y() / yn;
+        double z = xyz.z() / zn;
 
         x = x > 0.008856 ? Math.pow(x, 1.0/3.0) : (7.787 * x + 16.0/116.0);
         y = y > 0.008856 ? Math.pow(y, 1.0/3.0) : (7.787 * y + 16.0/116.0);
@@ -123,9 +98,9 @@ public class ColorMath {
         LAB lab2 = hexToLab(hex2);
 
         return Math.sqrt(
-            Math.pow(lab1.L - lab2.L, 2) +
-            Math.pow(lab1.a - lab2.a, 2) +
-            Math.pow(lab1.b - lab2.b, 2)
+            Math.pow(lab1.L() - lab2.L(), 2) +
+            Math.pow(lab1.a() - lab2.a(), 2) +
+            Math.pow(lab1.b() - lab2.b(), 2)
         );
     }
 
@@ -134,9 +109,9 @@ public class ColorMath {
      */
     public static double calculateDeltaEWithLab(LAB lab1, LAB lab2) {
         return Math.sqrt(
-            Math.pow(lab1.L - lab2.L, 2) +
-            Math.pow(lab1.a - lab2.a, 2) +
-            Math.pow(lab1.b - lab2.b, 2)
+            Math.pow(lab1.L() - lab2.L(), 2) +
+            Math.pow(lab1.a() - lab2.a(), 2) +
+            Math.pow(lab1.b() - lab2.b(), 2)
         );
     }
 
@@ -147,9 +122,9 @@ public class ColorMath {
         RGB rgb1 = hexToRgb(hex1);
         RGB rgb2 = hexToRgb(hex2);
 
-        return Math.abs(rgb1.r - rgb2.r) +
-               Math.abs(rgb1.g - rgb2.g) +
-               Math.abs(rgb1.b - rgb2.b);
+        return Math.abs(rgb1.r() - rgb2.r()) +
+               Math.abs(rgb1.g() - rgb2.g()) +
+               Math.abs(rgb1.b() - rgb2.b());
     }
 
     /**
@@ -157,15 +132,26 @@ public class ColorMath {
      */
     public static boolean isColorDark(String hex) {
         RGB rgb = hexToRgb(hex);
-        double luminance = (0.299 * rgb.r + 0.587 * rgb.g + 0.114 * rgb.b) / 255;
+        double luminance = (0.299 * rgb.r() + 0.587 * rgb.g() + 0.114 * rgb.b()) / 255;
         return luminance < 0.5;
     }
 
-    /**
-     * Convert RGB to hex string
-     */
-    public static String rgbToHex(int r, int g, int b) {
-        return String.format("%02X%02X%02X", r, g, b);
+    public static String rgbStringToHex(String rgbString) {
+        try {
+            String[] parts = rgbString.split(":");
+            if (parts.length == 3) {
+                int r = Integer.parseInt(parts[0].trim());
+                int g = Integer.parseInt(parts[1].trim());
+                int b = Integer.parseInt(parts[2].trim());
+                return String.format("%02X%02X%02X",
+                        Math.max(0, Math.min(255, r)),
+                        Math.max(0, Math.min(255, g)),
+                        Math.max(0, Math.min(255, b))
+                );
+            }
+        } catch (NumberFormatException e) {
+            // Invalid format
+        }
+        return null;
     }
 }
-

@@ -1,10 +1,10 @@
 package schnerry.seymouranalyzer.render;
 
 import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.item.ItemStack;
-import net.minecraft.text.Text;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.network.chat.Component;
 import org.lwjgl.glfw.GLFW;
 import schnerry.seymouranalyzer.analyzer.ColorAnalyzer;
 import schnerry.seymouranalyzer.analyzer.PatternDetector;
@@ -12,6 +12,9 @@ import schnerry.seymouranalyzer.config.ClothConfig;
 import schnerry.seymouranalyzer.data.ChecklistCache;
 import schnerry.seymouranalyzer.data.CollectionManager;
 import schnerry.seymouranalyzer.scanner.ChestScanner;
+import schnerry.seymouranalyzer.util.ItemStackUtils;
+import schnerry.seymouranalyzer.util.PieceTypeUtil;
+import schnerry.seymouranalyzer.util.StringUtility;
 
 /**
  * Renders info box showing detailed color analysis for hovered items
@@ -72,7 +75,7 @@ public class InfoBoxRenderer {
         lastHoveredStack = stack.copy();
 
         // Check if it's a Seymour armor piece
-        if (ChestScanner.isSeymourArmor(itemName)) {
+        if (StringUtility.isSeymourArmor(itemName)) {
             if (DEBUG) System.out.println("[InfoBox] Is Seymour armor, analyzing...");
             setHoveredItemData(stack, itemName);
         } else {
@@ -152,7 +155,7 @@ public class InfoBoxRenderer {
     }
 
     @SuppressWarnings("unused") // delta is required by Fabric API callback signature
-    private static void render(DrawContext context, float delta, net.minecraft.client.gui.screen.Screen currentScreen) {
+    private static void render(GuiGraphics guiGraphics, float delta, net.minecraft.client.gui.screens.Screen currentScreen) {
         if (DEBUG) {
             System.out.println("[InfoBox] render() called");
             System.out.println("[InfoBox] Current screen instance: " + System.identityHashCode(currentScreen));
@@ -164,7 +167,7 @@ public class InfoBoxRenderer {
             return;
         }
 
-        MinecraftClient client = MinecraftClient.getInstance();
+        Minecraft client = Minecraft.getInstance();
 
         // Check if GUI changed - if so, clear data
         if (currentOpenGui != currentScreen) {
@@ -182,21 +185,20 @@ public class InfoBoxRenderer {
         // Render the box if we have data (either from current hover or persisted from previous hover)
         if (hoveredItemData != null) {
             if (DEBUG) System.out.println("[InfoBox] Rendering box with data");
-            renderInfoBox(context, client);
+            renderInfoBox(guiGraphics, client);
         } else {
             if (DEBUG) System.out.println("[InfoBox] No hovered item data to render");
         }
     }
 
     private static void setHoveredItemData(ItemStack stack, String itemName) {
-        ChestScanner scanner = new ChestScanner();
-        String hex = scanner.extractHex(stack);
+        String hex = ItemStackUtils.extractHex(stack);
         if (hex == null) return;
 
-        String uuid = scanner.getOrCreateItemUUID(stack);
+        String uuid = ItemStackUtils.getOrCreateItemUUID(stack);
 
         var analysis = ColorAnalyzer.getInstance().analyzeArmorColor(hex, itemName);
-        if (analysis == null || analysis.bestMatch == null) return;
+        if (analysis == null || analysis.bestMatch() == null) return;
 
         ClothConfig config = ClothConfig.getInstance();
 
@@ -204,23 +206,23 @@ public class InfoBoxRenderer {
         String specialPattern = config.isPatternsEnabled() ? PatternDetector.getInstance().detectPattern(hex) : null;
 
         int itemRgb = Integer.parseInt(hex, 16);
-        int targetRgb = Integer.parseInt(analysis.bestMatch.targetHex, 16);
+        int targetRgb = Integer.parseInt(analysis.bestMatch().targetHex(), 16);
         int absoluteDist = Math.abs(((itemRgb >> 16) & 0xFF) - ((targetRgb >> 16) & 0xFF)) +
                           Math.abs(((itemRgb >> 8) & 0xFF) - ((targetRgb >> 8) & 0xFF)) +
                           Math.abs((itemRgb & 0xFF) - (targetRgb & 0xFF));
 
         // Get checklist status from cache for the best match hex
-        ChecklistStatus checklistStatus = getChecklistStatusForHex(analysis.bestMatch.targetHex, itemName);
+        ChecklistStatus checklistStatus = getChecklistStatusForHex(analysis.bestMatch().targetHex(), itemName);
         int dupeCount = config.isDupesEnabled() ? checkDupeCount(hex, uuid) : 0;
 
         hoveredItemData = new HoveredItemData(
-            analysis.bestMatch.name,
-            analysis.bestMatch.targetHex,
-            analysis.bestMatch.deltaE,
+            analysis.bestMatch().name(),
+            analysis.bestMatch().targetHex(),
+            analysis.bestMatch().deltaE(),
             absoluteDist,
-            analysis.tier,
-            analysis.bestMatch.isFade,
-            config.getCustomColors().containsKey(analysis.bestMatch.name),
+            analysis.tier(),
+            analysis.bestMatch().isFade(),
+            config.getCustomColors().containsKey(analysis.bestMatch().name()),
             hex,
             analysis,
             wordMatch,
@@ -306,19 +308,7 @@ public class InfoBoxRenderer {
     }
 
     private static String getPieceTypeFromName(String itemName) {
-        String lowerName = itemName.toLowerCase();
-        if (lowerName.contains("helmet") || lowerName.contains("hat") || lowerName.contains("hood") ||
-            lowerName.contains("cap") || lowerName.contains("crown") || lowerName.contains("mask")) {
-            return "helmet";
-        } else if (lowerName.contains("chestplate") || lowerName.contains("tunic") || lowerName.contains("shirt") ||
-                   lowerName.contains("vest") || lowerName.contains("jacket") || lowerName.contains("robe")) {
-            return "chestplate";
-        } else if (lowerName.contains("leggings") || lowerName.contains("pants") || lowerName.contains("trousers")) {
-            return "leggings";
-        } else if (lowerName.contains("boots") || lowerName.contains("shoes") || lowerName.contains("sandals")) {
-            return "boots";
-        }
-        return null;
+        return PieceTypeUtil.detectPieceType(itemName);
     }
 
     private static ChecklistCache.MatchInfo getMatchForPieceType(ChecklistCache.StageMatches stageMatches, String pieceType) {
@@ -337,7 +327,7 @@ public class InfoBoxRenderer {
         // Analyze the matched piece to get its tier
         var analysis = ColorAnalyzer.getInstance().analyzeArmorColor(matchInfo.hex, matchInfo.name);
         if (analysis != null) {
-            return analysis.tier;
+            return analysis.tier();
         }
         return Integer.MAX_VALUE;
     }
@@ -372,13 +362,13 @@ public class InfoBoxRenderer {
         return 0; // No dupe
     }
 
-    private static void handleDragging(MinecraftClient client) {
-        double mouseX = client.mouse.getX() * client.getWindow().getScaledWidth() / client.getWindow().getWidth();
-        double mouseY = client.mouse.getY() * client.getWindow().getScaledHeight() / client.getWindow().getHeight();
+    private static void handleDragging(Minecraft client) {
+        double mouseX = client.mouseHandler.xpos() * client.getWindow().getGuiScaledWidth() / client.getWindow().getWidth();
+        double mouseY = client.mouseHandler.ypos() * client.getWindow().getGuiScaledHeight() / client.getWindow().getHeight();
 
-        boolean isShiftHeld = GLFW.glfwGetKey(client.getWindow().getHandle(), GLFW.GLFW_KEY_LEFT_SHIFT) == GLFW.GLFW_PRESS ||
-                             GLFW.glfwGetKey(client.getWindow().getHandle(), GLFW.GLFW_KEY_RIGHT_SHIFT) == GLFW.GLFW_PRESS;
-        boolean isMouseDown = GLFW.glfwGetMouseButton(client.getWindow().getHandle(), GLFW.GLFW_MOUSE_BUTTON_LEFT) == GLFW.GLFW_PRESS;
+        boolean isShiftHeld = GLFW.glfwGetKey(client.getWindow().handle(), GLFW.GLFW_KEY_LEFT_SHIFT) == GLFW.GLFW_PRESS ||
+                             GLFW.glfwGetKey(client.getWindow().handle(), GLFW.GLFW_KEY_RIGHT_SHIFT) == GLFW.GLFW_PRESS;
+        boolean isMouseDown = GLFW.glfwGetMouseButton(client.getWindow().handle(), GLFW.GLFW_MOUSE_BUTTON_LEFT) == GLFW.GLFW_PRESS;
 
         if (hoveredItemData == null) return;
 
@@ -426,7 +416,7 @@ public class InfoBoxRenderer {
         return height;
     }
 
-    private static int calculateBoxWidth(HoveredItemData data, MinecraftClient client, boolean isShiftHeld) {
+    private static int calculateBoxWidth(HoveredItemData data, Minecraft client, boolean isShiftHeld) {
         if (data == null) return 150; // Return minimum width if data is null
 
         int maxWidth = 300;
@@ -434,68 +424,68 @@ public class InfoBoxRenderer {
         int padding = 10; // 5px on each side
 
         ClothConfig config = ClothConfig.getInstance();
-        var textRenderer = client.textRenderer;
+        var textRenderer = client.font;
 
         int maxTextWidth = 0;
 
         // Title
         String title = isShiftHeld ? "§l§nSeymour §7[DRAG]" : "§l§nSeymour Analysis";
-        maxTextWidth = Math.max(maxTextWidth, textRenderer.getWidth(title));
+        maxTextWidth = Math.max(maxTextWidth, textRenderer.width(title));
 
         // Piece hex
-        maxTextWidth = Math.max(maxTextWidth, textRenderer.getWidth("§7Piece: §f#" + data.itemHex));
+        maxTextWidth = Math.max(maxTextWidth, textRenderer.width("§7Piece: §f#" + data.itemHex));
 
         // Word match
         if (config.isWordsEnabled() && data.wordMatch != null) {
-            maxTextWidth = Math.max(maxTextWidth, textRenderer.getWidth("§d§l✦ WORD: " + data.wordMatch));
+            maxTextWidth = Math.max(maxTextWidth, textRenderer.width("§d§l✦ WORD: " + data.wordMatch));
         }
 
         // Pattern match
         if (config.isPatternsEnabled() && data.specialPattern != null) {
             String patternName = getPatternDisplayName(data.specialPattern);
-            maxTextWidth = Math.max(maxTextWidth, textRenderer.getWidth("§5§l★ PATTERN: " + patternName));
+            maxTextWidth = Math.max(maxTextWidth, textRenderer.width("§5§l★ PATTERN: " + patternName));
         }
 
         if (isShiftHeld) {
             // Top 3 matches
-            maxTextWidth = Math.max(maxTextWidth, textRenderer.getWidth("§7§lTop 3 Matches:"));
+            maxTextWidth = Math.max(maxTextWidth, textRenderer.width("§7§lTop 3 Matches:"));
 
-            var top3 = data.analysisResult.top3Matches;
+            var top3 = data.analysisResult.top3Matches();
             for (int i = 0; i < Math.min(3, top3.size()); i++) {
                 var match = top3.get(i);
-                String colorPrefix = getTierColorCode(match.tier, match.isFade, match.isCustom);
-                String line1 = colorPrefix + (i + 1) + ". §f" + match.name;
-                String line2 = "§7  ΔE: " + colorPrefix + String.format("%.2f", match.deltaE) + " §7#" + match.targetHex;
-                maxTextWidth = Math.max(maxTextWidth, textRenderer.getWidth(line1));
-                maxTextWidth = Math.max(maxTextWidth, textRenderer.getWidth(line2));
+                String colorPrefix = getTierColorCode(match.tier(), match.isFade(), match.isCustom());
+                String line1 = colorPrefix + (i + 1) + ". §f" + match.name();
+                String line2 = "§7  ΔE: " + colorPrefix + String.format("%.5f", match.deltaE()) + " §7#" + match.targetHex();
+                maxTextWidth = Math.max(maxTextWidth, textRenderer.width(line1));
+                maxTextWidth = Math.max(maxTextWidth, textRenderer.width(line2));
             }
         } else {
             // Single match details
-            maxTextWidth = Math.max(maxTextWidth, textRenderer.getWidth("§7Closest: §f" + data.bestMatchName));
-            maxTextWidth = Math.max(maxTextWidth, textRenderer.getWidth("§7Target: §7#" + data.bestMatchHex));
+            maxTextWidth = Math.max(maxTextWidth, textRenderer.width("§7Closest: §f" + data.bestMatchName));
+            maxTextWidth = Math.max(maxTextWidth, textRenderer.width("§7Target: §7#" + data.bestMatchHex));
 
             String colorPrefix = getTierColorCode(data.tier, data.isFadeDye, data.isCustom);
-            maxTextWidth = Math.max(maxTextWidth, textRenderer.getWidth(colorPrefix + "ΔE: §f" + String.format("%.2f", data.deltaE)));
-            maxTextWidth = Math.max(maxTextWidth, textRenderer.getWidth("§7Absolute: §f" + data.absoluteDist));
+            maxTextWidth = Math.max(maxTextWidth, textRenderer.width(colorPrefix + "ΔE: §f" + String.format("%.2f", data.deltaE)));
+            maxTextWidth = Math.max(maxTextWidth, textRenderer.width("§7Absolute: §f" + data.absoluteDist));
 
             String tierText = getTierText(data.tier, data.isFadeDye, data.isCustom);
-            maxTextWidth = Math.max(maxTextWidth, textRenderer.getWidth(tierText));
+            maxTextWidth = Math.max(maxTextWidth, textRenderer.width(tierText));
 
             // Show checkmark if we have an assigned match in checklist
             if (data.isNeededForChecklist) {
                 if (data.isOwned) {
                     String ownershipText = data.matchTier <= 1 ? "§a§l✓ Checklist" : "§e§l✓ Checklist";
-                    maxTextWidth = Math.max(maxTextWidth, textRenderer.getWidth(ownershipText));
+                    maxTextWidth = Math.max(maxTextWidth, textRenderer.width(ownershipText));
                 } else {
                     // Show "NEEDED" if no match assigned
-                    maxTextWidth = Math.max(maxTextWidth, textRenderer.getWidth("§c§l✗ NEEDED FOR CHECKLIST"));
+                    maxTextWidth = Math.max(maxTextWidth, textRenderer.width("§c§l✗ NEEDED FOR CHECKLIST"));
                 }
             }
         }
 
         // Dupe warning
         if (config.isDupesEnabled() && data.dupeCount > 0) {
-            maxTextWidth = Math.max(maxTextWidth, textRenderer.getWidth("§c§l⚠ DUPE HEX §7(x" + data.dupeCount + ")"));
+            maxTextWidth = Math.max(maxTextWidth, textRenderer.width("§c§l⚠ DUPE HEX §7(x" + data.dupeCount + ")"));
         }
 
         // Add padding and clamp to min/max
@@ -503,34 +493,34 @@ public class InfoBoxRenderer {
         return Math.min(Math.max(calculatedWidth, minWidth), maxWidth);
     }
 
-    private static void renderInfoBox(DrawContext context, MinecraftClient client) {
-        boolean isShiftHeld = GLFW.glfwGetKey(client.getWindow().getHandle(), GLFW.GLFW_KEY_LEFT_SHIFT) == GLFW.GLFW_PRESS ||
-                             GLFW.glfwGetKey(client.getWindow().getHandle(), GLFW.GLFW_KEY_RIGHT_SHIFT) == GLFW.GLFW_PRESS;
+    private static void renderInfoBox(GuiGraphics guiGraphics, Minecraft client) {
+        boolean isShiftHeld = GLFW.glfwGetKey(client.getWindow().handle(), GLFW.GLFW_KEY_LEFT_SHIFT) == GLFW.GLFW_PRESS ||
+                             GLFW.glfwGetKey(client.getWindow().handle(), GLFW.GLFW_KEY_RIGHT_SHIFT) == GLFW.GLFW_PRESS;
 
         int boxWidth = calculateBoxWidth(hoveredItemData, client, isShiftHeld);
         int boxHeight = calculateBoxHeight(hoveredItemData, isShiftHeld);
 
-        double mouseX = client.mouse.getX() * client.getWindow().getScaledWidth() / client.getWindow().getWidth();
-        double mouseY = client.mouse.getY() * client.getWindow().getScaledHeight() / client.getWindow().getHeight();
+        double mouseX = client.mouseHandler.xpos() * client.getWindow().getGuiScaledWidth() / client.getWindow().getWidth();
+        double mouseY = client.mouseHandler.ypos() * client.getWindow().getGuiScaledHeight() / client.getWindow().getHeight();
         boolean isMouseOver = mouseX >= boxX && mouseX <= boxX + boxWidth &&
                              mouseY >= boxY && mouseY <= boxY + boxHeight;
 
         // Background
-        context.fill(boxX, boxY, boxX + boxWidth, boxY + boxHeight, 0xFF000000);
+        guiGraphics.fill(boxX, boxY, boxX + boxWidth, boxY + boxHeight, 0xFF000000);
 
         // Border
         int borderColor = getBorderColor(hoveredItemData);
-        context.fill(boxX, boxY, boxX + boxWidth, boxY + 2, borderColor);
-        context.fill(boxX, boxY + boxHeight - 2, boxX + boxWidth, boxY + boxHeight, borderColor);
-        context.fill(boxX, boxY, boxX + 2, boxY + boxHeight, borderColor);
-        context.fill(boxX + boxWidth - 2, boxY, boxX + boxWidth, boxY + boxHeight, borderColor);
+        guiGraphics.fill(boxX, boxY, boxX + boxWidth, boxY + 2, borderColor);
+        guiGraphics.fill(boxX, boxY + boxHeight - 2, boxX + boxWidth, boxY + boxHeight, borderColor);
+        guiGraphics.fill(boxX, boxY, boxX + 2, boxY + boxHeight, borderColor);
+        guiGraphics.fill(boxX + boxWidth - 2, boxY, boxX + boxWidth, boxY + boxHeight, borderColor);
 
         // Title
         String title = (isShiftHeld && isMouseOver) ? "§l§nSeymour §7[DRAG]" : "§l§nSeymour Analysis";
-        context.drawText(client.textRenderer, Text.literal(title), boxX + 5, boxY + 5, 0xFFFFFFFF, true);
+        guiGraphics.drawString(client.font, Component.literal(title), boxX + 5, boxY + 5, 0xFFFFFFFF, true);
 
         // Piece hex
-        context.drawText(client.textRenderer, Text.literal("§7Piece: §f#" + hoveredItemData.itemHex),
+        guiGraphics.drawString(client.font, Component.literal("§7Piece: §f#" + hoveredItemData.itemHex),
             boxX + 5, boxY + 18, 0xFFFFFFFF, true);
 
         int yOffset = 28;
@@ -538,7 +528,7 @@ public class InfoBoxRenderer {
         // Word match
         ClothConfig config = ClothConfig.getInstance();
         if (config.isWordsEnabled() && hoveredItemData.wordMatch != null) {
-            context.drawText(client.textRenderer, Text.literal("§d§l✦ WORD: " + hoveredItemData.wordMatch),
+            guiGraphics.drawString(client.font, Component.literal("§d§l✦ WORD: " + hoveredItemData.wordMatch),
                 boxX + 5, boxY + yOffset, 0xFFFFFFFF, true);
             yOffset += 10;
         }
@@ -546,47 +536,47 @@ public class InfoBoxRenderer {
         // Pattern match
         if (config.isPatternsEnabled() && hoveredItemData.specialPattern != null) {
             String patternName = getPatternDisplayName(hoveredItemData.specialPattern);
-            context.drawText(client.textRenderer, Text.literal("§5§l★ PATTERN: " + patternName),
+            guiGraphics.drawString(client.font, Component.literal("§5§l★ PATTERN: " + patternName),
                 boxX + 5, boxY + yOffset, 0xFFFFFFFF, true);
             yOffset += 10;
         }
 
         if (isShiftHeld) {
             // Top 3 matches
-            context.drawText(client.textRenderer, Text.literal("§7§lTop 3 Matches:"),
+            guiGraphics.drawString(client.font, Component.literal("§7§lTop 3 Matches:"),
                 boxX + 5, boxY + yOffset, 0xFFFFFFFF, true);
 
-            var top3 = hoveredItemData.analysisResult.top3Matches;
+            var top3 = hoveredItemData.analysisResult.top3Matches();
 
             for (int i = 0; i < Math.min(3, top3.size()); i++) {
                 var match = top3.get(i);
                 int matchY = boxY + yOffset + 12 + (i * 25);
 
-                String colorPrefix = getTierColorCode(match.tier, match.isFade, match.isCustom);
-                String line1 = colorPrefix + (i + 1) + ". §f" + match.name;
-                String line2 = "§7  ΔE: " + colorPrefix + String.format("%.2f", match.deltaE) + " §7#" + match.targetHex;
+                String colorPrefix = getTierColorCode(match.tier(), match.isFade(), match.isCustom());
+                String line1 = colorPrefix + (i + 1) + ". §f" + match.name();
+                String line2 = "§7  ΔE: " + colorPrefix + String.format("%.5f", match.deltaE()) + " §7#" + match.targetHex();
 
-                context.drawText(client.textRenderer, Text.literal(line1),
+                guiGraphics.drawString(client.font, Component.literal(line1),
                     boxX + 5, matchY, 0xFFFFFFFF, true);
-                context.drawText(client.textRenderer, Text.literal(line2),
+                guiGraphics.drawString(client.font, Component.literal(line2),
                     boxX + 5, matchY + 10, 0xFFFFFFFF, true);
             }
         } else {
             // Single match details
-            context.drawText(client.textRenderer, Text.literal("§7Closest: §f" + hoveredItemData.bestMatchName),
+            guiGraphics.drawString(client.font, Component.literal("§7Closest: §f" + hoveredItemData.bestMatchName),
                 boxX + 5, boxY + yOffset, 0xFFFFFFFF, true);
-            context.drawText(client.textRenderer, Text.literal("§7Target: §7#" + hoveredItemData.bestMatchHex),
+            guiGraphics.drawString(client.font, Component.literal("§7Target: §7#" + hoveredItemData.bestMatchHex),
                 boxX + 5, boxY + yOffset + 10, 0xFFFFFFFF, true);
 
             String colorPrefix = getTierColorCode(hoveredItemData.tier, hoveredItemData.isFadeDye, hoveredItemData.isCustom);
-            context.drawText(client.textRenderer, Text.literal(colorPrefix + "ΔE: §f" +
+            guiGraphics.drawString(client.font, Component.literal(colorPrefix + "ΔE: §f" +
                 String.format("%.2f", hoveredItemData.deltaE)),
                 boxX + 5, boxY + yOffset + 20, 0xFFFFFFFF, true);
-            context.drawText(client.textRenderer, Text.literal("§7Absolute: §f" + hoveredItemData.absoluteDist),
+            guiGraphics.drawString(client.font, Component.literal("§7Absolute: §f" + hoveredItemData.absoluteDist),
                 boxX + 5, boxY + yOffset + 30, 0xFFFFFFFF, true);
 
             String tierText = getTierText(hoveredItemData.tier, hoveredItemData.isFadeDye, hoveredItemData.isCustom);
-            context.drawText(client.textRenderer, Text.literal(tierText),
+            guiGraphics.drawString(client.font, Component.literal(tierText),
                 boxX + 5, boxY + yOffset + 40, 0xFFFFFFFF, true);
 
             yOffset += 50;
@@ -596,12 +586,12 @@ public class InfoBoxRenderer {
                 if (hoveredItemData.isOwned) {
                     // We have a match assigned - show checkmark based on the ASSIGNED match's tier
                     String ownershipText = hoveredItemData.matchTier <= 1 ? "§a§l✓ Checklist" : "§e§l✓ Checklist";
-                    context.drawText(client.textRenderer, Text.literal(ownershipText),
+                    guiGraphics.drawString(client.font, Component.literal(ownershipText),
                         boxX + 5, boxY + yOffset, 0xFFFFFFFF, true);
                     yOffset += 10;
                 } else {
                     // We DON'T have a match assigned (or match is T3+)
-                    context.drawText(client.textRenderer, Text.literal("§c§l✗ NEEDED FOR CHECKLIST"),
+                    guiGraphics.drawString(client.font, Component.literal("§c§l✗ NEEDED FOR CHECKLIST"),
                         boxX + 5, boxY + yOffset, 0xFFFFFFFF, true);
                     yOffset += 10;
                 }
@@ -609,7 +599,7 @@ public class InfoBoxRenderer {
 
             // Dupe warning (only show when NOT holding shift)
             if (config.isDupesEnabled() && hoveredItemData.dupeCount > 0) {
-                context.drawText(client.textRenderer, Text.literal("§c§l⚠ DUPE HEX §7(x" + hoveredItemData.dupeCount + ")"),
+                guiGraphics.drawString(client.font, Component.literal("§c§l⚠ DUPE HEX §7(x" + hoveredItemData.dupeCount + ")"),
                     boxX + 5, boxY + yOffset, 0xFFFFFFFF, true);
             }
         }

@@ -1,9 +1,9 @@
 package schnerry.seymouranalyzer.mixin;
 
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.screen.ingame.HandledScreen;
-import net.minecraft.item.ItemStack;
-import net.minecraft.screen.slot.Slot;
+import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.inventory.Slot;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
@@ -18,7 +18,7 @@ import schnerry.seymouranalyzer.render.ItemSlotHighlighter;
  * This ensures we're using the exact same coordinate space as the actual slot rendering
  * Also tracks the focused slot for InfoBox rendering
  */
-@Mixin(value = HandledScreen.class, priority = 1500)
+@Mixin(value = AbstractContainerScreen.class, priority = 1500)
 public abstract class HandledScreenMixin {
 
     @Unique
@@ -31,7 +31,7 @@ public abstract class HandledScreenMixin {
     private static ItemStack lastHoveredStack = ItemStack.EMPTY;
 
     @Shadow
-    protected Slot focusedSlot;
+    protected Slot hoveredSlot;
 
     /**
      * Inject before each slot is drawn to render our highlight behind the item
@@ -39,23 +39,23 @@ public abstract class HandledScreenMixin {
      * ALSO track the hovered slot here since we KNOW it exists at this point
      */
     @Inject(
-        method = "drawSlot",
+        method = "renderSlot",
         at = @At("HEAD")
     )
-    private void onDrawSlot(DrawContext context, Slot slot, CallbackInfo ci) {
-        ItemStack stack = slot.getStack();
+    private void onDrawSlot(GuiGraphics guiGraphics, Slot slot, int mouseX, int mouseY, CallbackInfo ci) {
+        ItemStack stack = slot.getItem();
         if (stack.isEmpty()) return;
 
         // Let the highlighter render the highlight for this slot
-        ItemSlotHighlighter.getInstance().renderSlotHighlight(context, slot);
+        ItemSlotHighlighter.getInstance().renderSlotHighlight(guiGraphics, slot);
 
         // Track the slot being drawn if it matches the focused slot
         // This captures the data BEFORE any other mod can modify it
-        if (this.focusedSlot != null && this.focusedSlot == slot) {
+        if (this.hoveredSlot != null && this.hoveredSlot == slot) {
             lastHoveredSlot = slot;
             lastHoveredStack = stack.copy(); // Copy to preserve the data
 
-            String itemName = stack.getName().getString();
+            String itemName = stack.getHoverName().getString();
             if (DEBUG) {
                 System.out.println("[Mixin] Captured hover in drawSlot: " + itemName);
             }
@@ -66,15 +66,15 @@ public abstract class HandledScreenMixin {
     }
 
     /**
-     * Inject at HEAD of render to capture focusedSlot EARLY before other mods can interfere
+     * Inject at HEAD of render to capture hoveredSlot EARLY before other mods can interfere
      * This runs BEFORE any other mod's TAIL injections
      */
     @Inject(
         method = "render",
         at = @At("HEAD")
     )
-    private void onRenderHead(DrawContext context, int mouseX, int mouseY, float delta, CallbackInfo ci) {
-        HandledScreen<?> screen = (HandledScreen<?>) (Object) this;
+    private void onRenderHead(GuiGraphics guiGraphics, int mouseX, int mouseY, float delta, CallbackInfo ci) {
+        AbstractContainerScreen<?> screen = (AbstractContainerScreen<?>) (Object) this;
 
         // Reset logging flag when screen changes
         if (lastScreen != screen) {
@@ -88,23 +88,23 @@ public abstract class HandledScreenMixin {
             lastHoveredStack = ItemStack.EMPTY;
         }
 
-        // Early capture of focusedSlot before any other mod can modify it
-        if (this.focusedSlot != null && !this.focusedSlot.getStack().isEmpty()) {
-            ItemStack stack = this.focusedSlot.getStack();
-            String itemName = stack.getName().getString();
+        // Early capture of hoveredSlot before any other mod can modify it
+        if (this.hoveredSlot != null && !this.hoveredSlot.getItem().isEmpty()) {
+            ItemStack stack = this.hoveredSlot.getItem();
+            String itemName = stack.getHoverName().getString();
 
             if (DEBUG) {
                 System.out.println("[Mixin] Early capture in render HEAD:");
-                System.out.println("[Mixin]   Slot #" + this.focusedSlot.id);
+                System.out.println("[Mixin]   Slot #" + this.hoveredSlot.index);
                 System.out.println("[Mixin]   Item: " + itemName);
             }
 
-            lastHoveredSlot = this.focusedSlot;
+            lastHoveredSlot = this.hoveredSlot;
             lastHoveredStack = stack.copy();
 
             // Update InfoBox with early captured data
             InfoBoxRenderer.getInstance().setHoveredItem(stack, itemName);
-        } else if (this.focusedSlot == null) {
+        } else if (this.hoveredSlot == null) {
             // Only clear if we truly have no focused slot
             if (lastHoveredSlot != null) {
                 if (DEBUG) {
@@ -119,47 +119,46 @@ public abstract class HandledScreenMixin {
 
     /**
      * Also inject at TAIL as a backup to catch any late updates
-     * Uses our cached data if focusedSlot was cleared by another mod
+     * Uses our cached data if hoveredSlot was cleared by another mod
      */
     @Inject(
         method = "render",
         at = @At("TAIL")
     )
-    private void onRenderTail(DrawContext context, int mouseX, int mouseY, float delta, CallbackInfo ci) {
-        // If focusedSlot exists and is still valid, re-update with current data
-        if (this.focusedSlot != null && !this.focusedSlot.getStack().isEmpty()) {
-            ItemStack stack = this.focusedSlot.getStack();
-            String itemName = stack.getName().getString();
+    private void onRenderTail(GuiGraphics guiGraphics, int mouseX, int mouseY, float delta, CallbackInfo ci) {
+        // If hoveredSlot exists and is still valid, re-update with current data
+        if (this.hoveredSlot != null && !this.hoveredSlot.getItem().isEmpty()) {
+            ItemStack stack = this.hoveredSlot.getItem();
+            String itemName = stack.getHoverName().getString();
             InfoBoxRenderer.getInstance().setHoveredItem(stack, itemName);
         } else if (lastHoveredSlot != null && !lastHoveredStack.isEmpty()) {
-            // Use cached data if focusedSlot was cleared but we still have valid cached data
+            // Use cached data if hoveredSlot was cleared but we still have valid cached data
             if (DEBUG) {
                 System.out.println("[Mixin] Using cached hover data in TAIL");
             }
-            InfoBoxRenderer.getInstance().setHoveredItem(lastHoveredStack, lastHoveredStack.getName().getString());
+            InfoBoxRenderer.getInstance().setHoveredItem(lastHoveredStack, lastHoveredStack.getHoverName().getString());
         }
     }
 
     /**
-     * Additional backup: Capture focusedSlot when tooltip is about to render
+     * Additional backup: Capture hoveredSlot when tooltip is about to render
      * This is called independently and gives us another chance to capture the slot
      */
     @Inject(
-        method = "drawMouseoverTooltip",
+        method = "renderTooltip",
         at = @At("HEAD")
     )
-    private void onDrawTooltipHead(DrawContext context, int x, int y, CallbackInfo ci) {
+    private void onDrawTooltipHead(GuiGraphics guiGraphics, int x, int y, CallbackInfo ci) {
         // Capture focused slot data when tooltip rendering starts
-        if (this.focusedSlot != null && !this.focusedSlot.getStack().isEmpty()) {
-            ItemStack stack = this.focusedSlot.getStack();
+        if (this.hoveredSlot != null && !this.hoveredSlot.getItem().isEmpty()) {
+            ItemStack stack = this.hoveredSlot.getItem();
 
             // Only update if changed to reduce overhead
-            if (lastHoveredSlot != this.focusedSlot) {
-                lastHoveredSlot = this.focusedSlot;
+            if (lastHoveredSlot != this.hoveredSlot) {
+                lastHoveredSlot = this.hoveredSlot;
                 lastHoveredStack = stack.copy();
-                InfoBoxRenderer.getInstance().setHoveredItem(stack, stack.getName().getString());
+                InfoBoxRenderer.getInstance().setHoveredItem(stack, stack.getHoverName().getString());
             }
         }
     }
 }
-

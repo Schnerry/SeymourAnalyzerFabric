@@ -1,15 +1,15 @@
 package schnerry.seymouranalyzer.gui;
 
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.screen.Screen;
-import net.minecraft.client.gui.widget.ButtonWidget;
-import net.minecraft.client.gui.widget.TextFieldWidget;
-import net.minecraft.client.gui.Click;
-import net.minecraft.client.input.KeyInput;
-import net.minecraft.client.input.CharInput;
-import net.minecraft.client.util.InputUtil;
-import net.minecraft.text.Text;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.components.EditBox;
+import net.minecraft.client.input.MouseButtonEvent;
+import net.minecraft.client.input.KeyEvent;
+import net.minecraft.client.input.CharacterEvent;
+import com.mojang.blaze3d.platform.InputConstants;
+import net.minecraft.network.chat.Component;
 import org.lwjgl.glfw.GLFW;
 import schnerry.seymouranalyzer.Seymouranalyzer;
 import schnerry.seymouranalyzer.config.ClothConfig;
@@ -33,8 +33,8 @@ public class DatabaseScreen extends ModScreen {
     private static final int START_Y = 70;
 
     // Search and filters
-    private TextFieldWidget searchField;
-    private TextFieldWidget hexSearchField;
+    private EditBox searchField;
+    private EditBox hexSearchField;
 
     // Sorting
     private String sortColumn = null; // "name", "hex", "match", "deltaE", "absolute", "distance"
@@ -47,7 +47,7 @@ public class DatabaseScreen extends ModScreen {
     // Scrollbar dragging
     private boolean isDraggingScrollbar = false;
 
-    // Context menu
+    // guiGraphics menu
     private ContextMenu contextMenu = null;
 
     private static class ContextMenu {
@@ -60,6 +60,13 @@ public class DatabaseScreen extends ModScreen {
     // Shift-to-expand feature
     private String expandedPieceUuid = null;
 
+    // Cache for closest dupe pieces (avoids recalculating every frame)
+    private record CachedClosePiece(ArmorPiece piece, double deltaE, int absDistance) {}
+    private final Map<String, List<CachedClosePiece>> closestDupeCache = new HashMap<>();
+
+    // Track shift state for precision display
+    private boolean isShiftHeld = false;
+
     // Pending hex search (set before init())
     private String pendingHexSearch = null;
 
@@ -70,7 +77,7 @@ public class DatabaseScreen extends ModScreen {
     }
 
     public DatabaseScreen(Screen parent) {
-        super(Text.literal("Seymour Database"), parent);
+        super(Component.literal("Seymour Database"), parent);
         loadPieces();
     }
 
@@ -101,6 +108,9 @@ public class DatabaseScreen extends ModScreen {
             return Double.compare(deltaA, deltaB);
         });
 
+        // Clear dupe cache since piece list changed
+        closestDupeCache.clear();
+
         Seymouranalyzer.LOGGER.info("Loaded {} pieces into database GUI", allPieces.size());
         filteredPieces = new ArrayList<>(allPieces);
     }
@@ -110,59 +120,69 @@ public class DatabaseScreen extends ModScreen {
         super.init();
 
         // Save current search text before re-initialization (in case GUI scale triggers re-init)
-        String previousSearchText = searchField != null ? searchField.getText() : null;
-        String previousHexText = hexSearchField != null ? hexSearchField.getText() : null;
+        String previousSearchText = searchField != null ? searchField.getValue() : null;
+        String previousHexText = hexSearchField != null ? hexSearchField.getValue() : null;
 
         // Search field (top right)
-        searchField = new TextFieldWidget(this.textRenderer, this.width - 255, 8, 235, 20, Text.literal("Search"));
+        searchField = new EditBox(this.font, this.width - 255, 8, 235, 20, Component.literal("Search"));
         searchField.setMaxLength(50);
-        searchField.setPlaceholder(Text.literal("Search hex/match/delta..."));
-        searchField.setChangedListener(text -> filterAndSort());
-        this.addDrawableChild(searchField);
+        searchField.setHint(Component.literal("Search hex/match/delta..."));
+        searchField.setResponder(text -> filterAndSort());
+        this.addRenderableWidget(searchField);
 
         // Hex search field (below search)
-        hexSearchField = new TextFieldWidget(this.textRenderer, this.width - 145, 35, 125, 20, Text.literal("Hex Search"));
+        hexSearchField = new EditBox(this.font, this.width - 145, 35, 125, 20, Component.literal("Hex Search"));
         hexSearchField.setMaxLength(6);
-        hexSearchField.setPlaceholder(Text.literal("Hex search (ΔE<5)..."));
-        hexSearchField.setChangedListener(text -> filterAndSort());
-        this.addDrawableChild(hexSearchField);
+        hexSearchField.setHint(Component.literal("Hex search (ΔE<5)..."));
+        hexSearchField.setResponder(text -> filterAndSort());
+        this.addRenderableWidget(hexSearchField);
 
         // Checklist button (top left)
-        ButtonWidget checklistButton = ButtonWidget.builder(Text.literal("Open Checklist GUI"),
-            button -> this.client.setScreen(new ArmorChecklistScreen(this)))
-            .dimensions(20, 10, 150, 20).build();
-        this.addDrawableChild(checklistButton);
+        Button checklistButton = Button.builder(Component.literal("Open Checklist GUI"),
+            button -> this.minecraft.setScreen(new ArmorChecklistScreen(this)))
+            .bounds(20, 10, 150, 20).build();
+        this.addRenderableWidget(checklistButton);
 
         // Word matches button (bottom right)
-        ButtonWidget wordButton = ButtonWidget.builder(Text.literal("§lWord Matches"),
-            button -> this.client.setScreen(new WordMatchesScreen(this)))
-            .dimensions(this.width - 140, this.height - 60, 120, 20).build();
-        this.addDrawableChild(wordButton);
+        Button wordButton = Button.builder(Component.literal("§lWord Matches"),
+            button -> this.minecraft.setScreen(new WordMatchesScreen(this)))
+            .bounds(this.width - 140, this.height - 60, 120, 20).build();
+        this.addRenderableWidget(wordButton);
 
         // Pattern matches button (above word button)
-        ButtonWidget patternButton = ButtonWidget.builder(Text.literal("§lPattern Matches"),
-            button -> this.client.setScreen(new PatternMatchesScreen(this)))
-            .dimensions(this.width - 140, this.height - 35, 120, 20).build();
-        this.addDrawableChild(patternButton);
+        Button patternButton = Button.builder(Component.literal("§lPattern Matches"),
+            button -> this.minecraft.setScreen(new PatternMatchesScreen(this)))
+            .bounds(this.width - 140, this.height - 35, 120, 20).build();
+        this.addRenderableWidget(patternButton);
 
         // Dupes filter button (bottom left)
-        ButtonWidget dupesButton = ButtonWidget.builder(Text.literal(showDupesOnly ? "Dupes" : "Show Dupes"), button -> {
+        Button dupesButton = Button.builder(Component.literal(showDupesOnly ? "Dupes" : "Show Dupes"), button -> {
             showDupesOnly = !showDupesOnly;
-            button.setMessage(Text.literal(showDupesOnly ? "Dupes" : "Show Dupes"));
+            button.setMessage(Component.literal(showDupesOnly ? "Dupes" : "Show Dupes"));
             filterAndSort();
-        }).dimensions(20, this.height - 35, 85, 20).build();
-        this.addDrawableChild(dupesButton);
+            this.rebuildWidgets(); // Rebuild to show/hide Copy Dupes button
+        }).bounds(20, this.height - 35, 85, 20).build();
+        this.addRenderableWidget(dupesButton);
 
-        // Fades filter button (next to dupes)
-        ButtonWidget fadesButton = ButtonWidget.builder(Text.literal("Show Fades"), button -> {
+        // Copy Dupes button (shown when dupes mode is active)
+        if (showDupesOnly) {
+            Button copyDupesButton = Button.builder(Component.literal("§eCopy Dupes"),
+                button -> copyDupesToClipboard())
+                .bounds(110, this.height - 35, 85, 20).build();
+            this.addRenderableWidget(copyDupesButton);
+        }
+
+        // Fades filter button (next to dupes / copy dupes)
+        int fadesX = showDupesOnly ? 200 : 110;
+        Button fadesButton = Button.builder(Component.literal("Show Fades"), button -> {
             showFades = !showFades;
             filterAndSort();
-        }).dimensions(110, this.height - 35, 85, 20).build();
-        this.addDrawableChild(fadesButton);
+        }).bounds(fadesX, this.height - 35, 85, 20).build();
+        this.addRenderableWidget(fadesButton);
 
-        // Apply pending hex search if set (from context menu in other screens)
+        // Apply pending hex search if set (from guiGraphics menu in other screens)
         if (pendingHexSearch != null) {
-            hexSearchField.setText(pendingHexSearch);
+            hexSearchField.setValue(pendingHexSearch);
             this.setFocused(hexSearchField);
             hexSearchField.setFocused(true);
             // Automatically sort by distance (closest) when opening with hex search
@@ -177,7 +197,7 @@ public class DatabaseScreen extends ModScreen {
             // Check if it's a pure hex code (6 characters, no X wildcard)
             if (search.length() == 6 && search.matches("[0-9A-F]{6}")) {
                 // Pure hex - goes to hex search field
-                hexSearchField.setText(search);
+                hexSearchField.setValue(search);
                 this.setFocused(hexSearchField);
                 hexSearchField.setFocused(true);
                 // Automatically sort by distance (closest) when opening with hex search
@@ -185,7 +205,7 @@ public class DatabaseScreen extends ModScreen {
                 sortAscending = true;
             } else {
                 // Everything else goes to main search field
-                searchField.setText(pendingInitialSearch);
+                searchField.setValue(pendingInitialSearch);
                 this.setFocused(searchField);
                 searchField.setFocused(true);
             }
@@ -195,10 +215,10 @@ public class DatabaseScreen extends ModScreen {
         // If no pending search but we had previous text, restore it (GUI scale re-init)
         else if (previousSearchText != null || previousHexText != null) {
             if (previousSearchText != null && !previousSearchText.isEmpty()) {
-                searchField.setText(previousSearchText);
+                searchField.setValue(previousSearchText);
             }
             if (previousHexText != null && !previousHexText.isEmpty()) {
-                hexSearchField.setText(previousHexText);
+                hexSearchField.setValue(previousHexText);
             }
         }
         // If no pending search, ensure one field can be focused by default
@@ -212,7 +232,7 @@ public class DatabaseScreen extends ModScreen {
     }
 
     @Override
-    public void render(DrawContext context, int mouseX, int mouseY, float delta) {
+    public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float delta) {
         // Don't fill ANY background - let default background show through
         // Text renders correctly without background fills covering it
 
@@ -221,8 +241,8 @@ public class DatabaseScreen extends ModScreen {
 
         // Title - simple white text
         String titleStr = "Seymour Database";
-        int titleWidth = this.textRenderer.getWidth(titleStr);
-        context.drawTextWithShadow(this.textRenderer, titleStr, this.width / 2 - titleWidth / 2, 5, 0xFFFFFFFF);
+        int titleWidth = this.font.width(titleStr);
+        guiGraphics.drawString(this.font, titleStr, this.width / 2 - titleWidth / 2, 5, 0xFFFFFFFF);
 
         // Collection size info - calculate total width first, then center
         String totalLabel = "Total: ";
@@ -232,34 +252,34 @@ public class DatabaseScreen extends ModScreen {
         String filteredCount = "";
         String filteredEnd = "";
 
-        int totalInfoWidth = this.textRenderer.getWidth(totalLabel) +
-                            this.textRenderer.getWidth(totalCount) +
-                            this.textRenderer.getWidth(piecesLabel);
+        int totalInfoWidth = this.font.width(totalLabel) +
+                            this.font.width(totalCount) +
+                            this.font.width(piecesLabel);
 
         if (filteredPieces.size() != allPieces.size()) {
             filteredText = " (Filtered: ";
             filteredCount = String.valueOf(filteredPieces.size());
             filteredEnd = ")";
-            totalInfoWidth += this.textRenderer.getWidth(filteredText) +
-                            this.textRenderer.getWidth(filteredCount) +
-                            this.textRenderer.getWidth(filteredEnd);
+            totalInfoWidth += this.font.width(filteredText) +
+                            this.font.width(filteredCount) +
+                            this.font.width(filteredEnd);
         }
 
         // Now draw centered
         int infoX = this.width / 2 - totalInfoWidth / 2;
-        context.drawTextWithShadow(this.textRenderer, totalLabel, infoX, 19, 0xFF888888);
-        infoX += this.textRenderer.getWidth(totalLabel);
-        context.drawTextWithShadow(this.textRenderer, totalCount, infoX, 19, 0xFFFFFF55);
-        infoX += this.textRenderer.getWidth(totalCount);
-        context.drawTextWithShadow(this.textRenderer, piecesLabel, infoX, 19, 0xFF888888);
+        guiGraphics.drawString(this.font, totalLabel, infoX, 19, 0xFF888888);
+        infoX += this.font.width(totalLabel);
+        guiGraphics.drawString(this.font, totalCount, infoX, 19, 0xFFFFFF55);
+        infoX += this.font.width(totalCount);
+        guiGraphics.drawString(this.font, piecesLabel, infoX, 19, 0xFF888888);
 
         if (filteredPieces.size() != allPieces.size()) {
-            infoX += this.textRenderer.getWidth(piecesLabel);
-            context.drawTextWithShadow(this.textRenderer, filteredText, infoX, 19, 0xFF888888);
-            infoX += this.textRenderer.getWidth(filteredText);
-            context.drawTextWithShadow(this.textRenderer, filteredCount, infoX, 19, 0xFFFFFF55);
-            infoX += this.textRenderer.getWidth(filteredCount);
-            context.drawTextWithShadow(this.textRenderer, filteredEnd, infoX, 19, 0xFF888888);
+            infoX += this.font.width(piecesLabel);
+            guiGraphics.drawString(this.font, filteredText, infoX, 19, 0xFF888888);
+            infoX += this.font.width(filteredText);
+            guiGraphics.drawString(this.font, filteredCount, infoX, 19, 0xFFFFFF55);
+            infoX += this.font.width(filteredCount);
+            guiGraphics.drawString(this.font, filteredEnd, infoX, 19, 0xFF888888);
         }
 
         // Calculate tier counts
@@ -308,27 +328,27 @@ public class DatabaseScreen extends ModScreen {
         String dupesLabel = "Dupes: ";
         String dupesValue = String.valueOf(dupes);
 
-        int row1Width = this.textRenderer.getWidth(t1Label) +
-                       this.textRenderer.getWidth(t1Value) + 10 +
-                       this.textRenderer.getWidth(t2Label) +
-                       this.textRenderer.getWidth(t2Value) + 10 +
-                       this.textRenderer.getWidth(dupesLabel) +
-                       this.textRenderer.getWidth(dupesValue);
+        int row1Width = this.font.width(t1Label) +
+                       this.font.width(t1Value) + 10 +
+                       this.font.width(t2Label) +
+                       this.font.width(t2Value) + 10 +
+                       this.font.width(dupesLabel) +
+                       this.font.width(dupesValue);
 
         int row1X = this.width / 2 - row1Width / 2;
-        context.drawTextWithShadow(this.textRenderer, t1Label, row1X, 30, 0xFF888888);
-        row1X += this.textRenderer.getWidth(t1Label);
-        context.drawTextWithShadow(this.textRenderer, t1Value, row1X, 30, 0xFFFF5555);
-        row1X += this.textRenderer.getWidth(t1Value) + 10;
+        guiGraphics.drawString(this.font, t1Label, row1X, 30, 0xFF888888);
+        row1X += this.font.width(t1Label);
+        guiGraphics.drawString(this.font, t1Value, row1X, 30, 0xFFFF5555);
+        row1X += this.font.width(t1Value) + 10;
 
-        context.drawTextWithShadow(this.textRenderer, t2Label, row1X, 30, 0xFF888888);
-        row1X += this.textRenderer.getWidth(t2Label);
-        context.drawTextWithShadow(this.textRenderer, t2Value, row1X, 30, 0xFFFFAA00);
-        row1X += this.textRenderer.getWidth(t2Value) + 10;
+        guiGraphics.drawString(this.font, t2Label, row1X, 30, 0xFF888888);
+        row1X += this.font.width(t2Label);
+        guiGraphics.drawString(this.font, t2Value, row1X, 30, 0xFFFFAA00);
+        row1X += this.font.width(t2Value) + 10;
 
-        context.drawTextWithShadow(this.textRenderer, dupesLabel, row1X, 30, 0xFF888888);
-        row1X += this.textRenderer.getWidth(dupesLabel);
-        context.drawTextWithShadow(this.textRenderer, dupesValue, row1X, 30, 0xFFFF55FF);
+        guiGraphics.drawString(this.font, dupesLabel, row1X, 30, 0xFF888888);
+        row1X += this.font.width(dupesLabel);
+        guiGraphics.drawString(this.font, dupesValue, row1X, 30, 0xFFFF55FF);
 
         // Row 2: T1 Fade, T2 Fade
         String t1FadeLabel = "T1 Fade: ";
@@ -336,31 +356,31 @@ public class DatabaseScreen extends ModScreen {
         String t2FadeLabel = "T2 Fade: ";
         String t2FadeValue = String.valueOf(t2Fade);
 
-        int row2Width = this.textRenderer.getWidth(t1FadeLabel) +
-                       this.textRenderer.getWidth(t1FadeValue) + 10 +
-                       this.textRenderer.getWidth(t2FadeLabel) +
-                       this.textRenderer.getWidth(t2FadeValue);
+        int row2Width = this.font.width(t1FadeLabel) +
+                       this.font.width(t1FadeValue) + 10 +
+                       this.font.width(t2FadeLabel) +
+                       this.font.width(t2FadeValue);
 
         int row2X = this.width / 2 - row2Width / 2;
-        context.drawTextWithShadow(this.textRenderer, t1FadeLabel, row2X, 40, 0xFF888888);
-        row2X += this.textRenderer.getWidth(t1FadeLabel);
-        context.drawTextWithShadow(this.textRenderer, t1FadeValue, row2X, 40, 0xFF5555FF);
-        row2X += this.textRenderer.getWidth(t1FadeValue) + 10;
+        guiGraphics.drawString(this.font, t1FadeLabel, row2X, 40, 0xFF888888);
+        row2X += this.font.width(t1FadeLabel);
+        guiGraphics.drawString(this.font, t1FadeValue, row2X, 40, 0xFF5555FF);
+        row2X += this.font.width(t1FadeValue) + 10;
 
-        context.drawTextWithShadow(this.textRenderer, t2FadeLabel, row2X, 40, 0xFF888888);
-        row2X += this.textRenderer.getWidth(t2FadeLabel);
-        context.drawTextWithShadow(this.textRenderer, t2FadeValue, row2X, 40, 0xFFFFFF55);
+        guiGraphics.drawString(this.font, t2FadeLabel, row2X, 40, 0xFF888888);
+        row2X += this.font.width(t2FadeLabel);
+        guiGraphics.drawString(this.font, t2FadeValue, row2X, 40, 0xFFFFFF55);
 
         if (filteredPieces.isEmpty()) {
-            String noResultsMsg = !searchField.getText().isEmpty() || !hexSearchField.getText().isEmpty()
+            String noResultsMsg = !searchField.getValue().isEmpty() || !hexSearchField.getValue().isEmpty()
                 ? "No results for search"
                 : "No pieces. Use /seymour scan start";
-            int msgWidth = this.textRenderer.getWidth(noResultsMsg);
-            context.drawTextWithShadow(this.textRenderer, noResultsMsg, this.width / 2 - msgWidth / 2, this.height / 2, 0xFF888888);
+            int msgWidth = this.font.width(noResultsMsg);
+            guiGraphics.drawString(this.font, noResultsMsg, this.width / 2 - msgWidth / 2, this.height / 2, 0xFF888888);
 
             // DON'T return early - still need to render widgets!
             // Render widgets so buttons still work
-            super.render(context, mouseX, mouseY, delta);
+            super.render(guiGraphics, mouseX, mouseY, delta);
             return;
         }
 
@@ -371,23 +391,23 @@ public class DatabaseScreen extends ModScreen {
         String deltaArrow = sortColumn != null && sortColumn.equals("deltaE") ? (sortAscending ? " ↓" : " ↑") : "";
         String absArrow = sortColumn != null && sortColumn.equals("absolute") ? (sortAscending ? " ↓" : " ↑") : "";
 
-        context.drawTextWithShadow(this.textRenderer, "Name" + nameArrow, 20, HEADER_Y, 0xFFAAAAAA);
-        context.drawTextWithShadow(this.textRenderer, "Hex" + hexArrow, 200, HEADER_Y, 0xFFAAAAAA);
-        context.drawTextWithShadow(this.textRenderer, "Match" + matchArrow, 300, HEADER_Y, 0xFFAAAAAA);
-        context.drawTextWithShadow(this.textRenderer, "ΔE" + deltaArrow, 550, HEADER_Y, 0xFFAAAAAA);
-        context.drawTextWithShadow(this.textRenderer, "Absolute" + absArrow, 630, HEADER_Y, 0xFFAAAAAA);
+        guiGraphics.drawString(this.font, "Name" + nameArrow, 20, HEADER_Y, 0xFFAAAAAA);
+        guiGraphics.drawString(this.font, "Hex" + hexArrow, 200, HEADER_Y, 0xFFAAAAAA);
+        guiGraphics.drawString(this.font, "Match" + matchArrow, 300, HEADER_Y, 0xFFAAAAAA);
+        guiGraphics.drawString(this.font, "ΔE" + deltaArrow, 550, HEADER_Y, 0xFFAAAAAA);
+        guiGraphics.drawString(this.font, "Absolute" + absArrow, 630, HEADER_Y, 0xFFAAAAAA);
 
         // Show "Closest" column when hex search is active with 6 digits
-        String hexSearchText = hexSearchField != null ? hexSearchField.getText().replace("#", "") : "";
+        String hexSearchText = hexSearchField != null ? hexSearchField.getValue().replace("#", "") : "";
         boolean showClosestColumn = hexSearchText.length() == 6 && hexSearchText.matches("[0-9A-Fa-f]{6}");
 
         if (showClosestColumn) {
             String distanceArrow = sortColumn != null && sortColumn.equals("distance") ? (sortAscending ? " ↓" : " ↑") : "";
-            context.drawTextWithShadow(this.textRenderer, "Closest" + distanceArrow, 710, HEADER_Y, 0xFFAAAAAA);
+            guiGraphics.drawString(this.font, "Closest" + distanceArrow, 710, HEADER_Y, 0xFFAAAAAA);
         }
 
         // Separator line
-        context.fill(20, HEADER_Y + 12, this.width - 20, HEADER_Y + 13, 0xFF646464);
+        guiGraphics.fill(20, HEADER_Y + 12, this.width - 20, HEADER_Y + 13, 0xFF646464);
 
         // Calculate visible rows dynamically based on screen size
         int availableHeight = this.height - START_Y - 40; // 40 for footer
@@ -403,7 +423,7 @@ public class DatabaseScreen extends ModScreen {
 
             // Only draw if the row is at least partially visible
             if (currentY + rowHeight > START_Y) {
-                drawPieceRow(context, piece, currentY);
+                drawPieceRow(guiGraphics, piece, currentY);
             }
 
             currentY += rowHeight;
@@ -414,33 +434,33 @@ public class DatabaseScreen extends ModScreen {
             int scrollbarX = this.width - 15;
             int scrollbarY = START_Y;
             int scrollbarHeight = maxVisibleRows * ROW_HEIGHT;
-            ScrollbarRenderer.renderVerticalScrollbar(context, scrollbarX, scrollbarY, scrollbarHeight,
+            ScrollbarRenderer.renderVerticalScrollbar(guiGraphics, scrollbarX, scrollbarY, scrollbarHeight,
                 scrollOffset, filteredPieces.size(), maxVisibleRows);
         }
 
         // Footer - simple text
         String footerStr = "Showing " + (scrollOffset + 1) + "-" + endIndex + " of " + filteredPieces.size();
-        int footerWidth = this.textRenderer.getWidth(footerStr);
-        context.drawTextWithShadow(this.textRenderer, footerStr, this.width / 2 - footerWidth / 2, this.height - 25, 0xFF888888);
+        int footerWidth = this.font.width(footerStr);
+        guiGraphics.drawString(this.font, footerStr, this.width / 2 - footerWidth / 2, this.height - 25, 0xFF888888);
 
         // ESC text - draw in segments for color
         int escX = this.width / 2 - 60;
-        context.drawTextWithShadow(this.textRenderer, "Press ", escX, this.height - 10, 0xFF888888);
-        escX += this.textRenderer.getWidth("Press ");
-        context.drawTextWithShadow(this.textRenderer, "ESC", escX, this.height - 10, 0xFFFFFF55);
-        escX += this.textRenderer.getWidth("ESC");
-        context.drawTextWithShadow(this.textRenderer, " to close", escX, this.height - 10, 0xFF888888);
+        guiGraphics.drawString(this.font, "Press ", escX, this.height - 10, 0xFF888888);
+        escX += this.font.width("Press ");
+        guiGraphics.drawString(this.font, "ESC", escX, this.height - 10, 0xFFFFFF55);
+        escX += this.font.width("ESC");
+        guiGraphics.drawString(this.font, " to close", escX, this.height - 10, 0xFF888888);
 
-        // Draw context menu on top if open
+        // Draw guiGraphics menu on top if open
         if (contextMenu != null) {
-            drawContextMenu(context, mouseX, mouseY);
+            drawContextMenu(guiGraphics, mouseX, mouseY);
         }
 
         // Render widgets LAST so they don't cover our text
-        super.render(context, mouseX, mouseY, delta);
+        super.render(guiGraphics, mouseX, mouseY, delta);
     }
 
-    private void drawPieceRow(DrawContext context, ArmorPiece piece, int y) {
+    private void drawPieceRow(GuiGraphics guiGraphics, ArmorPiece piece, int y) {
         boolean isExpanded = piece.getUuid().equals(expandedPieceUuid);
 
         // Draw highlight backgrounds first
@@ -476,14 +496,14 @@ public class DatabaseScreen extends ModScreen {
             }
 
             if (highlightColor != 0) {
-                context.fill(540, y - 2, 680, y + ROW_HEIGHT - 2, highlightColor);
+                guiGraphics.fill(540, y - 2, 680, y + ROW_HEIGHT - 2, highlightColor);
             }
         }
 
         // Hex color box
         ColorMath.RGB rgb = ColorMath.hexToRgb(piece.getHexcode());
-        int color = 0xFF000000 | (rgb.r << 16) | (rgb.g << 8) | rgb.b;
-        context.fill(200, y, 285, y + 16, color);
+        int color = 0xFF000000 | (rgb.r() << 16) | (rgb.g() << 8) | rgb.b();
+        guiGraphics.fill(200, y, 285, y + 16, color);
 
         // Draw text - using the EXACT same approach as the title/headers that ARE working
         String nameStr = piece.getPieceName();
@@ -492,14 +512,14 @@ public class DatabaseScreen extends ModScreen {
         }
 
         // Draw with alpha channel included
-        context.drawTextWithShadow(this.textRenderer, nameStr, 20, y + 4, 0xFFFFFFFF);
+        guiGraphics.drawString(this.font, nameStr, 20, y + 4, 0xFFFFFFFF);
 
         // Hex text
         String hexStr = piece.getHexcode();
         if (ColorMath.isColorDark(piece.getHexcode())) {
-            context.drawTextWithShadow(this.textRenderer, hexStr, 202, y + 4, 0xFFFFFFFF);
+            guiGraphics.drawString(this.font, hexStr, 202, y + 4, 0xFFFFFFFF);
         } else {
-            context.drawTextWithShadow(this.textRenderer, hexStr, 202, y + 4, 0xFF000000);
+            guiGraphics.drawString(this.font, hexStr, 202, y + 4, 0xFF000000);
         }
 
         // Match name
@@ -508,7 +528,7 @@ public class DatabaseScreen extends ModScreen {
             if (matchStr.length() > 35) {
                 matchStr = matchStr.substring(0, 35) + "...";
             }
-            context.drawTextWithShadow(this.textRenderer, matchStr, 300, y + 4, 0xFF55FFFF);
+            guiGraphics.drawString(this.font, matchStr, 300, y + 4, 0xFF55FFFF);
 
             double deltaE = piece.getBestMatch().deltaE;
             boolean isFade = checkFadeDye(piece.getBestMatch().colorName);
@@ -527,18 +547,19 @@ public class DatabaseScreen extends ModScreen {
                 deColor = 0xFFAAAAAA;
             }
 
-            context.drawTextWithShadow(this.textRenderer, String.format("%.2f", deltaE), 550, y + 4, deColor);
+            String deFormat = isShiftHeld ? "%.5f" : "%.2f";
+            guiGraphics.drawString(this.font, String.format(deFormat, deltaE), 550, y + 4, deColor);
 
             int absDistance = piece.getBestMatch().absoluteDistance;
-            context.drawTextWithShadow(this.textRenderer, String.valueOf(absDistance), 630, y + 4, 0xFFAAAAAA);
+            guiGraphics.drawString(this.font, String.valueOf(absDistance), 630, y + 4, 0xFFAAAAAA);
         } else {
-            context.drawTextWithShadow(this.textRenderer, "Unknown", 300, y + 4, 0xFFAAAAAA);
-            context.drawTextWithShadow(this.textRenderer, "-", 550, y + 4, 0xFFAAAAAA);
-            context.drawTextWithShadow(this.textRenderer, "-", 630, y + 4, 0xFFAAAAAA);
+            guiGraphics.drawString(this.font, "Unknown", 300, y + 4, 0xFFAAAAAA);
+            guiGraphics.drawString(this.font, "-", 550, y + 4, 0xFFAAAAAA);
+            guiGraphics.drawString(this.font, "-", 630, y + 4, 0xFFAAAAAA);
         }
 
         // Display "Closest" column when hex search is active
-        String hexSearchText = hexSearchField != null ? hexSearchField.getText().replace("#", "") : "";
+        String hexSearchText = hexSearchField != null ? hexSearchField.getValue().replace("#", "") : "";
         boolean showClosestColumn = hexSearchText.length() == 6 && hexSearchText.matches("[0-9A-Fa-f]{6}");
 
         if (showClosestColumn && piece.getCachedSearchDeltaE() != null && piece.getCachedSearchDistance() != null) {
@@ -556,21 +577,28 @@ public class DatabaseScreen extends ModScreen {
             }
 
             if (closestHighlight != 0) {
-                context.fill(710, y - 2, 800, y + ROW_HEIGHT - 2, closestHighlight);
+                guiGraphics.fill(710, y - 2, 800, y + ROW_HEIGHT - 2, closestHighlight);
             }
 
             // Display as "Δ[deltaE] - [distance]"
-            String closestText = String.format("Δ%.2f - %d", searchDeltaE, searchDistance);
-            context.drawTextWithShadow(this.textRenderer, closestText, 720, y + 4, 0xFFAAAAAA);
+            String closestFormat = isShiftHeld ? "Δ%.5f - %d" : "Δ%.2f - %d";
+            String closestText = String.format(closestFormat, searchDeltaE, searchDistance);
+            guiGraphics.drawString(this.font, closestText, 720, y + 4, 0xFFAAAAAA);
         }
 
         // Draw expanded matches if this piece is expanded
         if (isExpanded && piece.getAllMatches() != null && !piece.getAllMatches().isEmpty()) {
-            drawExpandedMatches(context, piece, y + 20);
+            drawExpandedMatches(guiGraphics, piece, y + 20);
         }
     }
 
-    private void drawExpandedMatches(DrawContext context, ArmorPiece piece, int startY) {
+    private void drawExpandedMatches(GuiGraphics guiGraphics, ArmorPiece piece, int startY) {
+        // In dupe mode, show the 3 closest pieces from collection instead of color matches
+        if (showDupesOnly) {
+            drawClosestCollectionPieces(guiGraphics, piece, startY);
+            return;
+        }
+
         List<ArmorPiece.ColorMatch> matches = piece.getAllMatches();
         if (matches == null || matches.isEmpty()) {
             return;
@@ -610,13 +638,13 @@ public class DatabaseScreen extends ModScreen {
             }
 
             if (highlightColor != 0) {
-                context.fill(540, currentY, 680, currentY + 16, highlightColor);
+                guiGraphics.fill(540, currentY, 680, currentY + 16, highlightColor);
             }
 
             // Draw match color box
             ColorMath.RGB matchRgb = ColorMath.hexToRgb(match.targetHex);
-            int matchColor = 0xFF000000 | (matchRgb.r << 16) | (matchRgb.g << 8) | matchRgb.b;
-            context.fill(30, currentY, 90, currentY + 14, matchColor);
+            int matchColor = 0xFF000000 | (matchRgb.r() << 16) | (matchRgb.g() << 8) | matchRgb.b();
+            guiGraphics.fill(30, currentY, 90, currentY + 14, matchColor);
 
             // Draw match name
             String matchName = match.colorName;
@@ -624,7 +652,7 @@ public class DatabaseScreen extends ModScreen {
                 matchName = matchName.substring(0, 30) + "...";
             }
             String matchText = displayNum + ". " + matchName;
-            context.drawTextWithShadow(this.textRenderer, matchText, 95, currentY + 3, 0xFF55FFFF);
+            guiGraphics.drawString(this.font, matchText, 95, currentY + 3, 0xFF55FFFF);
 
             // Draw deltaE with color
             int deColor;
@@ -637,17 +665,97 @@ public class DatabaseScreen extends ModScreen {
             } else {
                 deColor = 0xFFAAAAAA;
             }
-            context.drawTextWithShadow(this.textRenderer, String.format("%.2f", match.deltaE), 550, currentY + 3, deColor);
+            String matchDeFormat = isShiftHeld ? "%.5f" : "%.2f";
+            guiGraphics.drawString(this.font, String.format(matchDeFormat, match.deltaE), 550, currentY + 3, deColor);
 
             // Draw absolute distance
-            context.drawTextWithShadow(this.textRenderer, String.valueOf(match.absoluteDistance), 630, currentY + 3, 0xFFAAAAAA);
+            guiGraphics.drawString(this.font, String.valueOf(match.absoluteDistance), 630, currentY + 3, 0xFFAAAAAA);
 
             currentY += 20;
             displayNum++;
         }
     }
 
-    private void drawContextMenu(DrawContext context, int mouseX, int mouseY) {
+    /**
+     * Draw the 3 closest pieces from the collection to this dupe piece's hex.
+     * Shows name, hex, and deltaE for each close piece.
+     */
+    private void drawClosestCollectionPieces(GuiGraphics guiGraphics, ArmorPiece piece, int startY) {
+        String pieceHex = piece.getHexcode();
+        if (pieceHex == null || pieceHex.isEmpty()) return;
+
+        // Use cached results if available, otherwise compute and cache
+        List<CachedClosePiece> closest = closestDupeCache.computeIfAbsent(piece.getUuid(), uuid -> {
+            return allPieces.stream()
+                .filter(p -> !p.getUuid().equals(uuid) && !p.getHexcode().equalsIgnoreCase(pieceHex))
+                .map(p -> {
+                    double dE = ColorMath.calculateDeltaE(pieceHex, p.getHexcode());
+                    int abs = ColorMath.calculateAbsoluteDistance(pieceHex, p.getHexcode());
+                    return new CachedClosePiece(p, dE, abs);
+                })
+                .sorted(Comparator.comparingDouble(CachedClosePiece::deltaE))
+                .limit(3)
+                .collect(Collectors.toList());
+        });
+
+        int currentY = startY;
+        int displayNum = 1;
+
+        for (CachedClosePiece cached : closest) {
+            double deltaE = cached.deltaE();
+            int absDistance = cached.absDistance();
+            ArmorPiece closePiece = cached.piece();
+
+            // Draw tier color highlight background based on deltaE
+            int highlightColor = 0;
+            if (deltaE <= 1) {
+                highlightColor = 0x48FF0000; // Red
+            } else if (deltaE <= 2) {
+                highlightColor = 0x48FF69B4; // Pink
+            } else if (deltaE <= 5) {
+                highlightColor = 0x48FFA500; // Orange
+            }
+
+            if (highlightColor != 0) {
+                guiGraphics.fill(540, currentY, 680, currentY + 16, highlightColor);
+            }
+
+            // Draw color box
+            ColorMath.RGB matchRgb = ColorMath.hexToRgb(closePiece.getHexcode());
+            int matchColor = 0xFF000000 | (matchRgb.r() << 16) | (matchRgb.g() << 8) | matchRgb.b();
+            guiGraphics.fill(30, currentY, 90, currentY + 14, matchColor);
+
+            // Draw piece name + hex
+            String name = closePiece.getPieceName();
+            if (name.length() > 25) {
+                name = name.substring(0, 25) + "...";
+            }
+            String matchText = displayNum + ". " + name + " #" + closePiece.getHexcode();
+            guiGraphics.drawString(this.font, matchText, 95, currentY + 3, 0xFF55FFFF);
+
+            // Draw deltaE with color
+            int deColor;
+            if (deltaE < 1) {
+                deColor = 0xFFFF5555;
+            } else if (deltaE < 2) {
+                deColor = 0xFFFF55FF;
+            } else if (deltaE < 5) {
+                deColor = 0xFFFFAA00;
+            } else {
+                deColor = 0xFFAAAAAA;
+            }
+            String dupeDeFormat = isShiftHeld ? "Δ%.5f" : "Δ%.2f";
+            guiGraphics.drawString(this.font, String.format(dupeDeFormat, deltaE), 550, currentY + 3, deColor);
+
+            // Draw absolute distance
+            guiGraphics.drawString(this.font, String.valueOf(absDistance), 630, currentY + 3, 0xFFAAAAAA);
+
+            currentY += 20;
+            displayNum++;
+        }
+    }
+
+    private void drawContextMenu(GuiGraphics guiGraphics, int mouseX, int mouseY) {
         int x = contextMenu.x;
         int y = contextMenu.y;
         int w = contextMenu.width;
@@ -655,26 +763,26 @@ public class DatabaseScreen extends ModScreen {
         int optionHeight = 20;
 
         // Background
-        context.fill(x, y, x + w, y + h, 0xF0282828);
+        guiGraphics.fill(x, y, x + w, y + h, 0xF0282828);
 
         // Border
-        context.fill(x, y, x + w, y + 2, 0xFF646464);
-        context.fill(x, y + h - 2, x + w, y + h, 0xFF646464);
-        context.fill(x, y, x + 2, y + h, 0xFF646464);
-        context.fill(x + w - 2, y, x + w, y + h, 0xFF646464);
+        guiGraphics.fill(x, y, x + w, y + 2, 0xFF646464);
+        guiGraphics.fill(x, y + h - 2, x + w, y + h, 0xFF646464);
+        guiGraphics.fill(x, y, x + 2, y + h, 0xFF646464);
+        guiGraphics.fill(x + w - 2, y, x + w, y + h, 0xFF646464);
 
         // Highlight hovered option
         int relativeY = mouseY - y;
         int hoveredOption = relativeY / optionHeight;
         if (hoveredOption >= 0 && hoveredOption < 2 && mouseX >= x && mouseX <= x + w) {
-            context.fill(x, y + (hoveredOption * optionHeight), x + w, y + ((hoveredOption + 1) * optionHeight), 0x80505050);
+            guiGraphics.fill(x, y + (hoveredOption * optionHeight), x + w, y + ((hoveredOption + 1) * optionHeight), 0x80505050);
         }
 
         // Option 1: "Find Piece"
-        context.drawTextWithShadow(this.textRenderer, "Find Piece", x + 5, y + 6, 0xFFFFFFFF);
+        guiGraphics.drawString(this.font, "Find Piece", x + 5, y + 6, 0xFFFFFFFF);
 
         // Option 2: "Remove Piece"
-        context.drawTextWithShadow(this.textRenderer, "Remove Piece", x + 5, y + 26, 0xFFFFFFFF);
+        guiGraphics.drawString(this.font, "Remove Piece", x + 5, y + 26, 0xFFFFFFFF);
     }
 
     private boolean handleContextMenuClick(double mouseX, double mouseY, int button) {
@@ -698,10 +806,10 @@ public class DatabaseScreen extends ModScreen {
 
         if (clickedOption == 0) {
             // Option 1: "Find Piece" - execute search command
-            if (client != null && client.player != null) {
+            if (minecraft != null && minecraft.player != null) {
                 String hex = contextMenu.piece.getHexcode();
-                client.player.sendMessage(Text.literal("§a[Seymour] §7Searching for pieces with hex " + hex + "..."), false);
-                client.player.networkHandler.sendChatCommand("seymour search " + hex);
+                minecraft.player.displayClientMessage(Component.literal("§a[Seymour] §7Searching for pieces with hex " + hex + "..."), false);
+                minecraft.player.connection.sendCommand("seymour search " + hex);
             }
             contextMenu = null;
             return true;
@@ -713,13 +821,14 @@ public class DatabaseScreen extends ModScreen {
 
             CollectionManager.getInstance().removePiece(uuid);
 
-            // Rebuild filtered pieces list
+            // Rebuild filtered pieces list and clear dupe cache
             allPieces.removeIf(p -> p.getUuid().equals(uuid));
+            closestDupeCache.clear();
             filterAndSort();
 
-            if (client != null && client.player != null) {
-                client.player.sendMessage(Text.literal("§a[Seymour] §7Removed piece: §f" + pieceName + " §7(" + hex + ")"), false);
-                client.player.sendMessage(Text.literal("§a[Seymour] §7New piece count: §e" + allPieces.size()), false);
+            if (minecraft != null && minecraft.player != null) {
+                minecraft.player.displayClientMessage(Component.literal("§a[Seymour] §7Removed piece: §f" + pieceName + " §7(" + hex + ")"), false);
+                minecraft.player.displayClientMessage(Component.literal("§a[Seymour] §7New piece count: §e" + allPieces.size()), false);
             }
 
             contextMenu = null;
@@ -748,7 +857,7 @@ public class DatabaseScreen extends ModScreen {
             int rowHeight = getActualRowHeight(piece);
 
             if (mouseY >= currentY && mouseY < currentY + rowHeight) {
-                // Show context menu
+                // Show guiGraphics menu
                 contextMenu = new ContextMenu();
                 contextMenu.piece = piece;
                 contextMenu.x = (int) mouseX;
@@ -779,7 +888,7 @@ public class DatabaseScreen extends ModScreen {
     }
 
     @Override
-    public boolean mouseDragged(Click click, double deltaX, double deltaY) {
+    public boolean mouseDragged(MouseButtonEvent click, double deltaX, double deltaY) {
         if (isDraggingScrollbar && click.button() == 0) {
             int availableHeight = this.height - START_Y - 40;
             int maxVisibleRows = Math.max(1, availableHeight / ROW_HEIGHT);
@@ -797,7 +906,7 @@ public class DatabaseScreen extends ModScreen {
     }
 
     @Override
-    public boolean mouseReleased(Click click) {
+    public boolean mouseReleased(MouseButtonEvent click) {
         if (click.button() == 0 && isDraggingScrollbar) {
             isDraggingScrollbar = false;
             return true;
@@ -834,7 +943,7 @@ public class DatabaseScreen extends ModScreen {
         }
 
         // Apply text search filter
-        String searchText = searchField != null ? searchField.getText() : "";
+        String searchText = searchField != null ? searchField.getValue() : "";
         if (!searchText.isEmpty()) {
             String searchLower = searchText.toLowerCase();
             String searchUpper = searchText.toUpperCase();
@@ -890,7 +999,7 @@ public class DatabaseScreen extends ModScreen {
         }
 
         // Apply hex search filter (only with exactly 6 hex digits)
-        String hexSearchText = hexSearchField != null ? hexSearchField.getText().toUpperCase().replace("#", "") : "";
+        String hexSearchText = hexSearchField != null ? hexSearchField.getValue().toUpperCase().replace("#", "") : "";
         boolean hasActiveHexSearch = hexSearchText.length() == 6 && hexSearchText.matches("[0-9A-F]{6}");
 
         if (hasActiveHexSearch) {
@@ -949,7 +1058,8 @@ public class DatabaseScreen extends ModScreen {
 
     private boolean checkFadeDye(String colorName) {
         String[] fadeDyes = {
-            "Aurora", "Black Ice", "Frog", "Hellebore", "Kingfisher", "Lava", "Lucky", "Marine",
+            "Aurora", "Black Ice", "Black Opal", "Dusk Dye", "Forest Dye", "Frog", "Hellebore", "Jerry",
+            "Kingfisher", "Lava", "Lucky", "Marine",
             "Oasis", "Ocean", "Pastel Sky", "Portal", "Red Tulip", "Rose",
             "Snowflake", "Spooky", "Sunflower", "Sunset", "Warden"
         };
@@ -964,9 +1074,10 @@ public class DatabaseScreen extends ModScreen {
 
     private void updateExpandedPiece(int mouseX, int mouseY) {
         // Check if shift is held using InputUtil
-        var window = MinecraftClient.getInstance().getWindow();
-        boolean shiftHeld = InputUtil.isKeyPressed(window, GLFW.GLFW_KEY_LEFT_SHIFT)
-                         || InputUtil.isKeyPressed(window, GLFW.GLFW_KEY_RIGHT_SHIFT);
+        var window = Minecraft.getInstance().getWindow();
+        boolean shiftHeld = InputConstants.isKeyDown(window, GLFW.GLFW_KEY_LEFT_SHIFT)
+                         || InputConstants.isKeyDown(window, GLFW.GLFW_KEY_RIGHT_SHIFT);
+        isShiftHeld = shiftHeld;
 
         if (!shiftHeld) {
             expandedPieceUuid = null;
@@ -1005,6 +1116,11 @@ public class DatabaseScreen extends ModScreen {
             return ROW_HEIGHT;
         }
 
+        // In dupe mode, always show 3 closest pieces
+        if (showDupesOnly) {
+            return ROW_HEIGHT + (3 * 20);
+        }
+
         // Calculate how many match lines will be visible
         List<ArmorPiece.ColorMatch> matches = piece.getAllMatches();
         if (matches == null || matches.isEmpty()) {
@@ -1028,7 +1144,7 @@ public class DatabaseScreen extends ModScreen {
     }
 
     @Override
-    public boolean mouseClicked(Click click, boolean isOutOfBounds) {
+    public boolean mouseClicked(MouseButtonEvent click, boolean isOutOfBounds) {
         double mouseX = click.x();
         double mouseY = click.y();
         int button = click.button();
@@ -1043,21 +1159,21 @@ public class DatabaseScreen extends ModScreen {
             return true;
         }
 
-        // Handle context menu clicks
+        // Handle guiGraphics menu clicks
         if (contextMenu != null) {
             if (handleContextMenuClick(mouseX, mouseY, button)) {
                 return true;
             }
         }
 
-        // Right click on piece rows opens context menu
+        // Right click on piece rows opens guiGraphics menu
         if (button == 1) {
             if (handleRightClick(mouseX, mouseY)) {
                 return true;
             }
         }
 
-        // Left click closes context menu if clicking elsewhere
+        // Left click closes guiGraphics menu if clicking elsewhere
         if (button == 0 && contextMenu != null) {
             contextMenu = null;
             return true;
@@ -1100,7 +1216,7 @@ public class DatabaseScreen extends ModScreen {
                 clickedColumn = "absolute";
             } else if (mouseX >= 710 && mouseX <= 800) {
                 // Check if hex search is active before allowing distance sort
-                String hexSearchText = hexSearchField != null ? hexSearchField.getText().replace("#", "") : "";
+                String hexSearchText = hexSearchField != null ? hexSearchField.getValue().replace("#", "") : "";
                 if (hexSearchText.length() == 6 && hexSearchText.matches("[0-9A-Fa-f]{6}")) {
                     clickedColumn = "distance";
                 }
@@ -1124,40 +1240,76 @@ public class DatabaseScreen extends ModScreen {
     }
 
     @Override
-    public boolean keyPressed(KeyInput keyInput) {
-        if (searchField != null && searchField.keyPressed(keyInput)) {
+    public boolean keyPressed(KeyEvent keyEvent) {
+        if (searchField != null && searchField.keyPressed(keyEvent)) {
             filterAndSort();
             return true;
         }
-        if (hexSearchField != null && hexSearchField.keyPressed(keyInput)) {
+        if (hexSearchField != null && hexSearchField.keyPressed(keyEvent)) {
             filterAndSort();
             return true;
         }
-        return super.keyPressed(keyInput);
+        return super.keyPressed(keyEvent);
     }
 
     @Override
-    public boolean charTyped(CharInput charInput) {
-        if (searchField != null && searchField.charTyped(charInput)) {
+    public boolean charTyped(CharacterEvent charEvent) {
+        if (searchField != null && searchField.charTyped(charEvent)) {
             filterAndSort();
             return true;
         }
-        if (hexSearchField != null && hexSearchField.charTyped(charInput)) {
+        if (hexSearchField != null && hexSearchField.charTyped(charEvent)) {
             filterAndSort();
             return true;
         }
-        return super.charTyped(charInput);
+        return super.charTyped(charEvent);
+    }
+
+    private void copyDupesToClipboard() {
+        StringBuilder sb = new StringBuilder();
+        sb.append("Seymour Dupes Export\n");
+        sb.append("====================\n\n");
+
+        // Group filtered pieces by hex
+        Map<String, List<ArmorPiece>> hexGroups = new LinkedHashMap<>();
+        for (ArmorPiece piece : filteredPieces) {
+            hexGroups.computeIfAbsent(piece.getHexcode(), k -> new ArrayList<>()).add(piece);
+        }
+
+        for (Map.Entry<String, List<ArmorPiece>> entry : hexGroups.entrySet()) {
+            String hex = entry.getKey();
+            List<ArmorPiece> pieces = entry.getValue();
+            sb.append("#").append(hex).append(" (x").append(pieces.size()).append(")\n");
+            for (ArmorPiece piece : pieces) {
+                String matchName = piece.getBestMatch() != null ? piece.getBestMatch().colorName : "Unknown";
+                String deltaE = piece.getBestMatch() != null ? String.format("%.2f", piece.getBestMatch().deltaE) : "-";
+                sb.append("  ").append(piece.getPieceName())
+                  .append(" | Match: ").append(matchName)
+                  .append(" | ΔE: ").append(deltaE).append("\n");
+            }
+            sb.append("\n");
+        }
+
+        sb.append("Total: ").append(filteredPieces.size()).append(" dupe pieces");
+
+        try {
+            this.minecraft.keyboardHandler.setClipboard(sb.toString());
+            if (minecraft != null && minecraft.player != null) {
+                minecraft.player.displayClientMessage(
+                    Component.literal("\u00a7a[Seymour] \u00a77Copied " + filteredPieces.size() + " dupe pieces to clipboard!"), false);
+            }
+        } catch (Exception ignored) {}
     }
 
     @Override
-    public void close() {
-        if (this.client != null) {
-            this.client.setScreen(parent);
+    public void onClose() {
+        if (this.minecraft != null) {
+            this.minecraft.setScreen(parent);
         }
     }
 
     @Override
-    public boolean shouldPause() {
+    public boolean isPauseScreen() {
         return false;
     }
 }

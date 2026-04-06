@@ -1,17 +1,29 @@
 package schnerry.seymouranalyzer;
 
+import lombok.Getter;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderEvents;
+import net.minecraft.client.Minecraft;
+import net.minecraft.world.phys.Vec3;
 import schnerry.seymouranalyzer.command.SeymourCommand;
+import schnerry.seymouranalyzer.data.ChecklistCacheGenerator;
 import schnerry.seymouranalyzer.data.CollectionManager;
+import schnerry.seymouranalyzer.debug.ItemDebugger;
+import schnerry.seymouranalyzer.gui.GuiScaleManager;
 import schnerry.seymouranalyzer.keybind.KeyBindings;
+import schnerry.seymouranalyzer.render.BlockHighlighter;
+import schnerry.seymouranalyzer.render.HexTooltipRenderer;
+import schnerry.seymouranalyzer.render.InfoBoxRenderer;
+import schnerry.seymouranalyzer.render.ItemSlotHighlighter;
 import schnerry.seymouranalyzer.scanner.ChestScanner;
 
 /**
  * Client-side initialization
  */
 public class SeymouranalyzerClient implements ClientModInitializer {
+    @Getter
     private static ChestScanner chestScanner;
 
     @Override
@@ -21,28 +33,34 @@ public class SeymouranalyzerClient implements ClientModInitializer {
         // Initialize scanner
         chestScanner = new ChestScanner();
 
-        // Initialize BlockHighlighter (registers render events)
-        schnerry.seymouranalyzer.render.BlockHighlighter.getInstance();
+        // Initialize BlockHighlighter and register world render event
+        BlockHighlighter.getInstance();
+        WorldRenderEvents.BEFORE_DEBUG_RENDER.register(context -> {
+            BlockHighlighter highlighter = BlockHighlighter.getInstance();
+            if (!highlighter.hasHighlights()) return;
+            Vec3 cameraPos = Minecraft.getInstance().gameRenderer.getMainCamera().position();
+            highlighter.renderHighlights(context.matrices(), context.consumers(), cameraPos);
+        });
         Seymouranalyzer.LOGGER.info("Initialized BlockHighlighter");
 
         // Initialize ItemSlotHighlighter (registers screen render events)
-        schnerry.seymouranalyzer.render.ItemSlotHighlighter.getInstance();
+        ItemSlotHighlighter.getInstance();
         Seymouranalyzer.LOGGER.info("Initialized ItemSlotHighlighter");
 
         // Initialize InfoBoxRenderer (registers screen render events)
-        schnerry.seymouranalyzer.render.InfoBoxRenderer.getInstance();
+        InfoBoxRenderer.getInstance();
         Seymouranalyzer.LOGGER.info("Initialized InfoBoxRenderer");
 
         // Initialize ItemDebugger (for /seymour debug command)
-        schnerry.seymouranalyzer.debug.ItemDebugger.getInstance();
+        ItemDebugger.getInstance();
         Seymouranalyzer.LOGGER.info("Initialized ItemDebugger");
 
         // Initialize HexTooltipRenderer (shows hex on item tooltips like F3+H)
-        schnerry.seymouranalyzer.render.HexTooltipRenderer.getInstance();
+        HexTooltipRenderer.getInstance();
         Seymouranalyzer.LOGGER.info("Initialized HexTooltipRenderer");
 
         // Initialize GuiScaleManager (handles automatic GUI scale forcing)
-        schnerry.seymouranalyzer.gui.GuiScaleManager.getInstance();
+        GuiScaleManager.getInstance();
         Seymouranalyzer.LOGGER.info("Initialized GuiScaleManager");
 
         // Generate checklist caches on startup (runs async to avoid blocking)
@@ -50,7 +68,7 @@ public class SeymouranalyzerClient implements ClientModInitializer {
             try {
                 // Wait a bit to let collection load
                 Thread.sleep(1000);
-                schnerry.seymouranalyzer.data.ChecklistCacheGenerator.generateAllCaches();
+                ChecklistCacheGenerator.generateAllCaches();
             } catch (Exception e) {
                 Seymouranalyzer.LOGGER.error("Failed to generate initial checklist cache", e);
             }
@@ -68,7 +86,7 @@ public class SeymouranalyzerClient implements ClientModInitializer {
 
         // Register client tick for scanner
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
-            if (client.player != null && client.world != null) {
+            if (client.player != null && client.level != null) {
                 chestScanner.tick(client);
                 // Tick collection manager for auto-save
                 CollectionManager.getInstance().tick();

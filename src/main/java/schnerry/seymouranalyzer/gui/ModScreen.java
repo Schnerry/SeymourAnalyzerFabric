@@ -1,9 +1,9 @@
 package schnerry.seymouranalyzer.gui;
 
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.screen.Screen;
-import net.minecraft.client.gui.Click;
-import net.minecraft.text.Text;
+import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.input.MouseButtonEvent;
+import net.minecraft.network.chat.Component;
 
 /**
  * Base screen class for all Seymour Analyzer GUIs
@@ -22,7 +22,7 @@ public abstract class ModScreen extends Screen {
     private double lastMiddleMouseY = 0;
     private static final double MIDDLE_MOUSE_SENSITIVITY = 0.5; // Adjust scroll speed
 
-    protected ModScreen(Text title, Screen parent) {
+    protected ModScreen(Component title, Screen parent) {
         super(title);
         this.parent = parent;
     }
@@ -35,9 +35,9 @@ public abstract class ModScreen extends Screen {
     }
 
     @Override
-    public void close() {
-        if (this.client != null) {
-            this.client.setScreen(parent);
+    public void onClose() {
+        if (this.minecraft != null) {
+            this.minecraft.setScreen(parent);
         }
 
         // Restore GUI scale AFTER switching screens so the check works correctly
@@ -45,14 +45,14 @@ public abstract class ModScreen extends Screen {
     }
 
     @Override
-    public void render(DrawContext context, int mouseX, int mouseY, float delta) {
+    public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float delta) {
         // Check scale is still correct each frame
         GuiScaleManager.getInstance().tick();
-        super.render(context, mouseX, mouseY, delta);
+        super.render(guiGraphics, mouseX, mouseY, delta);
     }
 
     @Override
-    public boolean mouseClicked(Click click, boolean isOutOfBounds) {
+    public boolean mouseClicked(MouseButtonEvent click, boolean isOutOfBounds) {
         // Middle mouse button (button 2) activates scrolling mode
         if (click.button() == 2) {
             isMiddleMouseScrolling = true;
@@ -63,7 +63,7 @@ public abstract class ModScreen extends Screen {
     }
 
     @Override
-    public boolean mouseDragged(Click click, double deltaX, double deltaY) {
+    public boolean mouseDragged(MouseButtonEvent click, double deltaX, double deltaY) {
         // Handle middle mouse scrolling
         if (isMiddleMouseScrolling && click.button() == 2) {
             double mouseDelta = lastMiddleMouseY - click.y();
@@ -81,7 +81,7 @@ public abstract class ModScreen extends Screen {
     }
 
     @Override
-    public boolean mouseReleased(Click click) {
+    public boolean mouseReleased(MouseButtonEvent click) {
         // Release middle mouse scrolling
         if (click.button() == 2 && isMiddleMouseScrolling) {
             isMiddleMouseScrolling = false;

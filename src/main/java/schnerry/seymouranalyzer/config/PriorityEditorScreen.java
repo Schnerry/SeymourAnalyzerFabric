@@ -1,9 +1,9 @@
 package schnerry.seymouranalyzer.config;
 
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.widget.ButtonWidget;
-import net.minecraft.client.gui.Click;
-import net.minecraft.text.Text;
+import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.input.MouseButtonEvent;
+import net.minecraft.network.chat.Component;
 import schnerry.seymouranalyzer.gui.ModScreen;
 
 import java.util.ArrayList;
@@ -25,8 +25,8 @@ public class PriorityEditorScreen extends ModScreen {
     private static final int LIST_WIDTH = 400;
     private static final int LIST_START_Y = 60;
 
-    public PriorityEditorScreen(net.minecraft.client.gui.screen.Screen parent) {
-        super(Text.literal("Match Priority Editor"), parent);
+    public PriorityEditorScreen(net.minecraft.client.gui.screens.Screen parent) {
+        super(Component.literal("Match Priority Editor"), parent);
         this.priorities = new ArrayList<>(ClothConfig.getInstance().getMatchPriorities());
     }
 
@@ -35,31 +35,31 @@ public class PriorityEditorScreen extends ModScreen {
         super.init();
 
         // Done button
-        this.addDrawableChild(ButtonWidget.builder(Text.literal("Done"), button -> {
+        this.addRenderableWidget(Button.builder(Component.literal("Done"), button -> {
             ClothConfig.getInstance().setMatchPriorities(priorities);
             ClothConfig.getInstance().save();
-            this.close();
-        }).dimensions(this.width / 2 - 155, this.height - 28, 150, 20).build());
+            this.onClose();
+        }).bounds(this.width / 2 - 155, this.height - 28, 150, 20).build());
 
         // Cancel button
-        this.addDrawableChild(ButtonWidget.builder(Text.literal("Cancel"), button -> this.close())
-            .dimensions(this.width / 2 + 5, this.height - 28, 150, 20).build());
+        this.addRenderableWidget(Button.builder(Component.literal("Cancel"), button -> this.onClose())
+            .bounds(this.width / 2 + 5, this.height - 28, 150, 20).build());
 
         // Reset to defaults button
-        this.addDrawableChild(ButtonWidget.builder(Text.literal("Reset to Defaults"), button -> {
+        this.addRenderableWidget(Button.builder(Component.literal("Reset to Defaults"), button -> {
             priorities.clear();
             priorities.addAll(ClothConfig.getDefaultMatchPriorities());
-        }).dimensions(this.width / 2 - 75, this.height - 52, 150, 20).build());
+        }).bounds(this.width / 2 - 75, this.height - 52, 150, 20).build());
     }
 
     @Override
-    public void render(DrawContext context, int mouseX, int mouseY, float delta) {
+    public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float delta) {
         // Title
-        context.drawCenteredTextWithShadow(this.textRenderer, this.title, this.width / 2, 15, 0xFFFFFFFF);
+        guiGraphics.drawCenteredString(this.font, this.title, this.width / 2, 15, 0xFFFFFFFF);
 
         // Instructions
-        context.drawCenteredTextWithShadow(this.textRenderer,
-            Text.literal("Drag to reorder • Higher = Priority for highlights"),
+        guiGraphics.drawCenteredString(this.font,
+            Component.literal("Drag to reorder • Higher = Priority for highlights"),
             this.width / 2, 35, 0xFFAAAAAA);
 
         // Calculate list position
@@ -84,46 +84,46 @@ public class PriorityEditorScreen extends ModScreen {
             if (i == draggedIndex) continue; // Skip the dragged item for now
 
             int itemY = listY + i * (ITEM_HEIGHT + ITEM_SPACING);
-            renderPriorityItem(context, priorities.get(i), listX, itemY, i);
+            renderPriorityItem(guiGraphics, priorities.get(i), listX, itemY, i);
         }
 
         // Render dragged item on top
         if (draggedIndex >= 0 && draggedIndex < priorities.size()) {
             int dragY = (int)(LIST_START_Y + draggedIndex * (ITEM_HEIGHT + ITEM_SPACING) + (currentDragY - dragStartY));
-            renderPriorityItem(context, priorities.get(draggedIndex), listX, dragY, draggedIndex);
+            renderPriorityItem(guiGraphics, priorities.get(draggedIndex), listX, dragY, draggedIndex);
         }
 
-        super.render(context, mouseX, mouseY, delta);
+        super.render(guiGraphics, mouseX, mouseY, delta);
     }
 
-    private void renderPriorityItem(DrawContext context, MatchPriority priority, int x, int y, int index) {
+    private void renderPriorityItem(GuiGraphics guiGraphics, MatchPriority priority, int x, int y, int index) {
         boolean isHovered = index == hoveredIndex || index == draggedIndex;
         boolean isDragged = index == draggedIndex;
 
         // Background
         int bgColor = isDragged ? 0x88444444 : (isHovered ? 0x66333333 : 0x44222222);
-        context.fill(x, y, x + LIST_WIDTH, y + ITEM_HEIGHT, bgColor);
+        guiGraphics.fill(x, y, x + LIST_WIDTH, y + ITEM_HEIGHT, bgColor);
 
         // Border - draw manually since drawBorder was removed in 1.21.10
         int borderColor = isDragged ? 0xFFFFFFFF : (isHovered ? 0xFF888888 : 0xFF444444);
         // Top edge
-        context.fill(x, y, x + LIST_WIDTH, y + 1, borderColor);
+        guiGraphics.fill(x, y, x + LIST_WIDTH, y + 1, borderColor);
         // Bottom edge
-        context.fill(x, y + ITEM_HEIGHT - 1, x + LIST_WIDTH, y + ITEM_HEIGHT, borderColor);
+        guiGraphics.fill(x, y + ITEM_HEIGHT - 1, x + LIST_WIDTH, y + ITEM_HEIGHT, borderColor);
         // Left edge
-        context.fill(x, y, x + 1, y + ITEM_HEIGHT, borderColor);
+        guiGraphics.fill(x, y, x + 1, y + ITEM_HEIGHT, borderColor);
         // Right edge
-        context.fill(x + LIST_WIDTH - 1, y, x + LIST_WIDTH, y + ITEM_HEIGHT, borderColor);
+        guiGraphics.fill(x + LIST_WIDTH - 1, y, x + LIST_WIDTH, y + ITEM_HEIGHT, borderColor);
 
         // Priority number
         String priorityNum = "#" + (index + 1);
-        context.drawTextWithShadow(this.textRenderer, priorityNum, x + 8, y + 6, 0xFFFFAA00);
+        guiGraphics.drawString(this.font, priorityNum, x + 8, y + 6, 0xFFFFAA00);
 
         // Display name
-        context.drawTextWithShadow(this.textRenderer, priority.getDisplayName(), x + 40, y + 6, 0xFFFFFFFF);
+        guiGraphics.drawString(this.font, priority.getDisplayName(), x + 40, y + 6, 0xFFFFFFFF);
 
         // Description
-        context.drawTextWithShadow(this.textRenderer, priority.getDescription(), x + 40, y + 17, 0xFF888888);
+        guiGraphics.drawString(this.font, priority.getDescription(), x + 40, y + 17, 0xFF888888);
 
         // Drag handle (three lines)
         //noinspection ConstantValue - isDragged is evaluated at render time and can be true
@@ -131,13 +131,13 @@ public class PriorityEditorScreen extends ModScreen {
             int handleX = x + LIST_WIDTH - 20;
             int handleY = y + 10;
             for (int i = 0; i < 3; i++) {
-                context.fill(handleX, handleY + i * 3, handleX + 12, handleY + i * 3 + 1, 0xFF888888);
+                guiGraphics.fill(handleX, handleY + i * 3, handleX + 12, handleY + i * 3 + 1, 0xFF888888);
             }
         }
     }
 
     @Override
-    public boolean mouseClicked(Click click, boolean isOutOfBounds) {
+    public boolean mouseClicked(MouseButtonEvent click, boolean isOutOfBounds) {
         if (click.button() == 0) { // Left click
             int listX = (this.width - LIST_WIDTH) / 2;
 
@@ -157,7 +157,7 @@ public class PriorityEditorScreen extends ModScreen {
     }
 
     @Override
-    public boolean mouseReleased(Click click) {
+    public boolean mouseReleased(MouseButtonEvent click) {
         if (click.button() == 0 && draggedIndex >= 0) {
             // Calculate drop position
             int listY = LIST_START_Y;
@@ -183,7 +183,7 @@ public class PriorityEditorScreen extends ModScreen {
     }
 
     @Override
-    public boolean mouseDragged(Click click, double deltaX, double deltaY) {
+    public boolean mouseDragged(MouseButtonEvent click, double deltaX, double deltaY) {
         if (click.button() == 0 && draggedIndex >= 0) {
             currentDragY = click.y();
             return true;
