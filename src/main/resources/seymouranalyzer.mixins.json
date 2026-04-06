@@ -5,7 +5,8 @@
 	"mixins": [
 	],
 	"client": [
-		"HandledScreenMixin"
+		"HandledScreenMixin",
+		"TooltipColorMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1

@@ -11,6 +11,8 @@ import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.Style;
+import net.minecraft.network.chat.TextColor;
 import schnerry.seymouranalyzer.analyzer.ColorAnalyzer;
 import schnerry.seymouranalyzer.config.ClothConfig;
 import schnerry.seymouranalyzer.util.ColorMath;
@@ -85,18 +87,27 @@ public class HexTooltipRenderer {
 
         // Parse hex to RGB for coloring the text
         int rgb = hexToRgb(displayHex);
-        int hexDisplayColor = ClothConfig.getInstance().isColoredHexText() ? rgb : 0xFFFFFF;
+        boolean useColor = ClothConfig.getInstance().isColoredHexText();
 
         // Build the first line: "Hex: #XXXXXX"
-        MutableComponent hexText = Component.literal("Hex: ")
-            .withStyle(style -> style.withColor(0xA8A8A8).withItalic(false)) // Gray for "Hex: "
-            .append(Component.literal("#" + displayHex)
-                .withStyle(style -> style.withColor(hexDisplayColor).withItalic(false))); // Actual color or white for hex code
+        // Colors are re-applied at render time by TooltipColorMixin to bypass tooltip caching
+        MutableComponent hexLabel = Component.literal("Hex: ");
+        hexLabel.setStyle(Style.EMPTY.withColor(TextColor.fromRgb(0xA8A8A8)).withItalic(false));
+
+        MutableComponent hexValue = Component.literal("#" + displayHex);
+        if (useColor) {
+            hexValue.setStyle(Style.EMPTY.withColor(TextColor.fromRgb(rgb)).withItalic(false));
+        } else {
+            hexValue.setStyle(Style.EMPTY.withColor(TextColor.fromRgb(0xFFFFFF)).withItalic(false));
+        }
+
+        MutableComponent hexText = Component.empty().append(hexLabel).append(hexValue);
 
         // If item has been dyed, add a big red warning with the original hex
         if (dyeInfo.isDyed) {
-            hexText.append(Component.literal(" [DYED - Original: #" + dyeInfo.originalHex + "]")
-                .withStyle(style -> style.withColor(0xFF5555).withItalic(false).withBold(true))); // Bright red, bold
+            MutableComponent dyedWarning = Component.literal(" [DYED - Original: #" + dyeInfo.originalHex + "]");
+            dyedWarning.setStyle(Style.EMPTY.withColor(TextColor.fromRgb(0xFF5555)).withItalic(false).withBold(true));
+            hexText.append(dyedWarning);
         }
 
         // Insert after the item name (usually line 0) and before stats
@@ -126,14 +137,21 @@ public class HexTooltipRenderer {
                 String deFormat = shiftHeld ? "%.5f" : "%.2f";
 
                 // Build the second line: "Closest: Match Name - ΔE"
-                MutableComponent closestText = Component.literal("Closest: ")
-                    .withStyle(style -> style.withColor(0xA8A8A8).withItalic(false)) // Gray for "Closest: "
-                    .append(Component.literal(matchName)
-                        .withStyle(style -> style.withColor(0xFFFFFF).withItalic(false))) // White for match name
-                    .append(Component.literal(" - ")
-                        .withStyle(style -> style.withColor(0xA8A8A8).withItalic(false)))
-                    .append(Component.literal("ΔE: " + String.format(deFormat, deltaE))
-                        .withStyle(style -> style.withColor(closenessColor).withItalic(false))); // Colored deltaE
+                // Use setStyle() with explicit TextColor for robustness
+                MutableComponent closestLabel = Component.literal("Closest: ");
+                closestLabel.setStyle(Style.EMPTY.withColor(TextColor.fromRgb(0xA8A8A8)).withItalic(false));
+
+                MutableComponent matchNameComp = Component.literal(matchName);
+                matchNameComp.setStyle(Style.EMPTY.withColor(TextColor.fromRgb(0xFFFFFF)).withItalic(false));
+
+                MutableComponent separator = Component.literal(" - ");
+                separator.setStyle(Style.EMPTY.withColor(TextColor.fromRgb(0xA8A8A8)).withItalic(false));
+
+                MutableComponent deltaComp = Component.literal("ΔE: " + String.format(deFormat, deltaE));
+                deltaComp.setStyle(Style.EMPTY.withColor(TextColor.fromRgb(closenessColor)).withItalic(false));
+
+                MutableComponent closestText = Component.empty()
+                    .append(closestLabel).append(matchNameComp).append(separator).append(deltaComp);
 
                 // Insert right after the hex line
                 lines.add(insertIndex + 1, closestText);
