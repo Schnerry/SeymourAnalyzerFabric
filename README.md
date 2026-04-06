@@ -1,6 +1,6 @@
 # Seymour Analyzer - Fabric Mod
 
-A Fabric 1.21.8 client-side mod for Hypixel Skyblock that analyzes and tracks dyed leather armor colors in Hypixel Skyblock.
+A Fabric 1.21.11 client-side mod for Hypixel Skyblock that analyzes and tracks dyed leather armor colors in Hypixel Skyblock.
 
 **License:** GPL-3.0-or-later
 
@@ -43,7 +43,7 @@ A Fabric 1.21.8 client-side mod for Hypixel Skyblock that analyzes and tracks dy
 
 ## Installation
 
-1. Make sure you use [Fabric Loader 18.4+](https://fabricmc.net/use/) for Minecraft 1.21.8
+1. Make sure you use [Fabric Loader 18.4+](https://fabricmc.net/use/) for Minecraft 1.21.11
 2. Install [Fabric API](https://modrinth.com/mod/fabric-api)
 3. Download the latest SeymourAnalyzer jar from releases
 4. Place the jar in your `.minecraft/mods` folder
