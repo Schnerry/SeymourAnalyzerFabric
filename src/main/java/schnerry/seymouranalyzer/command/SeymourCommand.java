@@ -126,6 +126,10 @@ public class SeymourCommand {
             .then(literal("config")
                 .executes(SeymourCommand::openConfigGUI))
 
+            // /seymour roll - open gambling roll screen
+            .then(literal("roll")
+                .executes(SeymourCommand::openRollScreen))
+
             // /seymour priorities - open priority editor GUI
             .then(literal("priorities")
                 .executes(SeymourCommand::openPriorityEditorGUI))
@@ -147,6 +151,7 @@ public class SeymourCommand {
             // /seymour debug - log all data from next hovered item
             .then(literal("debug")
                 .executes(SeymourCommand::enableDebugMode))
+
 
             // /seymour rebuild <type> - rebuild collection data
             .then(literal("rebuild")
@@ -177,6 +182,7 @@ public class SeymourCommand {
         ctx.getSource().sendFeedback(Component.literal("§2/seymour toggle <option> §7- Toggle settings"));
         ctx.getSource().sendFeedback(Component.literal("§4/seymour clear §7- Clear all caches & collection"));
         ctx.getSource().sendFeedback(Component.literal("§8/seymour stats §7- Print the amount of T1/T2/Dupes"));
+        ctx.getSource().sendFeedback(Component.literal("§5/seymour roll §7- Open gambling roll animation"));
 
         int size = CollectionManager.getInstance().size();
         ctx.getSource().sendFeedback(Component.literal("§7Collection: §e" + size + " §7pieces"));
@@ -256,6 +262,11 @@ public class SeymourCommand {
                 ctx.getSource().sendFeedback(Component.literal("§a[Seymour Analyzer] §7Colored hex text " +
                     (config.isColoredHexText() ? "§aenabled" : "§cdisabled") + "§7!"));
                 break;
+            case "autoroll":
+                config.setAutoRollOnVisitor(!config.isAutoRollOnVisitor());
+                ctx.getSource().sendFeedback(Component.literal("§a[Seymour Analyzer] §7Auto roll on visitor " +
+                    (config.isAutoRollOnVisitor() ? "§aenabled" : "§cdisabled") + "§7!"));
+                break;
             default:
                 ctx.getSource().sendFeedback(Component.literal("§a[Seymour Analyzer] §cInvalid toggle option!"));
                 return 0;
@@ -284,6 +295,7 @@ public class SeymourCommand {
         ctx.getSource().sendFeedback(Component.literal("  §eitemframes §8- " + getToggleIndicator(config.isItemFramesEnabled()) + " §7Toggle item frame scanning"));
         ctx.getSource().sendFeedback(Component.literal("  §ehextooltip §8- " + getToggleIndicator(schnerry.seymouranalyzer.render.HexTooltipRenderer.getInstance().isEnabled()) + " §7Toggle hex tooltip display"));
         ctx.getSource().sendFeedback(Component.literal("  §ehexcolor §8- " + getToggleIndicator(config.isColoredHexText()) + " §7Toggle colored hex text"));
+        ctx.getSource().sendFeedback(Component.literal("  §eautoroll §8- " + getToggleIndicator(config.isAutoRollOnVisitor()) + " §7Toggle auto roll on Seymour visitor"));
         return 0;
     }
 
@@ -798,6 +810,18 @@ public class SeymourCommand {
             ctx.getSource().sendFeedback(Component.literal("§a[Seymour] §7Priority Editor opened!"));
         } catch (Exception e) {
             ctx.getSource().sendError(Component.literal("§c[Seymour] §7Error: " + e.getMessage()));
+            e.printStackTrace();
+        }
+        return 1;
+    }
+
+    private static int openRollScreen(CommandContext<FabricClientCommandSource> ctx) {
+        try {
+            net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
+            mc.execute(() -> mc.setScreen(new schnerry.seymouranalyzer.gambling.GamblingScreen()));
+            ctx.getSource().sendFeedback(Component.literal("§a[Seymour Analyzer] §7Rolling..."));
+        } catch (Exception e) {
+            ctx.getSource().sendError(Component.literal("§a[Seymour Analyzer] §cError: " + e.getMessage()));
             e.printStackTrace();
         }
         return 1;

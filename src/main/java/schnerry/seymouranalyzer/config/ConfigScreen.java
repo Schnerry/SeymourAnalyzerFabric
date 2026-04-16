@@ -157,6 +157,21 @@ public class ConfigScreen {
                 .setSaveConsumer(config::setItemFramesEnabled)
                 .build());
 
+        // Gambling Category
+        ConfigCategory gamblingCategory = builder.getOrCreateCategory(Component.literal("Gambling"));
+
+        gamblingCategory.addEntry(entryBuilder.startBooleanToggle(
+                Component.literal("Auto Roll on Visitor"),
+                config.isAutoRollOnVisitor())
+                .setDefaultValue(false)
+                .setTooltip(Component.literal("Automatically play the roll animation when accepting a Seymour visitor"))
+                .setSaveConsumer(config::setAutoRollOnVisitor)
+                .build());
+
+        gamblingCategory.addEntry(entryBuilder.startTextDescription(
+                Component.literal("§7Use §e/seymour roll §7to manually trigger the roll animation.")
+        ).build());
+
         return builder.build();
     }
 }

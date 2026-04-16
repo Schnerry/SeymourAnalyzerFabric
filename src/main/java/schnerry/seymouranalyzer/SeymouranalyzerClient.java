@@ -11,6 +11,7 @@ import schnerry.seymouranalyzer.command.SeymourCommand;
 import schnerry.seymouranalyzer.data.ChecklistCacheGenerator;
 import schnerry.seymouranalyzer.data.CollectionManager;
 import schnerry.seymouranalyzer.debug.ItemDebugger;
+import schnerry.seymouranalyzer.gambling.VisitorChatListener;
 import schnerry.seymouranalyzer.gui.GuiScaleManager;
 import schnerry.seymouranalyzer.keybind.KeyBindings;
 import schnerry.seymouranalyzer.render.BlockHighlighter;
@@ -62,6 +63,9 @@ public class SeymouranalyzerClient implements ClientModInitializer {
         // Initialize GuiScaleManager (handles automatic GUI scale forcing)
         GuiScaleManager.getInstance();
         Seymouranalyzer.LOGGER.info("Initialized GuiScaleManager");
+
+        // Register Seymour visitor chat listener (for auto-roll gambling)
+        VisitorChatListener.register();
 
         // Generate checklist caches on startup (runs async to avoid blocking)
         new Thread(() -> {

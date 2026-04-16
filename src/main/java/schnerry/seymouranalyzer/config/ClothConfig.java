@@ -68,6 +68,11 @@ public class ClothConfig {
     @Setter
     private boolean coloredHexText = true;
 
+    // Toggle settings - Gambling
+    @Getter
+    @Setter
+    private boolean autoRollOnVisitor = false;
+
     // Toggle settings - Scanning
     @Getter
     @Setter
@@ -127,6 +132,7 @@ public class ClothConfig {
                 if (json.has("showHighFades")) showHighFades = json.get("showHighFades").getAsBoolean();
                 if (json.has("itemFramesEnabled")) itemFramesEnabled = json.get("itemFramesEnabled").getAsBoolean();
                 if (json.has("coloredHexText")) coloredHexText = json.get("coloredHexText").getAsBoolean();
+                if (json.has("autoRollOnVisitor")) autoRollOnVisitor = json.get("autoRollOnVisitor").getAsBoolean();
 
                 if (json.has("infoBoxX")) infoBoxX = json.get("infoBoxX").getAsInt();
                 if (json.has("infoBoxY")) infoBoxY = json.get("infoBoxY").getAsInt();
@@ -193,6 +199,7 @@ public class ClothConfig {
             json.addProperty("itemFramesEnabled", itemFramesEnabled);
             json.addProperty("seymourOnlyHex", seymourOnlyHex);
             json.addProperty("coloredHexText", coloredHexText);
+            json.addProperty("autoRollOnVisitor", autoRollOnVisitor);
 
             json.addProperty("infoBoxX", infoBoxX);
             json.addProperty("infoBoxY", infoBoxY);
