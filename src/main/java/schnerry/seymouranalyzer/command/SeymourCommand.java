@@ -371,7 +371,7 @@ public class SeymourCommand {
 
     private static int showWordHelp(CommandContext<FabricClientCommandSource> ctx) {
         ctx.getSource().sendFeedback(Component.literal("§c[Seymour] §7Usage: §f/seymour word <add|remove|list>"));
-        ctx.getSource().sendFeedback(Component.literal("  §f/seymour word add <word> <pattern> §8- Add custom word"));
+        ctx.getSource().sendFeedback(Component.literal("  §f/seymour word add <word> <pattern> §8- Add custom word (pattern may include X, W, Y, Z wildcards)"));
         ctx.getSource().sendFeedback(Component.literal("  §f/seymour word remove <word> §8- Remove custom word"));
         ctx.getSource().sendFeedback(Component.literal("  §f/seymour word list §8- List all custom words"));
         ctx.getSource().sendFeedback(Component.literal("§7Example: §f/seymour word add cool C001"));
@@ -468,8 +468,8 @@ public class SeymourCommand {
         String word = StringArgumentType.getString(ctx, "word").toUpperCase();
         String pattern = StringArgumentType.getString(ctx, "pattern").replace("#", "").toUpperCase();
 
-        if (!pattern.matches("[0-9A-FX]+")) {
-            ctx.getSource().sendError(Component.literal("§cPattern must only contain 0-9, A-F, or X!"));
+        if (!pattern.matches("[0-9A-FWXYZ]+")) {
+            ctx.getSource().sendError(Component.literal("§cPattern must only contain 0-9, A-F, X, W, Y, or Z!"));
             return 0;
         }
 
