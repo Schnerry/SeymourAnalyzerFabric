@@ -67,11 +67,19 @@ public class ClothConfig {
     @Getter
     @Setter
     private boolean coloredHexText = true;
+    @Getter
+    @Setter
+    private boolean dbCompareEnabled = true;
 
     // Toggle settings - Gambling
     @Getter
     @Setter
     private boolean autoRollOnVisitor = false;
+
+    // Toggle settings - GUI
+    @Getter
+    @Setter
+    private boolean autoPinGui = false;
 
     // Toggle settings - Scanning
     @Getter
@@ -132,7 +140,9 @@ public class ClothConfig {
                 if (json.has("showHighFades")) showHighFades = json.get("showHighFades").getAsBoolean();
                 if (json.has("itemFramesEnabled")) itemFramesEnabled = json.get("itemFramesEnabled").getAsBoolean();
                 if (json.has("coloredHexText")) coloredHexText = json.get("coloredHexText").getAsBoolean();
+                if (json.has("dbCompareEnabled")) dbCompareEnabled = json.get("dbCompareEnabled").getAsBoolean();
                 if (json.has("autoRollOnVisitor")) autoRollOnVisitor = json.get("autoRollOnVisitor").getAsBoolean();
+                if (json.has("autoPinGui")) autoPinGui = json.get("autoPinGui").getAsBoolean();
 
                 if (json.has("infoBoxX")) infoBoxX = json.get("infoBoxX").getAsInt();
                 if (json.has("infoBoxY")) infoBoxY = json.get("infoBoxY").getAsInt();
@@ -158,6 +168,10 @@ public class ClothConfig {
         } catch (Exception e) {
             Seymouranalyzer.LOGGER.error("Failed to load config", e);
         }
+
+        // Sync autoPinGui to GUI screens after loading
+        schnerry.seymouranalyzer.gui.DatabaseScreen.setRememberPosition(autoPinGui);
+        schnerry.seymouranalyzer.gui.ArmorChecklistScreen.setRememberPage(autoPinGui);
 
         // Load custom data
         try {
@@ -199,7 +213,9 @@ public class ClothConfig {
             json.addProperty("itemFramesEnabled", itemFramesEnabled);
             json.addProperty("seymourOnlyHex", seymourOnlyHex);
             json.addProperty("coloredHexText", coloredHexText);
+            json.addProperty("dbCompareEnabled", dbCompareEnabled);
             json.addProperty("autoRollOnVisitor", autoRollOnVisitor);
+            json.addProperty("autoPinGui", autoPinGui);
 
             json.addProperty("infoBoxX", infoBoxX);
             json.addProperty("infoBoxY", infoBoxY);

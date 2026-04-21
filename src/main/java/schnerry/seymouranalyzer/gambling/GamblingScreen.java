@@ -129,9 +129,14 @@ public class GamblingScreen extends Screen {
             GamblingRoller.Tier      tier = (rc != null) ? rc.tier() : GamblingRoller.Tier.UNKNOWN;
             int tierRgb = (rc != null) ? rc.resolveTierColor(now) : tier.resolveColor(now);
 
+            boolean isOneOfOne = (tier == GamblingRoller.Tier.ONE_OF_ONE);
+            int cellBg = isWinner ? 0xFF1E1A00
+                       : isOneOfOne ? (0xFF000000 | (~tierRgb & 0xFFFFFF))
+                       : 0xFF1C1C1C;
+
             g.fill(cellLeft, itemAreaTop,
                     cellLeft + CELL_SIZE, stripBottom - 2,
-                    isWinner ? 0xFF1E1A00 : 0xFF1C1C1C);
+                    cellBg);
 
             int itemCy = (itemAreaTop + itemAreaBottom) / 2;
             renderItemScaled2x(g, stack, cellLeft + CELL_SIZE / 2 - 8, itemCy - 8);
@@ -158,9 +163,11 @@ public class GamblingScreen extends Screen {
     }
 
     private void drawDownArrow(GuiGraphics g, int cx, int tipY) {
+        // right-pointing arrow, centered at cx, sitting above the strip
+        int midY = tipY - 9; // vertically centered above tipY
         for (int i = 0; i < 8; i++) {
             int half = 7 - i;
-            g.fill(cx - half, tipY - i, cx + half + 1, tipY - i + 1, 0xFFFFCC00);
+            g.fill(cx - 3 + i, midY - half, cx - 3 + i + 1, midY + half + 1, 0xFFFFCC00);
         }
     }
 
@@ -236,6 +243,14 @@ public class GamblingScreen extends Screen {
 
                 String prefix = "#" + (i + 1) + " ";
                 String deltaStr = String.format("\u0394E %.2f", match.deltaE());
+                DyedItemColor winnerDyed = winner.get(net.minecraft.core.component.DataComponents.DYED_COLOR);
+                int winnerRgb = winnerDyed != null ? winnerDyed.rgb() & 0xFFFFFF : 0;
+                int matchRgb  = 0;
+                try { matchRgb = Integer.parseInt(match.matchHex().replace("#", ""), 16); } catch (Exception ignored) {}
+                int absDist = Math.abs(((winnerRgb >> 16) & 0xFF) - ((matchRgb >> 16) & 0xFF))
+                            + Math.abs(((winnerRgb >>  8) & 0xFF) - ((matchRgb >>  8) & 0xFF))
+                            + Math.abs(( winnerRgb        & 0xFF) - ( matchRgb        & 0xFF));
+                String absStr = String.format("Abs %d", absDist);
 
                 String matchName = match.name();
                 while (this.font.width(matchName) > maxNameW && matchName.length() > 3) {
@@ -247,8 +262,11 @@ public class GamblingScreen extends Screen {
                 int afterPrefix = tx + this.font.width(prefix);
                 g.drawString(this.font, matchName, afterPrefix, matchY, (a << 24) | 0xFFFFFF, false);
 
-                int deltaX = px + panelW - 12 - this.font.width(deltaStr);
+                int deltaX = px + panelW - 12 - this.font.width(deltaStr) - 6 - this.font.width(absStr);
                 g.drawString(this.font, deltaStr, deltaX, matchY, (a << 24) | matchTierRgb, false);
+
+                int absX = deltaX + this.font.width(deltaStr) + 6;
+                g.drawString(this.font, absStr, absX, matchY, (a << 24) | 0xAAAAAA, false);
 
                 matchY += lineH;
             }

@@ -7,6 +7,7 @@ import net.minecraft.resources.Identifier;
 import com.mojang.blaze3d.platform.InputConstants;
 import org.lwjgl.glfw.GLFW;
 import schnerry.seymouranalyzer.config.ConfigScreen;
+import schnerry.seymouranalyzer.gui.ArmorChecklistScreen;
 import schnerry.seymouranalyzer.gui.DatabaseScreen;
 
 /**
@@ -19,13 +20,14 @@ public class KeyBindings {
 
     private static KeyMapping openDatabaseGuiKey;
     private static KeyMapping openConfigGuiKey;
+    private static KeyMapping openChecklistGuiKey;
 
     public static void register() {
-        // P for Database GUI
+        // O for Database GUI
         openDatabaseGuiKey = KeyBindingHelper.registerKeyBinding(new KeyMapping(
             "key.seymouranalyzer.opendatabasegui",
             InputConstants.Type.KEYSYM,
-            GLFW.GLFW_KEY_P,
+            GLFW.GLFW_KEY_O,
             SEYMOURANALYZER_CATEGORY
         ));
 
@@ -37,6 +39,14 @@ public class KeyBindings {
             SEYMOURANALYZER_CATEGORY
         ));
 
+        // P for Checklist GUI
+        openChecklistGuiKey = KeyBindingHelper.registerKeyBinding(new KeyMapping(
+            "key.seymouranalyzer.openchecklistgui",
+            InputConstants.Type.KEYSYM,
+            GLFW.GLFW_KEY_P,
+            SEYMOURANALYZER_CATEGORY
+        ));
+
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
 
             if (openDatabaseGuiKey.consumeClick()) {
@@ -45,6 +55,10 @@ public class KeyBindings {
 
             if (openConfigGuiKey.consumeClick()) {
                 client.setScreen(ConfigScreen.createConfigScreen(client.screen));
+            }
+
+            if (openChecklistGuiKey.consumeClick()) {
+                client.setScreen(new ArmorChecklistScreen(null));
             }
         });
     }

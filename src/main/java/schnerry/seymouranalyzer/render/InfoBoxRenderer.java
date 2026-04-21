@@ -433,7 +433,11 @@ public class InfoBoxRenderer {
         maxTextWidth = Math.max(maxTextWidth, textRenderer.width(title));
 
         // Piece hex
-        maxTextWidth = Math.max(maxTextWidth, textRenderer.width("§7Piece: §f#" + data.itemHex));
+        String pieceType = PieceTypeUtil.detectPieceType(data.itemName);
+        String pieceTypeDisplay = pieceType != null
+            ? pieceType.substring(0, 1).toUpperCase() + pieceType.substring(1)
+            : "Unknown";
+        maxTextWidth = Math.max(maxTextWidth, textRenderer.width("§7Piece: §f#" + data.itemHex + " - " + pieceTypeDisplay));
 
         // Word match
         if (config.isWordsEnabled() && data.wordMatch != null) {
@@ -519,8 +523,12 @@ public class InfoBoxRenderer {
         String title = (isShiftHeld && isMouseOver) ? "§l§nSeymour §7[DRAG]" : "§l§nSeymour Analysis";
         guiGraphics.drawString(client.font, Component.literal(title), boxX + 5, boxY + 5, 0xFFFFFFFF, true);
 
-        // Piece hex
-        guiGraphics.drawString(client.font, Component.literal("§7Piece: §f#" + hoveredItemData.itemHex),
+        // Piece information
+        String pieceType = PieceTypeUtil.detectPieceType(hoveredItemData.itemName);
+        String pieceTypeDisplay = pieceType != null
+            ? pieceType.substring(0, 1).toUpperCase() + pieceType.substring(1)
+            : "Unknown";
+        guiGraphics.drawString(client.font, Component.literal("§7Piece: §f#" + hoveredItemData.itemHex + " - " + pieceTypeDisplay),
             boxX + 5, boxY + 18, 0xFFFFFFFF, true);
 
         int yOffset = 28;

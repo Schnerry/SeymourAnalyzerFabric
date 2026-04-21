@@ -1,5 +1,6 @@
 {
   "key.seymouranalyzer.opendatabasegui": "Open Database GUI",
   "key.seymouranalyzer.openconfiggui": "Open Config GUI",
-  "category.seymouranalyzer": "Seymour Analyzer"
+  "key.seymouranalyzer.openchecklistgui": "Open Checklist GUI",
+  "key.category.seymouranalyzer.main": "Seymour Analyzer"
 }

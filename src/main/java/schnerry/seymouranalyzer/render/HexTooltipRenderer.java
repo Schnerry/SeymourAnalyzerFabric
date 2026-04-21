@@ -15,6 +15,8 @@ import net.minecraft.network.chat.Style;
 import net.minecraft.network.chat.TextColor;
 import schnerry.seymouranalyzer.analyzer.ColorAnalyzer;
 import schnerry.seymouranalyzer.config.ClothConfig;
+import schnerry.seymouranalyzer.data.ArmorPiece;
+import schnerry.seymouranalyzer.data.CollectionManager;
 import schnerry.seymouranalyzer.util.ColorMath;
 import schnerry.seymouranalyzer.util.ItemStackUtils;
 import schnerry.seymouranalyzer.util.StringUtility;
@@ -22,7 +24,11 @@ import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.Minecraft;
 import org.lwjgl.glfw.GLFW;
 
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Adds hex code display to colored leather armor tooltips
@@ -34,6 +40,11 @@ public class HexTooltipRenderer {
     @Getter
     @Setter
     private boolean enabled = true;
+
+    /** Cache: hex string → list of 3 closest DB pieces (DbMatch) */
+    private final Map<String, List<DbMatch>> dbCompareCache = new ConcurrentHashMap<>();
+
+    private record DbMatch(String pieceName, String hexcode, double deltaE, int absoluteDistance) {}
 
     private HexTooltipRenderer() {
         // Register tooltip callback
@@ -121,6 +132,9 @@ public class HexTooltipRenderer {
             // Analyze color to get closest match
             var analysis = ColorAnalyzer.getInstance().analyzeArmorColor(hexForAnalysis, itemName);
 
+            // Track next insert position so DB compare follows immediately
+            int nextInsert = insertIndex + 1;
+
             // Add second line with closest match and deltaE if analysis succeeded
             if (analysis != null && analysis.bestMatch() != null) {
                 String matchName = analysis.bestMatch().name();
@@ -154,9 +168,107 @@ public class HexTooltipRenderer {
                     .append(closestLabel).append(matchNameComp).append(separator).append(deltaComp);
 
                 // Insert right after the hex line
-                lines.add(insertIndex + 1, closestText);
+                lines.add(nextInsert, closestText);
+                nextInsert++;
+            }
+
+            // DB Compare: show 3 closest pieces from user's database when shift is held
+            var window2 = Minecraft.getInstance().getWindow();
+            boolean shiftHeld2 = InputConstants.isKeyDown(window2, GLFW.GLFW_KEY_LEFT_SHIFT)
+                               || InputConstants.isKeyDown(window2, GLFW.GLFW_KEY_RIGHT_SHIFT);
+            if (shiftHeld2 && ClothConfig.getInstance().isDbCompareEnabled()) {
+                String selfUuid = ItemStackUtils.getOrCreateItemUUID(stack);
+                List<DbMatch> dbMatches = getDbCompareMatches(hexForAnalysis, selfUuid);
+                if (!dbMatches.isEmpty()) {
+                    MutableComponent dbHeader = Component.literal("─── DB Compare ───");
+                    dbHeader.setStyle(Style.EMPTY.withColor(TextColor.fromRgb(0x888888)).withItalic(false));
+                    lines.add(nextInsert, dbHeader);
+                    nextInsert++;
+
+                    // Measure max name width for alignment
+                    var font = Minecraft.getInstance().font;
+                    int spaceWidth = font.width(" ");
+                    int maxNameWidth = dbMatches.stream()
+                        .mapToInt(m -> font.width(m.pieceName()))
+                        .max().orElse(0);
+
+                    for (DbMatch match : dbMatches) {
+                        int matchRgb = hexToRgb(match.hexcode());
+                        int tierColor = getDbTierColor(match.deltaE());
+                        Style sepStyle = Style.EMPTY.withColor(TextColor.fromRgb(0x666666)).withItalic(false);
+
+                        // Pad name with spaces to align separators
+                        int nameWidth = font.width(match.pieceName());
+                        int paddingPixels = maxNameWidth - nameWidth;
+                        int spaces = spaceWidth > 0 ? (paddingPixels + spaceWidth - 1) / spaceWidth : 0;
+                        String paddedName = match.pieceName() + " ".repeat(spaces);
+
+                        MutableComponent nameComp = Component.literal(paddedName);
+                        nameComp.setStyle(Style.EMPTY.withColor(TextColor.fromRgb(0xFFFFFF)).withItalic(false));
+                        MutableComponent hexComp = Component.literal("#" + match.hexcode());
+                        hexComp.setStyle(Style.EMPTY.withColor(TextColor.fromRgb(matchRgb)).withItalic(false));
+                        MutableComponent dEComp = Component.literal("ΔE:" + String.format("%.2f", match.deltaE()));
+                        dEComp.setStyle(Style.EMPTY.withColor(TextColor.fromRgb(tierColor)).withItalic(false));
+                        MutableComponent absComp = Component.literal("Abs:" + String.format("%3d", match.absoluteDistance()));
+                        absComp.setStyle(Style.EMPTY.withColor(TextColor.fromRgb(tierColor)).withItalic(false));
+
+                        MutableComponent line = Component.empty()
+
+                            .append(hexComp)
+                            .append(Component.literal(" | ").setStyle(sepStyle))
+                            .append(dEComp)
+                            .append(Component.literal(" | ").setStyle(sepStyle))
+                            .append(absComp)
+                            .append(Component.literal(" | ").setStyle(sepStyle))
+                            .append(nameComp);
+                        lines.add(nextInsert, line);
+                        nextInsert++;
+                    }
+                }
             }
         }
+    }
+
+    /**
+     * Get or compute the 3 closest pieces from the user's collection by ΔE.
+     * Results are cached by "hex:selfUuid". The piece with selfUuid is excluded.
+     */
+    private List<DbMatch> getDbCompareMatches(String hex, String selfUuid) {
+        String cacheKey = hex + ":" + (selfUuid != null ? selfUuid : "");
+        return dbCompareCache.computeIfAbsent(cacheKey, k -> {
+            Map<String, ArmorPiece> collection = CollectionManager.getInstance().getCollection();
+            if (collection.isEmpty()) return List.of();
+
+            List<DbMatch> results = new ArrayList<>();
+            for (ArmorPiece piece : collection.values()) {
+                if (piece.getHexcode() == null || piece.getHexcode().isEmpty()) continue;
+                // Exclude self by UUID
+                if (selfUuid != null && selfUuid.equals(piece.getUuid())) continue;
+                double delta = ColorMath.calculateDeltaE(hex, piece.getHexcode());
+                int absDistance = ColorMath.calculateAbsoluteDistance(hex, piece.getHexcode());
+                results.add(new DbMatch(piece.getPieceName(), piece.getHexcode(), delta, absDistance));
+            }
+            results.sort(Comparator.comparingDouble(DbMatch::deltaE));
+            return results.stream().limit(3).toList();
+        });
+    }
+
+    /**
+     * Clear the DB compare cache (call when collection changes).
+     */
+    public void clearDbCache() {
+        dbCompareCache.clear();
+    }
+
+    /**
+     * Color for DB compare ΔE / Abs values using normal tier thresholds.
+     * T0 (≤1): Red | T1 (≤2): Pink | T2 (≤5): Orange | T3+: Gray
+     */
+    private int getDbTierColor(double deltaE) {
+        if (deltaE <= 1.0) return 0xFF5555; // Red  – T0
+        if (deltaE <= 2.0) return 0xFF55FF; // Pink – T1
+        if (deltaE <= 5.0) return 0xFFAA00; // Orange – T2
+        return 0xAAAAAA;                    // Gray – T3+
     }
 
     /**

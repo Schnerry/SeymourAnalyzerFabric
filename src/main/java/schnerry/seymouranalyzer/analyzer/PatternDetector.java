@@ -73,8 +73,11 @@ public class PatternDetector {
             String pattern = entry.getValue().toUpperCase();
 
             if (matchesPattern(hex, pattern)) {
-                // Count non-wildcard characters in the pattern to determine "length"
-                int effectiveLength = pattern.replace("X", "").length();
+                // Count non-wildcard characters to determine match "specificity"
+                int effectiveLength = 0;
+                for (char c : pattern.toCharArray()) {
+                    if (c != 'X' && c != 'W' && c != 'Y' && c != 'Z') effectiveLength++;
+                }
 
                 if (effectiveLength > longestMatchLength) {
                     longestMatch = word;
@@ -87,36 +90,61 @@ public class PatternDetector {
     }
 
     /**
-     * Check if hex matches a pattern with X wildcards
-     * Supports patterns shorter than hex (substring matching)
-     * Matches old ChatTriggers behavior: checks if pattern exists anywhere in hex
+     * Check if hex matches a pattern with wildcard characters:
+     *   X        = any single hex digit (unbound)
+     *   W, Y, Z  = bound wildcards: all occurrences of the same letter must match
+     *              the SAME hex digit within one match attempt
+     *              e.g. ZZ123Z matches 111231 but not 121231
+     * Supports patterns shorter than hex (substring / sliding-window matching)
      */
     private boolean matchesPattern(String hex, String pattern) {
-        // If pattern has wildcards (X), use sliding window with regex-style matching
-        if (pattern.contains("X")) {
-            int patternLen = pattern.length();
-            // Try all possible positions in the hex where this pattern could fit
-            for (int startIdx = 0; startIdx + patternLen <= hex.length(); startIdx++) {
-                boolean matches = true;
-                for (int i = 0; i < patternLen; i++) {
-                    char patternChar = pattern.charAt(i);
-                    char hexChar = hex.charAt(startIdx + i);
+        boolean hasBoundWildcard = pattern.contains("W") || pattern.contains("Y") || pattern.contains("Z");
+        boolean hasUnboundWildcard = pattern.contains("X");
 
-                    // X is wildcard, anything else must match exactly
-                    if (patternChar != 'X' && hexChar != patternChar) {
-                        matches = false;
-                        break;
-                    }
-                }
-                if (matches) {
-                    return true;
-                }
-            }
-            return false;
+        if (!hasBoundWildcard && !hasUnboundWildcard) {
+            // No wildcards: simple substring check
+            return hex.contains(pattern);
         }
 
-        // No wildcards: simple substring check (indexOf)
-        return hex.contains(pattern);
+        int patternLen = pattern.length();
+        for (int startIdx = 0; startIdx + patternLen <= hex.length(); startIdx++) {
+            if (matchesAt(hex, startIdx, pattern)) return true;
+        }
+        return false;
+    }
+
+    /**
+     * Try matching pattern against hex starting at startIdx.
+     * W/Y/Z bindings are local to this single attempt.
+     */
+    private boolean matchesAt(String hex, int startIdx, String pattern) {
+        // Binding map: wildcard char -> captured hex char (null = not yet captured)
+        char wBound = 0, yBound = 0, zBound = 0;
+        boolean wSeen = false, ySeen = false, zSeen = false;
+
+        for (int i = 0; i < pattern.length(); i++) {
+            char p = pattern.charAt(i);
+            char h = hex.charAt(startIdx + i);
+
+            switch (p) {
+                case 'X': break; // always matches
+                case 'W':
+                    if (!wSeen) { wBound = h; wSeen = true; }
+                    else if (h != wBound) return false;
+                    break;
+                case 'Y':
+                    if (!ySeen) { yBound = h; ySeen = true; }
+                    else if (h != yBound) return false;
+                    break;
+                case 'Z':
+                    if (!zSeen) { zBound = h; zSeen = true; }
+                    else if (h != zBound) return false;
+                    break;
+                default:
+                    if (h != p) return false;
+            }
+        }
+        return true;
     }
 
     /**

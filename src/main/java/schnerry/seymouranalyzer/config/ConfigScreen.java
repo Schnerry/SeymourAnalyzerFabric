@@ -81,6 +81,14 @@ public class ConfigScreen {
                 .setSaveConsumer(config::setColoredHexText)
                 .build());
 
+        analysisCategory.addEntry(entryBuilder.startBooleanToggle(
+                Component.literal("DB Compare (Shift)"),
+                config.isDbCompareEnabled())
+                .setDefaultValue(true)
+                .setTooltip(Component.literal("When holding Shift on a Seymour piece, show the 3 closest pieces from your database by ΔE"))
+                .setSaveConsumer(config::setDbCompareEnabled)
+                .build());
+
         // Match Priority Editor - Create a subcategory
         ConfigCategory priorityCategory = builder.getOrCreateCategory(Component.literal("Match Priorities"));
 
@@ -171,6 +179,21 @@ public class ConfigScreen {
         gamblingCategory.addEntry(entryBuilder.startTextDescription(
                 Component.literal("§7Use §e/seymour roll §7to manually trigger the roll animation.")
         ).build());
+
+        // GUI Category
+        ConfigCategory guiCategory = builder.getOrCreateCategory(Component.literal("GUI"));
+
+        guiCategory.addEntry(entryBuilder.startBooleanToggle(
+                Component.literal("Auto Pin GUI"),
+                config.isAutoPinGui())
+                .setDefaultValue(false)
+                .setTooltip(Component.literal("Always remember scroll position, search text and filters in Database/Checklist GUIs (same as the Pinned: ON button)"))
+                .setSaveConsumer(value -> {
+                    config.setAutoPinGui(value);
+                    schnerry.seymouranalyzer.gui.DatabaseScreen.setRememberPosition(value);
+                    schnerry.seymouranalyzer.gui.ArmorChecklistScreen.setRememberPage(value);
+                })
+                .build());
 
         return builder.build();
     }

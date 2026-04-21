@@ -46,6 +46,16 @@ public class ArmorChecklistScreen extends ModScreen {
     // Flag to track when custom colors need reloading
     private static boolean customColorsNeedReload = false;
 
+    // Remember position state (static = persists between opens)
+    private static boolean rememberPage = false;
+    private static int savedPage = 0;
+    private static int savedChecklistScroll = 0;
+    private static boolean savedFadeDyeMode = false;
+
+    public static void setRememberPage(boolean value) {
+        rememberPage = value;
+    }
+
     private static class ContextMenu {
         ArmorPiece piece; // For individual piece context menu
         String targetHex; // The target hex from the checklist entry
@@ -73,6 +83,15 @@ public class ArmorChecklistScreen extends ModScreen {
         ChecklistCache cache = ChecklistCache.getInstance();
         Map<String, ArmorPiece> collection = CollectionManager.getInstance().getCollection();
         cache.checkAndInvalidate(collection.size());
+
+        // Restore pinned page/mode before calculating matches
+        if (rememberPage) {
+            fadeDyeMode = savedFadeDyeMode;
+            pageOrder = fadeDyeMode ? fadeDyePageOrder : normalPageOrder;
+            // Clamp saved page to valid range
+            currentPage = Math.min(savedPage, Math.max(0, pageOrder.size() - 1));
+            scrollOffset = savedChecklistScroll;
+        }
 
         calculateOptimalMatches();
     }
@@ -544,6 +563,21 @@ public class ArmorChecklistScreen extends ModScreen {
             button -> this.minecraft.setScreen(parent))
             .bounds(20, 10, 150, 20).build();
         this.addRenderableWidget(backBtn);
+
+        // Remember page toggle (right of back button)
+        Button rememberBtn = Button.builder(
+            Component.literal(rememberPage ? "§aPinned: ON" : "§7Pinned: OFF"),
+            button -> {
+                rememberPage = !rememberPage;
+                if (rememberPage) {
+                    savedPage = currentPage;
+                    savedChecklistScroll = scrollOffset;
+                    savedFadeDyeMode = fadeDyeMode;
+                }
+                this.rebuildWidgets();
+            })
+            .bounds(175, 10, 100, 20).build();
+        this.addRenderableWidget(rememberBtn);
 
         // Piece filter toggle button (only shown in normal mode)
         if (!fadeDyeMode) {
@@ -1304,6 +1338,11 @@ public class ArmorChecklistScreen extends ModScreen {
 
     @Override
     public void onClose() {
+        if (rememberPage) {
+            savedPage = currentPage;
+            savedChecklistScroll = scrollOffset;
+            savedFadeDyeMode = fadeDyeMode;
+        }
         if (this.minecraft != null) {
             this.minecraft.setScreen(parent);
         }

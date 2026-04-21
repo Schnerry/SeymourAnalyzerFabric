@@ -4,6 +4,7 @@ import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.LiteralMessage;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
+import com.mojang.brigadier.suggestion.SuggestionProvider;
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
 import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.HoverEvent;
@@ -26,6 +27,23 @@ import static net.fabricmc.fabric.api.client.command.v2.ClientCommandManager.*;
  */
 public class SeymourCommand {
 
+    private static final String[] TOGGLE_OPTIONS = {
+        "infobox", "highlights", "fade", "3p", "sets", "words", "pattern",
+        "custom", "dupes", "highfades", "itemframes", "hextooltip", "hexcolor",
+        "autoroll", "dbcompare", "autopin"
+    };
+
+    private static final SuggestionProvider<FabricClientCommandSource> TOGGLE_SUGGESTIONS =
+        (ctx, builder) -> {
+            String remaining = builder.getRemaining().toLowerCase();
+            for (String option : TOGGLE_OPTIONS) {
+                if (option.startsWith(remaining)) {
+                    builder.suggest(option);
+                }
+            }
+            return builder.buildFuture();
+        };
+
     public static void register(CommandDispatcher<FabricClientCommandSource> dispatcher) {
         dispatcher.register(literal("seymour")
             .executes(SeymourCommand::showHelp)
@@ -34,6 +52,7 @@ public class SeymourCommand {
             .then(literal("toggle")
                 .executes(SeymourCommand::showToggleHelp)
                 .then(argument("option", StringArgumentType.word())
+                    .suggests(TOGGLE_SUGGESTIONS)
                     .executes(SeymourCommand::toggleOption)))
 
             // /seymour add <name> <hex>
@@ -267,6 +286,19 @@ public class SeymourCommand {
                 ctx.getSource().sendFeedback(Component.literal("§a[Seymour Analyzer] §7Auto roll on visitor " +
                     (config.isAutoRollOnVisitor() ? "§aenabled" : "§cdisabled") + "§7!"));
                 break;
+            case "dbcompare":
+                config.setDbCompareEnabled(!config.isDbCompareEnabled());
+                ctx.getSource().sendFeedback(Component.literal("§a[Seymour Analyzer] §7DB Compare (Shift tooltip) " +
+                    (config.isDbCompareEnabled() ? "§aenabled" : "§cdisabled") + "§7!"));
+                break;
+            case "autopin":
+                config.setAutoPinGui(!config.isAutoPinGui());
+                // Sync static fields in both screens
+                schnerry.seymouranalyzer.gui.DatabaseScreen.setRememberPosition(config.isAutoPinGui());
+                schnerry.seymouranalyzer.gui.ArmorChecklistScreen.setRememberPage(config.isAutoPinGui());
+                ctx.getSource().sendFeedback(Component.literal("§a[Seymour Analyzer] §7Auto Pin GUI " +
+                    (config.isAutoPinGui() ? "§aenabled" : "§cdisabled") + "§7!"));
+                break;
             default:
                 ctx.getSource().sendFeedback(Component.literal("§a[Seymour Analyzer] §cInvalid toggle option!"));
                 return 0;
@@ -280,7 +312,7 @@ public class SeymourCommand {
         schnerry.seymouranalyzer.config.ClothConfig config = schnerry.seymouranalyzer.config.ClothConfig.getInstance();
 
         ctx.getSource().sendFeedback(Component.literal("§c[Seymour] §7Usage: §f/seymour toggle <option>"));
-        ctx.getSource().sendFeedback(Component.literal("§7Available options (§aâœ“§7 = enabled, §câœ—§7 = disabled):"));
+        ctx.getSource().sendFeedback(Component.literal("§7Available options (§a✓§7 = enabled, §c✗§7 = disabled):"));
 
         ctx.getSource().sendFeedback(Component.literal("  §einfobox §8- " + getToggleIndicator(config.isInfoBoxEnabled()) + " §7Toggle info box display"));
         ctx.getSource().sendFeedback(Component.literal("  §ehighlights §8- " + getToggleIndicator(config.isHighlightsEnabled()) + " §7Toggle item slot highlights"));
@@ -296,11 +328,13 @@ public class SeymourCommand {
         ctx.getSource().sendFeedback(Component.literal("  §ehextooltip §8- " + getToggleIndicator(schnerry.seymouranalyzer.render.HexTooltipRenderer.getInstance().isEnabled()) + " §7Toggle hex tooltip display"));
         ctx.getSource().sendFeedback(Component.literal("  §ehexcolor §8- " + getToggleIndicator(config.isColoredHexText()) + " §7Toggle colored hex text"));
         ctx.getSource().sendFeedback(Component.literal("  §eautoroll §8- " + getToggleIndicator(config.isAutoRollOnVisitor()) + " §7Toggle auto roll on Seymour visitor"));
+        ctx.getSource().sendFeedback(Component.literal("  §edbcompare §8- " + getToggleIndicator(config.isDbCompareEnabled()) + " §7Toggle DB Compare in shift tooltip"));
+        ctx.getSource().sendFeedback(Component.literal("  §eautopin §8- " + getToggleIndicator(config.isAutoPinGui()) + " §7Auto set Pin Toggle in GUI (always remembers position)"));
         return 0;
     }
 
     private static String getToggleIndicator(boolean enabled) {
-        return enabled ? "§aâœ“" : "§câœ—";
+        return enabled ? "§a✓" : "§c✗";
     }
 
     private static int showScanHelp(CommandContext<FabricClientCommandSource> ctx) {
@@ -491,7 +525,7 @@ public class SeymourCommand {
         ctx.getSource().sendFeedback(Component.literal("§8§m----------------------------------------------------"));
         ctx.getSource().sendFeedback(Component.literal("§a§l[Seymour Analyzer] §7- Word List (§e" + words.size() + "§7)"));
         words.forEach((word, pattern) -> {
-            ctx.getSource().sendFeedback(Component.literal("  §d" + word + " §7â†’ §f" + pattern));
+            ctx.getSource().sendFeedback(Component.literal("  §d" + word + " §7→ §f" + pattern));
         });
         ctx.getSource().sendFeedback(Component.literal("§8§m----------------------------------------------------"));
         return 1;
@@ -523,10 +557,10 @@ public class SeymourCommand {
         }
 
         // Count pieces by tier
-        int t0Count = 0; // T1< (Î”E < 1.0)
-        int t1Count = 0; // T1 (1.0 â‰¤ Î”E < 2.0)
-        int t2Count = 0; // T2 (2.0 â‰¤ Î”E < 3.0)
-        int t3PlusCount = 0; // T3+ (Î”E â‰¥ 3.0)
+        int t0Count = 0; // T1< (ΔE < 1.0)
+        int t1Count = 0; // T1 (1.0 ≤ ΔE < 2.0)
+        int t2Count = 0; // T2 (2.0 ≤ ΔE < 3.0)
+        int t3PlusCount = 0; // T3+ (ΔE ≥ 3.0)
         int noAnalysisCount = 0;
 
         // Count fade dyes and custom colors
@@ -597,10 +631,10 @@ public class SeymourCommand {
         ctx.getSource().sendFeedback(Component.literal(""));
 
         ctx.getSource().sendFeedback(Component.literal("§7§lBy Tier:"));
-        ctx.getSource().sendFeedback(Component.literal("  §c§lT1< §7(Î”E < 1.0): §e" + t0Count));
-        ctx.getSource().sendFeedback(Component.literal("  §d§lT1 §7(1.0 â‰¤ Î”E < 2.0): §e" + t1Count));
-        ctx.getSource().sendFeedback(Component.literal("  §6§lT2 §7(2.0 â‰¤ Î”E < 5.0): §e" + t2Count));
-        ctx.getSource().sendFeedback(Component.literal("  §7§lT3+ §7(Î”E â‰¥ 5.0): §e" + t3PlusCount));
+        ctx.getSource().sendFeedback(Component.literal("  §c§lT1< §7(ΔE < 1.0): §e" + t0Count));
+        ctx.getSource().sendFeedback(Component.literal("  §d§lT1 §7(1.0 ≤ ΔE < 2.0): §e" + t1Count));
+        ctx.getSource().sendFeedback(Component.literal("  §6§lT2 §7(2.0 ≤ ΔE < 5.0): §e" + t2Count));
+        ctx.getSource().sendFeedback(Component.literal("  §7§lT3+ §7(ΔE ≥ 5.0): §e" + t3PlusCount));
         if (noAnalysisCount > 0) {
             ctx.getSource().sendFeedback(Component.literal("  §8No Analysis: §7" + noAnalysisCount));
         }
@@ -623,7 +657,7 @@ public class SeymourCommand {
             ctx.getSource().sendFeedback(Component.literal("  §7Total pieces in dupes: §c" + totalDupes));
             ctx.getSource().sendFeedback(Component.literal("  §8(Use §c/seymour search <hex> §8to find them)"));
         } else {
-            ctx.getSource().sendFeedback(Component.literal("§aâœ“ No duplicate hex codes found!"));
+            ctx.getSource().sendFeedback(Component.literal("§a✓ No duplicate hex codes found!"));
         }
 
         ctx.getSource().sendFeedback(Component.literal("§8§m----------------------------------------------------"));
@@ -681,7 +715,7 @@ public class SeymourCommand {
                 String top = "N/A";
                 if (piece.getBestMatch() != null) {
                     ArmorPiece.BestMatch best = piece.getBestMatch();
-                    top = best.colorName + " (Î”E: " + String.format("%.2f", best.deltaE) +
+                    top = best.colorName + " (ΔE: " + String.format("%.2f", best.deltaE) +
                           " | Abs: " + best.absoluteDistance + ")";
                 }
 
@@ -1289,7 +1323,7 @@ public class SeymourCommand {
         ctx.getSource().sendFeedback(Component.literal(""));
         ctx.getSource().sendFeedback(Component.literal("§e§lAverage Differences"));
         ctx.getSource().sendFeedback(Component.literal("  §7Absolute Distance: §f" + String.format("%.2f", avgAbsoluteDiff)));
-        ctx.getSource().sendFeedback(Component.literal("  §7Visual Distance (Î”E): §f" + String.format("%.2f", avgDeltaE)));
+        ctx.getSource().sendFeedback(Component.literal("  §7Visual Distance (ΔE): §f" + String.format("%.2f", avgDeltaE)));
         ctx.getSource().sendFeedback(Component.literal("§8§m----------------------------------------------------"));
 
         return 1;

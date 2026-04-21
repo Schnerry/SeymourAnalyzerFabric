@@ -211,11 +211,13 @@ public class CollectionManager {
             piece.setUuid(UUID.randomUUID().toString());
         }
         collection.put(piece.getUuid(), piece);
+        schnerry.seymouranalyzer.render.HexTooltipRenderer.getInstance().clearDbCache();
         markDirty(); // Don't save immediately!
     }
 
     public void removePiece(String uuid) {
         collection.remove(uuid);
+        schnerry.seymouranalyzer.render.HexTooltipRenderer.getInstance().clearDbCache();
         markDirty(); // Don't save immediately!
     }
 
@@ -234,6 +236,7 @@ public class CollectionManager {
 
     public void clear() {
         collection.clear();
+        schnerry.seymouranalyzer.render.HexTooltipRenderer.getInstance().clearDbCache();
         markDirty();
         forceSync(); // Clear is important, save immediately
     }

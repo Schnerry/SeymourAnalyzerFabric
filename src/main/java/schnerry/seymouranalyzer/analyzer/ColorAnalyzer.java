@@ -249,39 +249,29 @@ public class ColorAnalyzer {
         String lower = colorName.toLowerCase();
 
         // 3p entries are multi-piece sets (chestplate/leggings/boots), never helmets.
-        // Treat them as valid for non-helmet pieces when piece-specific matching is enabled.
         if (lower.contains("3p")) {
             return !"helmet".equals(pieceType);
         }
 
-        // Special handling for multi-piece names (e.g., "Challenger's Leggings+Boots", "Speedster Set/Mercenary Boots")
-        // If the name contains the current piece type, allow it
-        if (pieceType.equals("helmet") && (lower.contains("helmet") || lower.contains("hat") || lower.contains("hood") || lower.contains("cap") || lower.contains("crown") || lower.contains("mask"))) {
-            return true;
-        }
-        if (pieceType.equals("chestplate") && (lower.contains("chestplate") || lower.contains("chest") || lower.contains("tunic") || lower.contains("jacket") || lower.contains("shirt") || lower.contains("vest") || lower.contains("robe"))) {
-            return true;
-        }
-        if (pieceType.equals("leggings") && (lower.contains("leggings") || lower.contains("pants") || lower.contains("trousers"))) {
-            return true;
-        }
-        if (pieceType.equals("boots") && (lower.contains("boots") || lower.contains("shoes") || lower.contains("sandals") || lower.contains("sneakers"))) {
-            return true;
+        // Build the union of all explicitly mentioned piece types by splitting on
+        // "/" (alternative names for same hex) and "+" (multi-slot compounds).
+        // Parts with no slot keywords don't contribute — they're just name aliases.
+        Set<String> mentionedSlots = new HashSet<>();
+
+        for (String segment : colorName.split("/")) {
+            for (String part : segment.split("\\+")) {
+                part = part.trim();
+                if (PieceTypeUtil.matchesPieceType(part, "helmet"))     mentionedSlots.add("helmet");
+                if (PieceTypeUtil.matchesPieceType(part, "chestplate")) mentionedSlots.add("chestplate");
+                if (PieceTypeUtil.matchesPieceType(part, "leggings"))   mentionedSlots.add("leggings");
+                if (PieceTypeUtil.matchesPieceType(part, "boots"))      mentionedSlots.add("boots");
+            }
         }
 
-        // If the name doesn't contain ANY piece type keywords, it's a generic color - allow it for all
-        boolean containsAnyPieceType =
-            lower.contains("helmet") || lower.contains("hat") || lower.contains("hood") || lower.contains("cap") || lower.contains("crown") || lower.contains("mask") ||
-            lower.contains("chestplate") || lower.contains("chest") || lower.contains("tunic") || lower.contains("jacket") || lower.contains("shirt") || lower.contains("vest") || lower.contains("robe") ||
-            lower.contains("leggings") || lower.contains("pants") || lower.contains("trousers") ||
-            lower.contains("boots") || lower.contains("shoes") || lower.contains("sandals") || lower.contains("sneakers");
+        // If no slot keywords found anywhere → generic color → allow for all slots
+        if (mentionedSlots.isEmpty()) return true;
 
-        if (!containsAnyPieceType) {
-            return true; // Generic color, works for all piece types
-        }
-
-        // If we get here, the name contains piece type keywords but doesn't match our piece type
-        return false;
+        return mentionedSlots.contains(pieceType);
     }
 
     private int calculateTier(double deltaE, boolean isCustom, boolean isFade) {

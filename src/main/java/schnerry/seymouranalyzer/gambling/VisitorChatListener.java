@@ -45,7 +45,7 @@ public class VisitorChatListener {
             Minecraft mc = Minecraft.getInstance();
             mc.execute(() -> new Thread(() -> {
                 try {
-                    Thread.sleep(1200);
+                    Thread.sleep(500);
                     mc.execute(() -> triggerRollFromInventory(mc, false));
                 } catch (InterruptedException ignored) {}
             }, "SeymourAutoRoll").start());

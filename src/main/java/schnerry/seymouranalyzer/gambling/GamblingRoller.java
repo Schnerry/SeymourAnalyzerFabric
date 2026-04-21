@@ -96,6 +96,22 @@ public class GamblingRoller {
             strip.add(stack);
         }
 
+        // 1/1000 chance: plant a fake 1/1 bait item 1-3 slots away from the winner (if you are reading this, keep the joke up, dont be a silly willy)
+        if (rand.nextInt(1000) == 0) {
+            int offset = (rand.nextBoolean() ? 1 : -1) * (rand.nextInt(3) + 1);
+            int baitIndex = Math.max(0, Math.min(count - 1, winnerIndex + offset));
+            if (baitIndex != winnerIndex) {
+                ItemStack baitStack = strip.get(baitIndex);
+                DyedItemColor baitDyed = baitStack.get(DataComponents.DYED_COLOR);
+                if (baitDyed != null) {
+                    int baitRgb = baitDyed.rgb() & 0xFFFFFF;
+                    RollColor fakeOno = new RollColor(baitRgb, "#" + String.format("%06X", baitRgb),
+                            "???", Tier.ONE_OF_ONE, List.of());
+                    ROLL_COLOR_MAP.put(baitRgb, fakeOno);
+                }
+            }
+        }
+
         return strip;
     }
 

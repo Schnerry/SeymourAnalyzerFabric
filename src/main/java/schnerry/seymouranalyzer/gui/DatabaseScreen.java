@@ -35,6 +35,18 @@ public class DatabaseScreen extends ModScreen {
     // Search and filters
     private EditBox searchField;
     private EditBox hexSearchField;
+    // Wildcard help button (hover to show tooltip)
+    private net.minecraft.client.gui.components.Button wildcardHelpButton;
+    private static final String[] WILDCARD_HELP_LINES = new String[] {
+        "Wildcard search (hex patterns):",
+        "X = any hex digit (0-9, A-F)",
+        "W / Y / Z = bound wildcard: repeated letters must match the same digit",
+        "Search must be exactly 6 characters; allowed: 0-9, A-F, X, W, Y, Z",
+        "Examples: ",
+        "12XX34 matches any hex starting with 12 and ending with 34",
+        "12WWYY matches any hex starting with 12 and having the same characters on 3 and 4",
+        "and the same characters on 5 and 6 (e.g. 12AABB or 1233CC, but not 12AB34"
+    };
 
     // Sorting
     private String sortColumn = null; // "name", "hex", "match", "deltaE", "absolute", "distance"
@@ -72,6 +84,43 @@ public class DatabaseScreen extends ModScreen {
 
     // Pending initial search (set before init())
     private String pendingInitialSearch = null;
+
+    // Remember position state (static = persists between opens)
+    private static boolean rememberPosition = false;
+    private static String savedSearchText = "";
+    private static String savedHexSearchText = "";
+    private static String savedSortColumn = null;
+    private static boolean savedSortAscending = true;
+    private static int savedScrollOffset = 0;
+    private static boolean savedShowDupesOnly = false;
+    private static boolean savedShowFades = true;
+
+    public static void setRememberPosition(boolean value) {
+        rememberPosition = value;
+    }
+
+    private void saveCurrentState() {
+        savedSearchText   = searchField != null ? searchField.getValue() : "";
+        savedHexSearchText = hexSearchField != null ? hexSearchField.getValue() : "";
+        savedSortColumn   = sortColumn;
+        savedSortAscending = sortAscending;
+        savedScrollOffset = scrollOffset;
+        savedShowDupesOnly = showDupesOnly;
+        savedShowFades    = showFades;
+    }
+
+    private void restoreSavedState() {
+        showDupesOnly = savedShowDupesOnly;
+        showFades     = savedShowFades;
+        sortColumn    = savedSortColumn;
+        sortAscending = savedSortAscending;
+        if (searchField != null && !savedSearchText.isEmpty())
+            searchField.setValue(savedSearchText);
+        if (hexSearchField != null && !savedHexSearchText.isEmpty())
+            hexSearchField.setValue(savedHexSearchText);
+        // scrollOffset restored after filterAndSort()
+    }
+
     public DatabaseScreen() {
         this(null);
     }
@@ -126,9 +175,19 @@ public class DatabaseScreen extends ModScreen {
         // Search field (top right)
         searchField = new EditBox(this.font, this.width - 255, 8, 235, 20, Component.literal("Search"));
         searchField.setMaxLength(50);
-        searchField.setHint(Component.literal("Search hex/match/delta..."));
+        searchField.setHint(Component.literal("Search hex/match/delta/pattern..."));
         searchField.setResponder(text -> filterAndSort());
         this.addRenderableWidget(searchField);
+
+        // Wildcard help button placed left of the search field; hover to see usage
+        int helpX = Math.max(10, this.width - 275);
+        wildcardHelpButton = net.minecraft.client.gui.components.Button.builder(Component.literal("?"), btn -> {
+            // on click: show a brief chat message with help as well
+            if (minecraft != null && minecraft.player != null) {
+                minecraft.player.displayClientMessage(Component.literal("Wildcard search help: use X for any hex digit; W/Y/Z are bound wildcards."), false);
+            }
+        }).bounds(helpX, 10, 16, 16).build();
+        this.addRenderableWidget(wildcardHelpButton);
 
         // Hex search field (below search)
         hexSearchField = new EditBox(this.font, this.width - 145, 35, 125, 20, Component.literal("Hex Search"));
@@ -142,6 +201,17 @@ public class DatabaseScreen extends ModScreen {
             button -> this.minecraft.setScreen(new ArmorChecklistScreen(this)))
             .bounds(20, 10, 150, 20).build();
         this.addRenderableWidget(checklistButton);
+
+        // Remember Position toggle button (right of checklist button)
+        Button rememberBtn = Button.builder(
+            Component.literal(rememberPosition ? "§aPinned: ON" : "§7Pinned: OFF"),
+            button -> {
+                rememberPosition = !rememberPosition;
+                if (rememberPosition) saveCurrentState();
+                this.rebuildWidgets();
+            })
+            .bounds(175, 10, 100, 20).build();
+        this.addRenderableWidget(rememberBtn);
 
         // Word matches button (bottom right)
         Button wordButton = Button.builder(Component.literal("§lWord Matches"),
@@ -185,7 +255,6 @@ public class DatabaseScreen extends ModScreen {
             hexSearchField.setValue(pendingHexSearch);
             this.setFocused(hexSearchField);
             hexSearchField.setFocused(true);
-            // Automatically sort by distance (closest) when opening with hex search
             sortColumn = "distance";
             sortAscending = true;
             pendingHexSearch = null;
@@ -193,24 +262,22 @@ public class DatabaseScreen extends ModScreen {
         // Apply pending initial search if set (from command argument)
         else if (pendingInitialSearch != null) {
             String search = pendingInitialSearch.replace("#", "").toUpperCase();
-
-            // Check if it's a pure hex code (6 characters, no X wildcard)
             if (search.length() == 6 && search.matches("[0-9A-F]{6}")) {
-                // Pure hex - goes to hex search field
                 hexSearchField.setValue(search);
                 this.setFocused(hexSearchField);
                 hexSearchField.setFocused(true);
-                // Automatically sort by distance (closest) when opening with hex search
                 sortColumn = "distance";
                 sortAscending = true;
             } else {
-                // Everything else goes to main search field
                 searchField.setValue(pendingInitialSearch);
                 this.setFocused(searchField);
                 searchField.setFocused(true);
             }
-
             pendingInitialSearch = null;
+        }
+        // Restore pinned state if enabled and no pending search
+        else if (rememberPosition) {
+            restoreSavedState();
         }
         // If no pending search but we had previous text, restore it (GUI scale re-init)
         else if (previousSearchText != null || previousHexText != null) {
@@ -229,6 +296,12 @@ public class DatabaseScreen extends ModScreen {
 
         // Now that all fields are initialized, apply filters
         filterAndSort();
+
+        // Restore scroll offset after filterAndSort (which resets it to 0)
+        if (rememberPosition && pendingHexSearch == null && pendingInitialSearch == null) {
+            int maxScroll = Math.max(0, filteredPieces.size() - Math.max(1, (this.height - START_Y - 40) / ROW_HEIGHT));
+            scrollOffset = Math.min(savedScrollOffset, maxScroll);
+        }
     }
 
     @Override
@@ -458,6 +531,39 @@ public class DatabaseScreen extends ModScreen {
 
         // Render widgets LAST so they don't cover our text
         super.render(guiGraphics, mouseX, mouseY, delta);
+
+        // Draw wildcard help tooltip when hovering the help button
+        int helpX = Math.max(10, this.width - 275);
+        int helpY = 13;
+        int helpW = 16;
+        int helpH = 16;
+        if (mouseX >= helpX && mouseX <= helpX + helpW && mouseY >= helpY && mouseY <= helpY + helpH) {
+            // Build tooltip box size
+            int padding = 6;
+            int lineHeight = this.font.lineHeight + 2;
+            int maxW = 0;
+            for (String line : WILDCARD_HELP_LINES) {
+                maxW = Math.max(maxW, this.font.width(line));
+            }
+
+            int boxX = Math.min(this.width - 20 - (maxW + padding * 2), (int) mouseX + 12);
+            int boxY = (int) mouseY + 12;
+
+            int boxW = maxW + padding * 2;
+            int boxH = (WILDCARD_HELP_LINES.length * lineHeight) + padding;
+
+            // Background and border
+            guiGraphics.fill(boxX - 3, boxY - 3, boxX + boxW + 3, boxY + boxH + 3, 0xF0282828);
+            guiGraphics.fill(boxX, boxY, boxX + boxW, boxY + boxH, 0xCC111111);
+            guiGraphics.fill(boxX, boxY, boxX + boxW, boxY + 1, 0xFF646464);
+
+            // Draw lines
+            int textY = boxY + 4;
+            for (String line : WILDCARD_HELP_LINES) {
+                guiGraphics.drawString(this.font, line, boxX + padding, textY, 0xFFFFFFFF);
+                textY += lineHeight;
+            }
+        }
     }
 
     private void drawPieceRow(GuiGraphics guiGraphics, ArmorPiece piece, int y) {
@@ -948,27 +1054,40 @@ public class DatabaseScreen extends ModScreen {
             String searchLower = searchText.toLowerCase();
             String searchUpper = searchText.toUpperCase();
 
-            // Check if this is a hex pattern with wildcards (X represents any hex digit)
-            boolean hasWildcard = searchUpper.contains("X") && searchUpper.length() == 6 && searchUpper.matches("[0-9A-FX]+");
+            // Check if this is a hex pattern with wildcards (X/W/Y/Z), length must be 6 and only allowed chars
+            boolean hasWildcard = searchUpper.length() == 6 && searchUpper.matches("[0-9A-FWXYZ]+");
 
             if (hasWildcard) {
-                // Build regex pattern from wildcard search
-                StringBuilder regexPattern = new StringBuilder("^");
+                // Build regex pattern from wildcard search. Support bound wildcards W/Y/Z which must match
+                // the same hex digit for every occurrence (use capturing groups + backreferences).
+                StringBuilder regexBuilder = new StringBuilder("^");
+                Map<Character, Integer> groupMap = new HashMap<>();
+                int nextGroup = 1;
+
                 for (int i = 0; i < 6; i++) {
                     char c = searchUpper.charAt(i);
                     if (c == 'X') {
-                        regexPattern.append("[0-9A-F]");
+                        regexBuilder.append("[0-9A-F]");
+                    } else if (c == 'W' || c == 'Y' || c == 'Z') {
+                        if (!groupMap.containsKey(c)) {
+                            groupMap.put(c, nextGroup++);
+                            regexBuilder.append("([0-9A-F])");
+                        } else {
+                            // backreference to previously captured group
+                            regexBuilder.append("\\").append(groupMap.get(c));
+                        }
                     } else {
-                        regexPattern.append(c);
+                        // literal hex char
+                        regexBuilder.append(c);
                     }
                 }
-                regexPattern.append("$");
-                String pattern = regexPattern.toString();
+                regexBuilder.append("$");
+                final java.util.regex.Pattern compiled = java.util.regex.Pattern.compile(regexBuilder.toString());
 
                 result = result.stream()
                     .filter(piece -> {
                         String hexClean = piece.getHexcode().replace("#", "").toUpperCase();
-                        return hexClean.matches(pattern);
+                        return compiled.matcher(hexClean).matches();
                     })
                     .collect(Collectors.toList());
             } else {
@@ -1303,6 +1422,7 @@ public class DatabaseScreen extends ModScreen {
 
     @Override
     public void onClose() {
+        if (rememberPosition) saveCurrentState();
         if (this.minecraft != null) {
             this.minecraft.setScreen(parent);
         }
