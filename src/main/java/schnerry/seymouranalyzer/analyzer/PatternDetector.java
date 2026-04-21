@@ -66,7 +66,7 @@ public class PatternDetector {
         Map<String, String> wordList = config.getWordList();
 
         String longestMatch = null;
-        int longestMatchLength = 0;
+        int longestMatchLength = -1;
 
         for (Map.Entry<String, String> entry : wordList.entrySet()) {
             String word = entry.getKey();
