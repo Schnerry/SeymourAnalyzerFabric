@@ -118,7 +118,7 @@ public class GamblingScreen extends Screen {
         int itemAreaBottom = stripBottom - TIER_BAR_H - TIER_LABEL_H - 3;
 
         for (int i = 0; i < strip.size(); i++) {
-            int cellLeft = (int)(cx - scrollOffset + (long) i * CELL_STRIDE - CELL_SIZE / 2);
+            int cellLeft = (int)(cx - scrollOffset + (long) i * CELL_STRIDE - (double) CELL_SIZE / 2);
             if (cellLeft > this.width + CELL_STRIDE) break;
             if (cellLeft + CELL_SIZE < -CELL_STRIDE)  continue;
 
@@ -242,7 +242,7 @@ public class GamblingScreen extends Screen {
                 int matchTierRgb = match.tier().resolveColor(now);
 
                 String prefix = "#" + (i + 1) + " ";
-                String deltaStr = String.format("\u0394E %.2f", match.deltaE());
+                String deltaStr = String.format("ΔE %.2f", match.deltaE());
                 DyedItemColor winnerDyed = winner.get(net.minecraft.core.component.DataComponents.DYED_COLOR);
                 int winnerRgb = winnerDyed != null ? winnerDyed.rgb() & 0xFFFFFF : 0;
                 int matchRgb  = 0;

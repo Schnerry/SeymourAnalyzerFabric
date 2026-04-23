@@ -1,8 +1,10 @@
 package schnerry.seymouranalyzer.render;
 
+import com.mojang.blaze3d.platform.Window;
 import lombok.Getter;
 import lombok.Setter;
 import net.fabricmc.fabric.api.client.item.v1.ItemTooltipCallback;
+import net.minecraft.client.gui.Font;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.world.item.component.DyedItemColor;
 import net.minecraft.world.item.component.CustomData;
@@ -130,7 +132,7 @@ public class HexTooltipRenderer {
             // Use original hex for analysis (so closest match is based on original color)
 
             // Analyze color to get closest match
-            var analysis = ColorAnalyzer.getInstance().analyzeArmorColor(hexForAnalysis, itemName);
+            ColorAnalyzer.AnalysisResult analysis = ColorAnalyzer.getInstance().analyzeArmorColor(hexForAnalysis, itemName);
 
             // Track next insert position so DB compare follows immediately
             int nextInsert = insertIndex + 1;
@@ -145,7 +147,7 @@ public class HexTooltipRenderer {
                     analysis.bestMatch().isCustom());
 
                 // Determine precision based on shift key
-                var window = Minecraft.getInstance().getWindow();
+                Window window = Minecraft.getInstance().getWindow();
                 boolean shiftHeld = InputConstants.isKeyDown(window, GLFW.GLFW_KEY_LEFT_SHIFT)
                                  || InputConstants.isKeyDown(window, GLFW.GLFW_KEY_RIGHT_SHIFT);
                 String deFormat = shiftHeld ? "%.5f" : "%.2f";
@@ -173,7 +175,7 @@ public class HexTooltipRenderer {
             }
 
             // DB Compare: show 3 closest pieces from user's database when shift is held
-            var window2 = Minecraft.getInstance().getWindow();
+            Window window2 = Minecraft.getInstance().getWindow();
             boolean shiftHeld2 = InputConstants.isKeyDown(window2, GLFW.GLFW_KEY_LEFT_SHIFT)
                                || InputConstants.isKeyDown(window2, GLFW.GLFW_KEY_RIGHT_SHIFT);
             if (shiftHeld2 && ClothConfig.getInstance().isDbCompareEnabled()) {
@@ -186,7 +188,7 @@ public class HexTooltipRenderer {
                     nextInsert++;
 
                     // Measure max name width for alignment
-                    var font = Minecraft.getInstance().font;
+                    Font font = Minecraft.getInstance().font;
                     int spaceWidth = font.width(" ");
                     int maxNameWidth = dbMatches.stream()
                         .mapToInt(m -> font.width(m.pieceName()))

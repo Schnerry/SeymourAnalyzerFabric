@@ -3,8 +3,10 @@ package schnerry.seymouranalyzer.data;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
+import lombok.Getter;
+import lombok.Setter;
 import net.fabricmc.loader.api.FabricLoader;
-import schnerry.seymouranalyzer.Seymouranalyzer;
+import schnerry.seymouranalyzer.SeymourAnalyzer;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
@@ -22,8 +24,12 @@ public class ChecklistCache {
     private static ChecklistCache instance;
 
     // Cache data (matches the JS structure)
+    @Getter
     private Map<String, CategoryCache> normalColorCache = new HashMap<>();
+    @Getter
     private Map<String, CategoryCache> fadeDyeOptimalCache = new HashMap<>();
+    @Setter
+    @Getter
     private int collectionSize = 0;
     private long lastUpdated = 0;
 
@@ -74,7 +80,7 @@ public class ChecklistCache {
         Path cacheFile = getCacheFilePath();
 
         if (!Files.exists(cacheFile)) {
-            Seymouranalyzer.LOGGER.info("No checklist cache file found, starting fresh");
+            SeymourAnalyzer.LOGGER.info("No checklist cache file found, starting fresh");
             return;
         }
 
@@ -110,11 +116,11 @@ public class ChecklistCache {
                 }
             }
 
-            Seymouranalyzer.LOGGER.info("Loaded checklist cache: {} normal categories, {} fade dye categories, collection size {}",
+            SeymourAnalyzer.LOGGER.info("Loaded checklist cache: {} normal categories, {} fade dye categories, collection size {}",
                 normalColorCache.size(), fadeDyeOptimalCache.size(), collectionSize);
 
         } catch (Exception e) {
-            Seymouranalyzer.LOGGER.error("Failed to load checklist cache", e);
+            SeymourAnalyzer.LOGGER.error("Failed to load checklist cache", e);
             // Reset to empty cache on error
             normalColorCache.clear();
             fadeDyeOptimalCache.clear();
@@ -156,10 +162,10 @@ public class ChecklistCache {
                 gson.toJson(root, writer);
             }
 
-            Seymouranalyzer.LOGGER.info("Saved checklist cache to disk");
+            SeymourAnalyzer.LOGGER.info("Saved checklist cache to disk");
 
         } catch (Exception e) {
-            Seymouranalyzer.LOGGER.error("Failed to save checklist cache", e);
+            SeymourAnalyzer.LOGGER.error("Failed to save checklist cache", e);
         }
     }
 
@@ -169,7 +175,7 @@ public class ChecklistCache {
     public void clearAll() {
         normalColorCache.clear();
         fadeDyeOptimalCache.clear();
-        Seymouranalyzer.LOGGER.info("Cleared all checklist caches");
+        SeymourAnalyzer.LOGGER.info("Cleared all checklist caches");
     }
 
     /**
@@ -185,9 +191,9 @@ public class ChecklistCache {
             save();
 
             if (diff > 0) {
-                Seymouranalyzer.LOGGER.info("Collection grew by {} pieces, recalculating matches", diff);
+                SeymourAnalyzer.LOGGER.info("Collection grew by {} pieces, recalculating matches", diff);
             } else {
-                Seymouranalyzer.LOGGER.info("Collection changed by {} pieces, recalculating matches", diff);
+                SeymourAnalyzer.LOGGER.info("Collection changed by {} pieces, recalculating matches", diff);
             }
 
             return true;
@@ -200,14 +206,6 @@ public class ChecklistCache {
     }
 
     // Getters and setters
-
-    public Map<String, CategoryCache> getNormalColorCache() {
-        return normalColorCache;
-    }
-
-    public Map<String, CategoryCache> getFadeDyeOptimalCache() {
-        return fadeDyeOptimalCache;
-    }
 
     public CategoryCache getNormalColorCache(String category) {
         return normalColorCache.get(category);
@@ -223,14 +221,6 @@ public class ChecklistCache {
 
     public void setFadeDyeOptimalCache(String category, CategoryCache cache) {
         fadeDyeOptimalCache.put(category, cache);
-    }
-
-    public int getCollectionSize() {
-        return collectionSize;
-    }
-
-    public void setCollectionSize(int size) {
-        this.collectionSize = size;
     }
 
     /**

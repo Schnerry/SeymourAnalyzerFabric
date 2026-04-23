@@ -1,6 +1,6 @@
 package schnerry.seymouranalyzer.analyzer;
 
-import schnerry.seymouranalyzer.Seymouranalyzer;
+import schnerry.seymouranalyzer.SeymourAnalyzer;
 import schnerry.seymouranalyzer.data.ColorDatabase;
 import schnerry.seymouranalyzer.config.ClothConfig;
 import schnerry.seymouranalyzer.config.MatchPriority;
@@ -153,11 +153,11 @@ public class ColorAnalyzer {
             .collect(Collectors.toList());
 
         if (top3.isEmpty()) {
-            Seymouranalyzer.LOGGER.warn("[ColorAnalyzer] No matches found for hex: {}", hexcode);
+            SeymourAnalyzer.LOGGER.warn("[ColorAnalyzer] No matches found for hex: {}", hexcode);
             return null;
         }
 
-        ColorMatch best = top3.get(0);
+        ColorMatch best = top3.getFirst();
         int tier = calculateTier(best.deltaE, best.isCustom, best.isFade);
 
         return new AnalysisResult(best, top3, tier);
@@ -172,7 +172,7 @@ public class ColorAnalyzer {
         }
 
         List<ColorMatch> guarded = new ArrayList<>(input);
-        ColorMatch currentBest = guarded.get(0);
+        ColorMatch currentBest = guarded.getFirst();
 
         // Guard 1: if best is T3+, prefer the closest T0-T2 candidate if one exists.
         if (currentBest.tier > 2) {

@@ -1,6 +1,5 @@
 package schnerry.seymouranalyzer.render;
 
-import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.world.item.ItemStack;
@@ -8,11 +7,14 @@ import net.minecraft.world.inventory.Slot;
 import schnerry.seymouranalyzer.analyzer.ColorAnalyzer;
 import schnerry.seymouranalyzer.analyzer.PatternDetector;
 import schnerry.seymouranalyzer.config.ClothConfig;
+import schnerry.seymouranalyzer.config.MatchPriority;
 import schnerry.seymouranalyzer.data.ArmorPiece;
 import schnerry.seymouranalyzer.data.CollectionManager;
 import schnerry.seymouranalyzer.scanner.ChestScanner;
 
+import java.lang.reflect.Field;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 import java.util.WeakHashMap;
 
@@ -55,18 +57,9 @@ public class ItemSlotHighlighter {
     private static final int COLOR_NORMAL_T2 = 0x78FFA500;      // Orange (120 alpha)
 
     /**
-     * Cached data for an item to avoid re-analysis every frame
-     */
-    private static class CachedItemData {
-        final String hex;
-        final String uuid;
-        final Integer highlightColor;
-
-        CachedItemData(String hex, String uuid, Integer highlightColor) {
-            this.hex = hex;
-            this.uuid = uuid;
-            this.highlightColor = highlightColor;
-        }
+         * Cached data for an item to avoid re-analysis every frame
+         */
+        private record CachedItemData(String hex, String uuid, Integer highlightColor) {
     }
 
     private ItemSlotHighlighter() {
@@ -349,7 +342,7 @@ public class ItemSlotHighlighter {
             String[] fieldNames = {"x", "field_2888", "backgroundLeft"};
             for (String fieldName : fieldNames) {
                 try {
-                    var field = AbstractContainerScreen.class.getDeclaredField(fieldName);
+                    Field field = AbstractContainerScreen.class.getDeclaredField(fieldName);
                     field.setAccessible(true);
                     int value = (int) field.get(screen);
                     if (DEBUG_POSITIONS) {
@@ -383,7 +376,7 @@ public class ItemSlotHighlighter {
             String[] fieldNames = {"y", "field_2890", "backgroundTop"};
             for (String fieldName : fieldNames) {
                 try {
-                    var field = AbstractContainerScreen.class.getDeclaredField(fieldName);
+                    Field field = AbstractContainerScreen.class.getDeclaredField(fieldName);
                     field.setAccessible(true);
                     int value = (int) field.get(screen);
                     if (DEBUG_POSITIONS) {
@@ -417,23 +410,23 @@ public class ItemSlotHighlighter {
         String hexUpper = hex.toUpperCase();
 
         // Collect all possible matches with their priorities
-        java.util.Map<schnerry.seymouranalyzer.config.MatchPriority, Integer> possibleMatches = new java.util.HashMap<>();
+        java.util.Map<MatchPriority, Integer> possibleMatches = new java.util.HashMap<>();
 
         // Check dupe
         if (config.isDupesEnabled() && uuid != null && isDuplicateHex(hex, uuid)) {
-            possibleMatches.put(schnerry.seymouranalyzer.config.MatchPriority.DUPE, COLOR_DUPE);
+            possibleMatches.put(MatchPriority.DUPE, COLOR_DUPE);
         }
 
         // Check search match
         if (!searchHexes.isEmpty() && searchHexes.contains(hexUpper)) {
-            possibleMatches.put(schnerry.seymouranalyzer.config.MatchPriority.SEARCH, COLOR_SEARCH);
+            possibleMatches.put(MatchPriority.SEARCH, COLOR_SEARCH);
         }
 
         // Check word match
         if (config.isWordsEnabled()) {
             String wordMatch = PatternDetector.getInstance().detectWordMatch(hex);
             if (wordMatch != null) {
-                possibleMatches.put(schnerry.seymouranalyzer.config.MatchPriority.WORD, COLOR_WORD);
+                possibleMatches.put(MatchPriority.WORD, COLOR_WORD);
             }
         }
 
@@ -441,15 +434,15 @@ public class ItemSlotHighlighter {
         if (config.isPatternsEnabled()) {
             String pattern = PatternDetector.getInstance().detectPattern(hex);
             if (pattern != null) {
-                possibleMatches.put(schnerry.seymouranalyzer.config.MatchPriority.PATTERN, COLOR_PATTERN);
+                possibleMatches.put(MatchPriority.PATTERN, COLOR_PATTERN);
             }
         }
 
         // Check tier-based matches - check ALL top 3 matches, not just the best one
         // A piece can match multiple categories (e.g., T1 fade AND T2 normal)
-        var analysis = ColorAnalyzer.getInstance().analyzeArmorColor(hex, itemName);
+        ColorAnalyzer.AnalysisResult analysis = ColorAnalyzer.getInstance().analyzeArmorColor(hex, itemName);
         if (analysis != null && analysis.top3Matches() != null) {
-            for (var match : analysis.top3Matches()) {
+            for (ColorAnalyzer.ColorMatch match : analysis.top3Matches()) {
                 int tier = calculateTier(match.deltaE(), match.isCustom(), match.isFade());
 
                 // Skip T3+ matches (too far away)
@@ -524,10 +517,10 @@ public class ItemSlotHighlighter {
      * - But has a DIFFERENT uuid (it's a different item)
      */
     private boolean isDuplicateHex(String hex, String uuid) {
-        var collection = CollectionManager.getInstance().getCollection();
+        Map<String, ArmorPiece> collection = CollectionManager.getInstance().getCollection();
         String hexUpper = hex.toUpperCase();
 
-        for (var entry : collection.entrySet()) {
+        for (Map.Entry<String, ArmorPiece> entry : collection.entrySet()) {
             String entryUuid = entry.getKey();
             ArmorPiece piece = entry.getValue();
 

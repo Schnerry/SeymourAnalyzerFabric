@@ -6,7 +6,9 @@ import com.google.gson.JsonObject;
 import lombok.Getter;
 import lombok.Setter;
 import net.fabricmc.loader.api.FabricLoader;
-import schnerry.seymouranalyzer.Seymouranalyzer;
+import schnerry.seymouranalyzer.SeymourAnalyzer;
+import schnerry.seymouranalyzer.gui.ArmorChecklistScreen;
+import schnerry.seymouranalyzer.gui.DatabaseScreen;
 import schnerry.seymouranalyzer.render.ItemSlotHighlighter;
 
 import java.io.File;
@@ -163,15 +165,15 @@ public class ClothConfig {
                     }
                 }
 
-                Seymouranalyzer.LOGGER.info("Loaded config from file");
+                SeymourAnalyzer.LOGGER.info("Loaded config from file");
             }
         } catch (Exception e) {
-            Seymouranalyzer.LOGGER.error("Failed to load config", e);
+            SeymourAnalyzer.LOGGER.error("Failed to load config", e);
         }
 
         // Sync autoPinGui to GUI screens after loading
-        schnerry.seymouranalyzer.gui.DatabaseScreen.setRememberPosition(autoPinGui);
-        schnerry.seymouranalyzer.gui.ArmorChecklistScreen.setRememberPage(autoPinGui);
+        DatabaseScreen.setRememberPosition(autoPinGui);
+        ArmorChecklistScreen.setRememberPage(autoPinGui);
 
         // Load custom data
         try {
@@ -193,7 +195,7 @@ public class ClothConfig {
                 }
             }
         } catch (Exception e) {
-            Seymouranalyzer.LOGGER.error("Failed to load data", e);
+            SeymourAnalyzer.LOGGER.error("Failed to load data", e);
         }
     }
 
@@ -228,9 +230,9 @@ public class ClothConfig {
                 GSON.toJson(json, writer);
             }
 
-            Seymouranalyzer.LOGGER.info("Saved config to file");
+            SeymourAnalyzer.LOGGER.info("Saved config to file");
         } catch (Exception e) {
-            Seymouranalyzer.LOGGER.error("Failed to save config", e);
+            SeymourAnalyzer.LOGGER.error("Failed to save config", e);
         }
     }
 
@@ -250,7 +252,7 @@ public class ClothConfig {
                 GSON.toJson(json, writer);
             }
         } catch (Exception e) {
-            Seymouranalyzer.LOGGER.error("Failed to save data", e);
+            SeymourAnalyzer.LOGGER.error("Failed to save data", e);
         }
     }
 

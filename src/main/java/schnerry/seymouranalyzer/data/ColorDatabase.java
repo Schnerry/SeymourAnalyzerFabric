@@ -2,7 +2,7 @@ package schnerry.seymouranalyzer.data;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
-import schnerry.seymouranalyzer.Seymouranalyzer;
+import schnerry.seymouranalyzer.SeymourAnalyzer;
 import schnerry.seymouranalyzer.util.ColorMath;
 
 import java.io.InputStream;
@@ -54,11 +54,11 @@ public class ColorDatabase {
                     });
                 }
 
-                Seymouranalyzer.LOGGER.info("Loaded {} target colors and {} fade dyes",
+                SeymourAnalyzer.LOGGER.info("Loaded {} target colors and {} fade dyes",
                     targetColors.size(), fadeDyes.size());
             }
         } catch (Exception e) {
-            Seymouranalyzer.LOGGER.error("Failed to load color database", e);
+            SeymourAnalyzer.LOGGER.error("Failed to load color database", e);
         }
     }
 

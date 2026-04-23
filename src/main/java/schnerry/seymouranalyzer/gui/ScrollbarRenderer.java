@@ -122,7 +122,7 @@ public class ScrollbarRenderer {
         float relativeY = (float) (mouseY - scrollbarY - thumbHeight / 2.0);
         float scrollableHeight = scrollbarHeight - thumbHeight;
 
-        float scrollRatio = Math.max(0, Math.min(1, relativeY / scrollableHeight));
+        float scrollRatio = Math.clamp(relativeY / scrollableHeight, 0, 1);
         int maxScroll = totalItems - visibleItems;
 
         return (int) (scrollRatio * maxScroll);

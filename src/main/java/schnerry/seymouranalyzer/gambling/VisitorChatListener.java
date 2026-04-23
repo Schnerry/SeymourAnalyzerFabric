@@ -10,7 +10,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.item.component.DyedItemColor;
-import schnerry.seymouranalyzer.Seymouranalyzer;
+import schnerry.seymouranalyzer.SeymourAnalyzer;
 import schnerry.seymouranalyzer.config.ClothConfig;
 import schnerry.seymouranalyzer.util.StringUtility;
 
@@ -40,7 +40,7 @@ public class VisitorChatListener {
             if (now - lastTriggerMs < COOLDOWN_MS) return;
             lastTriggerMs = now;
 
-            Seymouranalyzer.LOGGER.info("[Gambling] Seymour trade detected, scanning inventory...");
+            SeymourAnalyzer.LOGGER.info("[Gambling] Seymour trade detected, scanning inventory...");
 
             Minecraft mc = Minecraft.getInstance();
             mc.execute(() -> new Thread(() -> {
@@ -57,11 +57,11 @@ public class VisitorChatListener {
         SeymourPieceResult piece = findNewestSeymourPiece(mc, searchTime, skipRecency);
 
         if (piece != null) {
-            Seymouranalyzer.LOGGER.info("[Gambling] Rolling with piece: {} #{}",
+            SeymourAnalyzer.LOGGER.info("[Gambling] Rolling with piece: {} #{}",
                     piece.skyblockId, String.format("%06X", piece.rgb));
             mc.setScreen(new GamblingScreen(piece.rgb, piece.item));
         } else {
-            Seymouranalyzer.LOGGER.info("[Gambling] No Seymour piece found, random roll");
+            SeymourAnalyzer.LOGGER.info("[Gambling] No Seymour piece found, random roll");
             mc.setScreen(new GamblingScreen());
         }
     }

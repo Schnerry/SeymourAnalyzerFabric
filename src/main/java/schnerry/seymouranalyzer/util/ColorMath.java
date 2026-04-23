@@ -144,9 +144,9 @@ public class ColorMath {
                 int g = Integer.parseInt(parts[1].trim());
                 int b = Integer.parseInt(parts[2].trim());
                 return String.format("%02X%02X%02X",
-                        Math.max(0, Math.min(255, r)),
-                        Math.max(0, Math.min(255, g)),
-                        Math.max(0, Math.min(255, b))
+                        Math.clamp(r, 0, 255),
+                        Math.clamp(g, 0, 255),
+                        Math.clamp(b, 0, 255)
                 );
             }
         } catch (NumberFormatException e) {

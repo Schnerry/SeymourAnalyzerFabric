@@ -246,7 +246,7 @@ public class WordMatchesScreen extends ModScreen {
             int maxScroll = Math.max(0, totalRows - maxVisible);
             scrollOffset = ScrollbarRenderer.calculateScrollFromDrag(click.y(), scrollbarY, scrollbarHeight,
                 totalRows, maxVisible);
-            scrollOffset = Math.max(0, Math.min(maxScroll, scrollOffset));
+            scrollOffset = Math.clamp(scrollOffset, 0, maxScroll);
             return true;
         }
 
@@ -293,7 +293,7 @@ public class WordMatchesScreen extends ModScreen {
                     int maxScroll = Math.max(0, totalRows - maxVisible);
                     scrollOffset = ScrollbarRenderer.calculateScrollFromDrag(mouseY, scrollbarY, scrollbarHeight,
                         totalRows, maxVisible);
-                    scrollOffset = Math.max(0, Math.min(maxScroll, scrollOffset));
+                    scrollOffset = Math.clamp(scrollOffset, 0, maxScroll);
                     return true;
                 }
             }

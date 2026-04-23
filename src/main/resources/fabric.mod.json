@@ -16,10 +16,10 @@
 	"environment": "client",
 	"entrypoints": {
 		"main": [
-			"schnerry.seymouranalyzer.Seymouranalyzer"
+          "schnerry.seymouranalyzer.SeymourAnalyzer"
 		],
 		"client": [
-			"schnerry.seymouranalyzer.SeymouranalyzerClient"
+			"schnerry.seymouranalyzer.SeymourAnalyzerClient"
 		]
 	},
 	"mixins": [

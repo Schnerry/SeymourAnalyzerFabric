@@ -1,18 +1,22 @@
 package schnerry.seymouranalyzer.gui;
 
 import com.google.gson.Gson;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import lombok.Setter;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
-import schnerry.seymouranalyzer.Seymouranalyzer;
+import schnerry.seymouranalyzer.SeymourAnalyzer;
 import schnerry.seymouranalyzer.config.ClothConfig;
 import schnerry.seymouranalyzer.data.ArmorPiece;
 import schnerry.seymouranalyzer.data.ChecklistCache;
 import schnerry.seymouranalyzer.data.CollectionManager;
 import schnerry.seymouranalyzer.util.ColorMath;
+import schnerry.seymouranalyzer.util.PieceTypeUtil;
 
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -47,14 +51,11 @@ public class ArmorChecklistScreen extends ModScreen {
     private static boolean customColorsNeedReload = false;
 
     // Remember position state (static = persists between opens)
+    @Setter
     private static boolean rememberPage = false;
     private static int savedPage = 0;
     private static int savedChecklistScroll = 0;
     private static boolean savedFadeDyeMode = false;
-
-    public static void setRememberPage(boolean value) {
-        rememberPage = value;
-    }
 
     private static class ContextMenu {
         ArmorPiece piece; // For individual piece context menu
@@ -89,7 +90,7 @@ public class ArmorChecklistScreen extends ModScreen {
             fadeDyeMode = savedFadeDyeMode;
             pageOrder = fadeDyeMode ? fadeDyePageOrder : normalPageOrder;
             // Clamp saved page to valid range
-            currentPage = Math.min(savedPage, Math.max(0, pageOrder.size() - 1));
+            currentPage = Math.clamp(pageOrder.size() - 1, 0, savedPage);
             scrollOffset = savedChecklistScroll;
         }
 
@@ -105,10 +106,10 @@ public class ArmorChecklistScreen extends ModScreen {
 
     private void loadChecklistData() {
         try {
-            InputStream inputStream = Seymouranalyzer.class.getResourceAsStream("/data/seymouranalyzer/checklistdata.json");
+            InputStream inputStream = SeymourAnalyzer.class.getResourceAsStream("/data/seymouranalyzer/checklistdata.json");
 
             if (inputStream == null) {
-                Seymouranalyzer.LOGGER.error("Could not load checklistdata.json");
+                SeymourAnalyzer.LOGGER.error("Could not load checklistdata.json");
                 return;
             }
 
@@ -119,17 +120,17 @@ public class ArmorChecklistScreen extends ModScreen {
             JsonObject categoriesJson = root.getAsJsonObject("categories");
             for (String categoryName : categoriesJson.keySet()) {
                 List<ChecklistEntry> entries = new ArrayList<>();
-                var array = categoriesJson.getAsJsonArray(categoryName);
+                JsonArray array = categoriesJson.getAsJsonArray(categoryName);
 
-                for (var element : array) {
-                    var obj = element.getAsJsonObject();
+                for (JsonElement element : array) {
+                    JsonObject obj = element.getAsJsonObject();
                     ChecklistEntry entry = new ChecklistEntry();
                     entry.hex = obj.get("hex").getAsString().toUpperCase();
                     entry.name = obj.get("name").getAsString();
                     entry.pieces = new ArrayList<>();
 
-                    var piecesArray = obj.getAsJsonArray("pieces");
-                    for (var pieceElement : piecesArray) {
+                    JsonArray piecesArray = obj.getAsJsonArray("pieces");
+                    for (JsonElement pieceElement : piecesArray) {
                         entry.pieces.add(pieceElement.getAsString());
                     }
 
@@ -140,8 +141,8 @@ public class ArmorChecklistScreen extends ModScreen {
             }
 
             // Load page order
-            var pageOrderArray = root.getAsJsonArray("normalPageOrder");
-            for (var element : pageOrderArray) {
+            JsonArray pageOrderArray = root.getAsJsonArray("normalPageOrder");
+            for (JsonElement element : pageOrderArray) {
                 normalPageOrder.add(element.getAsString());
             }
 
@@ -165,20 +166,20 @@ public class ArmorChecklistScreen extends ModScreen {
             // Start with normal page order
             pageOrder = normalPageOrder;
 
-            Seymouranalyzer.LOGGER.info("Loaded {} checklist categories (including {} fade dyes)",
+            SeymourAnalyzer.LOGGER.info("Loaded {} checklist categories (including {} fade dyes)",
                 categories.size(), fadeDyePageOrder.size());
 
         } catch (Exception e) {
-            Seymouranalyzer.LOGGER.error("Error loading checklist data", e);
+            SeymourAnalyzer.LOGGER.error("Error loading checklist data", e);
         }
     }
 
     private void loadFadeDyes() {
         try {
-            InputStream inputStream = Seymouranalyzer.class.getResourceAsStream("/data/seymouranalyzer/colors.json");
+            InputStream inputStream = SeymourAnalyzer.class.getResourceAsStream("/data/seymouranalyzer/colors.json");
 
             if (inputStream == null) {
-                Seymouranalyzer.LOGGER.error("Could not load colors.json for fade dyes");
+                SeymourAnalyzer.LOGGER.error("Could not load colors.json for fade dyes");
                 return;
             }
 
@@ -187,7 +188,7 @@ public class ArmorChecklistScreen extends ModScreen {
             JsonObject fadeDyes = root.getAsJsonObject("FADE_DYES");
 
             if (fadeDyes == null) {
-                Seymouranalyzer.LOGGER.warn("No FADE_DYES section found in colors.json");
+                SeymourAnalyzer.LOGGER.warn("No FADE_DYES section found in colors.json");
                 return;
             }
 
@@ -219,12 +220,12 @@ public class ArmorChecklistScreen extends ModScreen {
             // Add all fade dye categories to main categories map
             categories.putAll(fadeDyeCategories);
 
-            Seymouranalyzer.LOGGER.info("Loaded {} fade dye categories with {} total stages",
+            SeymourAnalyzer.LOGGER.info("Loaded {} fade dye categories with {} total stages",
                 fadeDyeCategories.size(),
                 fadeDyeCategories.values().stream().mapToInt(List::size).sum());
 
         } catch (Exception e) {
-            Seymouranalyzer.LOGGER.error("Error loading fade dyes", e);
+            SeymourAnalyzer.LOGGER.error("Error loading fade dyes", e);
         }
     }
 
@@ -238,7 +239,7 @@ public class ArmorChecklistScreen extends ModScreen {
             normalPageOrder.remove("Custom");
 
             if (customColors.isEmpty()) {
-                Seymouranalyzer.LOGGER.info("No custom colors to load for checklist");
+                SeymourAnalyzer.LOGGER.info("No custom colors to load for checklist");
                 return;
             }
 
@@ -274,10 +275,10 @@ public class ArmorChecklistScreen extends ModScreen {
                 normalPageOrder.add("Custom");
             }
 
-            Seymouranalyzer.LOGGER.info("Loaded {} custom colors for checklist", customEntries.size());
+            SeymourAnalyzer.LOGGER.info("Loaded {} custom colors for checklist", customEntries.size());
 
         } catch (Exception e) {
-            Seymouranalyzer.LOGGER.error("Error loading custom colors for checklist", e);
+            SeymourAnalyzer.LOGGER.error("Error loading custom colors for checklist", e);
         }
     }
 
@@ -300,7 +301,7 @@ public class ArmorChecklistScreen extends ModScreen {
             }
 
             customColorsNeedReload = false;
-            Seymouranalyzer.LOGGER.info("Reloaded custom colors in checklist GUI");
+            SeymourAnalyzer.LOGGER.info("Reloaded custom colors in checklist GUI");
         }
     }
 
@@ -332,7 +333,7 @@ public class ArmorChecklistScreen extends ModScreen {
                 if (stageMatches != null && stageMatches.stageHex != null) {
                     // Compare hex values (case-insensitive)
                     if (!stageMatches.stageHex.equalsIgnoreCase(entry.hex)) {
-                        Seymouranalyzer.LOGGER.info("Cache invalidated: hex mismatch for stage {}, cached={}, current={}",
+                        SeymourAnalyzer.LOGGER.info("Cache invalidated: hex mismatch for stage {}, cached={}, current={}",
                             i, stageMatches.stageHex, entry.hex);
                         cacheValid = false;
                         break;
@@ -341,7 +342,7 @@ public class ArmorChecklistScreen extends ModScreen {
             }
 
             if (cacheValid) {
-                Seymouranalyzer.LOGGER.info("Using cached matches for category: {}", currentCategory);
+                SeymourAnalyzer.LOGGER.info("Using cached matches for category: {}", currentCategory);
 
                 // Restore matches from cache
                 for (int i = 0; i < entries.size(); i++) {
@@ -391,12 +392,12 @@ public class ArmorChecklistScreen extends ModScreen {
                 } else {
                     cache.getNormalColorCache().remove(currentCategory);
                 }
-                Seymouranalyzer.LOGGER.info("Cache cleared for category {} due to hex value changes", currentCategory);
+                SeymourAnalyzer.LOGGER.info("Cache cleared for category {} due to hex value changes", currentCategory);
             }
         }
 
         // No cache - calculate optimal matches
-        Seymouranalyzer.LOGGER.info("Calculating optimal matches for category: {}", currentCategory);
+        SeymourAnalyzer.LOGGER.info("Calculating optimal matches for category: {}", currentCategory);
 
         // Create new category cache
         categoryCache = new ChecklistCache.CategoryCache();
@@ -404,9 +405,8 @@ public class ArmorChecklistScreen extends ModScreen {
         categoryCache.isCalculating = true;
 
         // For each piece type, build a list of all candidates across all stages
-        String[] pieceTypes = {"helmet", "chestplate", "leggings", "boots"};
 
-        for (String pieceType : pieceTypes) {
+        for (String pieceType : PieceTypeUtil.pieceTypes) {
             List<CandidateMatch> candidates = new ArrayList<>();
 
             // Build candidate list for ALL entries (not just those that need this piece type)
@@ -534,7 +534,7 @@ public class ArmorChecklistScreen extends ModScreen {
         // Save to disk
         cache.save();
 
-        Seymouranalyzer.LOGGER.info("Cached optimal matches for category: {}", currentCategory);
+        SeymourAnalyzer.LOGGER.info("Cached optimal matches for category: {}", currentCategory);
     }
 
     // Helper class for optimal matching
@@ -851,10 +851,9 @@ public class ArmorChecklistScreen extends ModScreen {
 
         // Calculate stats
         int t1Count = 0, t2Count = 0, missingCount = 0, totalSlots = 0;
-        String[] allPieceTypes = {"helmet", "chestplate", "leggings", "boots"};
 
         for (ChecklistEntry entry : entries) {
-            for (String pieceType : allPieceTypes) {
+            for (String pieceType : PieceTypeUtil.pieceTypes) {
                 // Skip if piece-to-piece filter is on and piece not needed
                 if (pieceToPieceMode && !entry.pieces.contains(pieceType)) {
                     continue;
@@ -952,10 +951,9 @@ public class ArmorChecklistScreen extends ModScreen {
 
         // Draw piece match boxes (helmet, chestplate, leggings, boots)
         int[] xPositions = {250, 370, 490, 610};
-        String[] pieceTypes = {"helmet", "chestplate", "leggings", "boots"};
 
-        for (int i = 0; i < pieceTypes.length; i++) {
-            String pieceType = pieceTypes[i];
+        for (int i = 0; i < PieceTypeUtil.pieceTypes.length; i++) {
+            String pieceType = PieceTypeUtil.pieceTypes[i];
             int boxX = xPositions[i];
 
             // Check if this piece is required for this armor set
@@ -1034,7 +1032,7 @@ public class ArmorChecklistScreen extends ModScreen {
                             int maxScroll = Math.max(0, entries.size() - maxVisible);
                             scrollOffset = ScrollbarRenderer.calculateScrollFromDrag(mouseY, scrollbarY, scrollbarHeight,
                                 entries.size(), maxVisible);
-                            scrollOffset = Math.max(0, Math.min(maxScroll, scrollOffset));
+                            scrollOffset = Math.clamp(scrollOffset, 0, maxScroll);
                             return true;
                         }
                     }
@@ -1086,8 +1084,7 @@ public class ArmorChecklistScreen extends ModScreen {
             List<ArmorPiece> allPieces = new ArrayList<>();
 
             // Collect all pieces that exist in this row
-            String[] pieceTypes = {"helmet", "chestplate", "leggings", "boots"};
-            for (String pieceType : pieceTypes) {
+            for (String pieceType : PieceTypeUtil.pieceTypes) {
                 ArmorPiece piece = entry.foundPieces.get(pieceType);
                 if (piece != null) {
                     allPieces.add(piece);
@@ -1251,7 +1248,7 @@ public class ArmorChecklistScreen extends ModScreen {
                 int maxScroll = Math.max(0, entries.size() - maxVisible);
                 scrollOffset = ScrollbarRenderer.calculateScrollFromDrag(click.y(), scrollbarY, scrollbarHeight,
                     entries.size(), maxVisible);
-                scrollOffset = Math.max(0, Math.min(maxScroll, scrollOffset));
+                scrollOffset = Math.clamp(scrollOffset, 0, maxScroll);
             }
 
             return true;
@@ -1284,7 +1281,6 @@ public class ArmorChecklistScreen extends ModScreen {
         sb.append("=================================\n");
         sb.append("Mode: ").append(fadeDyeMode ? "Fade Dyes" : "Normal").append("\n\n");
 
-        String[] allPieceTypes = {"helmet", "chestplate", "leggings", "boots"};
         int totalMissing = 0;
 
         // Iterate all categories in current page order
@@ -1300,7 +1296,7 @@ public class ArmorChecklistScreen extends ModScreen {
             for (ChecklistEntry entry : entries) {
                 List<String> missingPieces = new ArrayList<>();
 
-                for (String pieceType : allPieceTypes) {
+                for (String pieceType : PieceTypeUtil.pieceTypes) {
                     if (pieceToPieceMode && !entry.pieces.contains(pieceType)) {
                         continue;
                     }

@@ -1,8 +1,13 @@
 package schnerry.seymouranalyzer.util;
 
+import java.util.List;
+
 public final class PieceTypeUtil {
-    private PieceTypeUtil() {
-    }
+    public final static String[] pieceTypes = {"helmet", "chestplate", "leggings", "boots"};
+    private final static List<String> helmetWords = List.of("helmet", "helm", "hat", "hood", "cap", "crown", "mask");
+    private final static List<String> chestplateWords = List.of("chestplate", "chest", "tunic", "jacket", "shirt", "vest", "robe", "coat", "plate");
+    private final static List<String> leggingsWords = List.of("leggings", "pants", "trousers", "legs", "shorts");
+    private final static List<String> bootsWords = List.of("boots", "shoes", "sandals", "sneakers", "feet");
 
     public static String detectPieceType(String name) {
         if (name == null) return null;
@@ -30,25 +35,19 @@ public final class PieceTypeUtil {
     }
 
     private static boolean containsHelmetKeyword(String lower) {
-        return lower.contains("helmet") || lower.contains("helm") || lower.contains("hat") ||
-            lower.contains("hood") || lower.contains("cap") || lower.contains("crown") ||
-            lower.contains("mask");
+        return helmetWords.contains(lower);
     }
 
     private static boolean containsChestplateKeyword(String lower) {
-        return lower.contains("chestplate") || lower.contains("chest") || lower.contains("tunic") ||
-            lower.contains("jacket") || lower.contains("shirt") || lower.contains("vest") ||
-            lower.contains("robe") || lower.contains("coat") || lower.contains("plate");
+        return chestplateWords.contains(lower);
     }
 
     private static boolean containsLeggingsKeyword(String lower) {
-        return lower.contains("leggings") || lower.contains("legging") || lower.contains("pants") ||
-            lower.contains("trousers") || lower.contains("legs") || lower.contains("shorts");
+        return leggingsWords.contains(lower);
     }
 
     private static boolean containsBootsKeyword(String lower) {
-        return lower.contains("boots") || lower.contains("boot") || lower.contains("shoes") ||
-            lower.contains("sandals") || lower.contains("sneakers") || lower.contains("feet");
+        return bootsWords.contains(lower);
     }
 }
 
