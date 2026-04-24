@@ -235,9 +235,9 @@ public class InfoBoxRenderer {
             uuid,
             itemName,
             dupeCount,
-            checklistStatus.hasMatch, // isOwned = true if we have a match assigned in checklist
-            checklistStatus.isNeeded, // isNeeded = true if this is a target in checklist
-            checklistStatus.matchTier // matchTier = tier of the assigned match (or MAX_VALUE if none)
+            checklistStatus.hasMatch,
+            checklistStatus.isNeeded,
+            checklistStatus.matchTier
         );
     }
 
@@ -254,61 +254,45 @@ public class InfoBoxRenderer {
     }
 
     /**
-     * Get checklist status for a target hex by checking the checklist cache
-     * Cache is now always generated on mod init and after collection changes
-     * @param targetHex The target hex from analysis (what this piece matches to)
-     * @param itemName The item name to determine piece type
-     * @return ChecklistStatus with hasMatch (if assigned), isNeeded (if target), and tier of assigned match
+     * Get checklist status for a target hex by checking the checklist cache.
      */
     private static ChecklistStatus getChecklistStatusForHex(String targetHex, String itemName) {
         ChecklistCache cache = ChecklistCache.getInstance();
         String hexUpper = targetHex.toUpperCase();
 
-        // Determine piece type
         String pieceType = PieceTypeUtil.detectPieceType(itemName);
         if (pieceType == null) {
             return new ChecklistStatus(false, false, Integer.MAX_VALUE);
         }
 
-        // Check normal color cache
         for (ChecklistCache.CategoryCache categoryCache : cache.getNormalColorCache().values()) {
             if (categoryCache.matchesByIndex != null) {
                 for (ChecklistCache.StageMatches stageMatches : categoryCache.matchesByIndex.values()) {
                     if (stageMatches.stageHex != null && stageMatches.stageHex.equalsIgnoreCase(hexUpper)) {
-                        // This hex is a target in checklist
                         ChecklistCache.MatchInfo matchInfo = getMatchForPieceType(stageMatches, pieceType);
                         if (matchInfo != null) {
-                            // We have a match assigned
-                            int tier = getTierFromMatch(matchInfo);
-                            return new ChecklistStatus(true, true, tier);
+                            return new ChecklistStatus(true, true, getTierFromMatch(matchInfo));
                         }
-                        // Target exists but no match assigned yet
                         return new ChecklistStatus(false, true, Integer.MAX_VALUE);
                     }
                 }
             }
         }
 
-        // Check fade dye cache
         for (ChecklistCache.CategoryCache categoryCache : cache.getFadeDyeOptimalCache().values()) {
             if (categoryCache.matchesByIndex != null) {
                 for (ChecklistCache.StageMatches stageMatches : categoryCache.matchesByIndex.values()) {
                     if (stageMatches.stageHex != null && stageMatches.stageHex.equalsIgnoreCase(hexUpper)) {
-                        // This hex is a target in checklist
                         ChecklistCache.MatchInfo matchInfo = getMatchForPieceType(stageMatches, pieceType);
                         if (matchInfo != null) {
-                            // We have a match assigned
-                            int tier = getTierFromMatch(matchInfo);
-                            return new ChecklistStatus(true, true, tier);
+                            return new ChecklistStatus(true, true, getTierFromMatch(matchInfo));
                         }
-                        // Target exists but no match assigned yet
                         return new ChecklistStatus(false, true, Integer.MAX_VALUE);
                     }
                 }
             }
         }
 
-        // Not a checklist target
         return new ChecklistStatus(false, false, Integer.MAX_VALUE);
     }
 
@@ -324,8 +308,6 @@ public class InfoBoxRenderer {
 
     private static int getTierFromMatch(ChecklistCache.MatchInfo matchInfo) {
         if (matchInfo == null || matchInfo.hex == null) return Integer.MAX_VALUE;
-
-        // Analyze the matched piece to get its tier
         ColorAnalyzer.AnalysisResult analysis = ColorAnalyzer.getInstance().analyzeArmorColor(matchInfo.hex, matchInfo.name);
         if (analysis != null) {
             return analysis.tier();
@@ -482,7 +464,6 @@ public class InfoBoxRenderer {
                     String ownershipText = data.matchTier <= 1 ? "§a§l✓ Checklist" : "§e§l✓ Checklist";
                     maxTextWidth = Math.max(maxTextWidth, textRenderer.width(ownershipText));
                 } else {
-                    // Show "NEEDED" if no match assigned
                     maxTextWidth = Math.max(maxTextWidth, textRenderer.width("§c§l✗ NEEDED FOR CHECKLIST"));
                 }
             }
@@ -593,13 +574,11 @@ public class InfoBoxRenderer {
             // Checklist status - show for ALL pieces that are checklist targets
             if (hoveredItemData.isNeededForChecklist) {
                 if (hoveredItemData.isOwned) {
-                    // We have a match assigned - show checkmark based on the ASSIGNED match's tier
                     String ownershipText = hoveredItemData.matchTier <= 1 ? "§a§l✓ Checklist" : "§e§l✓ Checklist";
                     guiGraphics.drawString(client.font, Component.literal(ownershipText),
                         boxX + 5, boxY + yOffset, 0xFFFFFFFF, true);
                     yOffset += 10;
                 } else {
-                    // We DON'T have a match assigned (or match is T3+)
                     guiGraphics.drawString(client.font, Component.literal("§c§l✗ NEEDED FOR CHECKLIST"),
                         boxX + 5, boxY + yOffset, 0xFFFFFFFF, true);
                     yOffset += 10;
@@ -613,6 +592,7 @@ public class InfoBoxRenderer {
             }
         }
     }
+
 
     private static int getBorderColor(HoveredItemData data) {
         if (data.isCustom) {

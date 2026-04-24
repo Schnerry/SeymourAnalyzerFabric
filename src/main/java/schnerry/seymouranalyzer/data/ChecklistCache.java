@@ -46,6 +46,7 @@ public class ChecklistCache {
         public MatchInfo boots;
         public boolean calculated = false;
         public String stageHex;
+
     }
 
     public static class MatchInfo {

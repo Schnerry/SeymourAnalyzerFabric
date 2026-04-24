@@ -90,7 +90,7 @@ public class ArmorChecklistScreen extends ModScreen {
             fadeDyeMode = savedFadeDyeMode;
             pageOrder = fadeDyeMode ? fadeDyePageOrder : normalPageOrder;
             // Clamp saved page to valid range
-            currentPage = Math.clamp(pageOrder.size() - 1, 0, savedPage);
+            currentPage = Math.clamp(savedPage, 0, pageOrder.size() - 1);
             scrollOffset = savedChecklistScroll;
         }
 
@@ -143,7 +143,26 @@ public class ArmorChecklistScreen extends ModScreen {
             // Load page order
             JsonArray pageOrderArray = root.getAsJsonArray("normalPageOrder");
             for (JsonElement element : pageOrderArray) {
-                normalPageOrder.add(element.getAsString());
+                String name = element.getAsString();
+                if (categories.containsKey(name)) {
+                    normalPageOrder.add(name);
+                } else {
+                    SeymourAnalyzer.LOGGER.warn("normalPageOrder references unknown category '{}', skipping", name);
+                }
+            }
+
+            // Failsafe: append any categories not listed in normalPageOrder at the end
+            // (excluding fade dye categories which are handled separately)
+            String[] fadeDyeNames = {"Aurora", "Black Ice", "Black Opal", "Dusk Dye", "Forest Dye", "Frog", "Hellebore", "Jerry",
+                                     "Kingfisher", "Lava", "Lucky", "Marine",
+                                     "Oasis", "Ocean", "Pastel Sky", "Portal", "Red Tulip", "Rose",
+                                     "Snowflake", "Spooky", "Sunflower", "Sunset", "Warden"};
+            Set<String> fadeDyeSet = new HashSet<>(Arrays.asList(fadeDyeNames));
+            for (String categoryName : categories.keySet()) {
+                if (!normalPageOrder.contains(categoryName) && !fadeDyeSet.contains(categoryName)) {
+                    SeymourAnalyzer.LOGGER.warn("Category '{}' not in normalPageOrder, appending at end", categoryName);
+                    normalPageOrder.add(categoryName);
+                }
             }
 
             // Load fade dyes from colors.json
@@ -474,7 +493,6 @@ public class ArmorChecklistScreen extends ModScreen {
             stageMatches.stageHex = entry.hex;
             stageMatches.calculated = true;
 
-            // Save each piece match with actual UUID
             ArmorPiece helmet = entry.foundPieces.get("helmet");
             if (helmet != null) {
                 String uuid = entry.foundPieceUuids.get("helmet");
@@ -620,45 +638,26 @@ public class ArmorChecklistScreen extends ModScreen {
         int buttonWidth = 90;
         int buttonHeight = 20;
         int buttonSpacing = 10;
+        int buttonsPerRow = 8;
 
-        if (fadeDyeMode) {
-            // Fade dye mode: 3 rows of 8, 8, and remaining buttons (23 total)
-            int row1Y = this.height - 85;
-            int row2Y = this.height - 60;
-            int row3Y = this.height - 35;
-            int buttonsPerRow = 8;
+        int totalPages = pageOrder.size();
+        int numRows = (int) Math.ceil((double) totalPages / buttonsPerRow);
 
-            // Row 1: first 8 buttons
-            int row1Count = Math.min(buttonsPerRow, pageOrder.size());
-            for (int i = 0; i < row1Count; i++) {
-                int pageIndex = i;
-                String categoryName = pageOrder.get(i);
-                String shortName = getShortenedName(categoryName);
+        // Rows grow upward from the bottom of the screen
+        // Row N (last row) at height - 35, row N-1 at height - 60, etc.
+        for (int row = 0; row < numRows; row++) {
+            int rowStart = row * buttonsPerRow;
+            int rowCount = Math.min(buttonsPerRow, totalPages - rowStart);
+            int rowY = this.height - 35 - (numRows - 1 - row) * 25;
 
-                int totalWidth = (row1Count * (buttonWidth + buttonSpacing) - buttonSpacing);
-                int x = (this.width - totalWidth) / 2 + i * (buttonWidth + buttonSpacing);
+            int totalWidth = rowCount * (buttonWidth + buttonSpacing) - buttonSpacing;
+            int startX = (this.width - totalWidth) / 2;
 
-                Button btn = Button.builder(Component.literal(shortName),
-                    button -> {
-                        currentPage = pageIndex;
-                        scrollOffset = 0;
-                        calculateOptimalMatches();
-                    })
-                    .bounds(x, row1Y, buttonWidth, buttonHeight).build();
-                this.addRenderableWidget(btn);
-            }
-
-            // Row 2: next 8 buttons
-            int row2Start = buttonsPerRow;
-            int row2Count = Math.min(buttonsPerRow, pageOrder.size() - row2Start);
-
-            for (int i = 0; i < row2Count; i++) {
-                int pageIndex = row2Start + i;
+            for (int i = 0; i < rowCount; i++) {
+                int pageIndex = rowStart + i;
                 String categoryName = pageOrder.get(pageIndex);
                 String shortName = getShortenedName(categoryName);
-
-                int totalWidth = (row2Count * (buttonWidth + buttonSpacing) - buttonSpacing);
-                int x = (this.width - totalWidth) / 2 + i * (buttonWidth + buttonSpacing);
+                int x = startX + i * (buttonWidth + buttonSpacing);
 
                 Button btn = Button.builder(Component.literal(shortName),
                     button -> {
@@ -666,75 +665,7 @@ public class ArmorChecklistScreen extends ModScreen {
                         scrollOffset = 0;
                         calculateOptimalMatches();
                     })
-                    .bounds(x, row2Y, buttonWidth, buttonHeight).build();
-                this.addRenderableWidget(btn);
-            }
-
-            // Row 3: remaining buttons
-            int row3Start = buttonsPerRow * 2;
-            int row3Count = Math.max(0, pageOrder.size() - row3Start);
-
-            for (int i = 0; i < row3Count; i++) {
-                int pageIndex = row3Start + i;
-                String categoryName = pageOrder.get(pageIndex);
-                String shortName = getShortenedName(categoryName);
-
-                int totalWidth = (row3Count * (buttonWidth + buttonSpacing) - buttonSpacing);
-                int x = (this.width - totalWidth) / 2 + i * (buttonWidth + buttonSpacing);
-
-                Button btn = Button.builder(Component.literal(shortName),
-                    button -> {
-                        currentPage = pageIndex;
-                        scrollOffset = 0;
-                        calculateOptimalMatches();
-                    })
-                    .bounds(x, row3Y, buttonWidth, buttonHeight).build();
-                this.addRenderableWidget(btn);
-            }
-        } else {
-            // Normal mode: 2 rows of 8 buttons each (16 total to accommodate Custom category)
-            int row1Y = this.height - 60;
-            int row2Y = this.height - 35;
-            int row1Count = 8;
-
-            // Row 1: first 8 buttons
-            for (int i = 0; i < Math.min(row1Count, pageOrder.size()); i++) {
-                int pageIndex = i;
-                String categoryName = pageOrder.get(i);
-                String shortName = getShortenedName(categoryName);
-
-                int totalWidth = (row1Count * (buttonWidth + buttonSpacing) - buttonSpacing);
-                int x = (this.width - totalWidth) / 2 + i * (buttonWidth + buttonSpacing);
-
-                Button btn = Button.builder(Component.literal(shortName),
-                    button -> {
-                        currentPage = pageIndex;
-                        scrollOffset = 0;
-                        calculateOptimalMatches();
-                    })
-                    .bounds(x, row1Y, buttonWidth, buttonHeight).build();
-                this.addRenderableWidget(btn);
-            }
-
-            // Row 2: next 8 buttons
-            int row2Start = row1Count;
-            int row2Count = Math.min(8, pageOrder.size() - row2Start);
-
-            for (int i = 0; i < row2Count; i++) {
-                int pageIndex = row2Start + i;
-                String categoryName = pageOrder.get(pageIndex);
-                String shortName = getShortenedName(categoryName);
-
-                int totalWidth = (row2Count * (buttonWidth + buttonSpacing) - buttonSpacing);
-                int x = (this.width - totalWidth) / 2 + i * (buttonWidth + buttonSpacing);
-
-                Button btn = Button.builder(Component.literal(shortName),
-                    button -> {
-                        currentPage = pageIndex;
-                        scrollOffset = 0;
-                        calculateOptimalMatches();
-                    })
-                    .bounds(x, row2Y, buttonWidth, buttonHeight).build();
+                    .bounds(x, rowY, buttonWidth, buttonHeight).build();
                 this.addRenderableWidget(btn);
             }
         }
@@ -751,6 +682,8 @@ public class ArmorChecklistScreen extends ModScreen {
             case "Dragon Armor" -> "Dragon";
             case "Dungeon Armor" -> "Dungeon";
             case "Other Armor" -> "Other";
+            case "Mining" -> "Mining";
+            case "Slayer/Mytho" -> "Slayer";
             case "Custom" -> "Custom";
             // Fade dye abbreviations
             case "Black Ice" -> "BIce";

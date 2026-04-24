@@ -175,6 +175,7 @@ public class ChecklistCacheGenerator {
             stageMatches.stageHex = entry.hex;
             stageMatches.calculated = true;
 
+
             Map<String, ArmorPiece> pieces = foundPieces.get(i);
             Map<String, String> uuids = foundPieceUuids.get(i);
 

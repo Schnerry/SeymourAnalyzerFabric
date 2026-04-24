@@ -1016,6 +1016,7 @@ public class SeymourCommand {
         ctx.getSource().sendFeedback(Component.literal("§e/seymour rebuild analysis §7- Rebuild analysis with current toggles"));
         ctx.getSource().sendFeedback(Component.literal("§e/seymour rebuild matches §7- Rebuild top 3 match data"));
         ctx.getSource().sendFeedback(Component.literal("§e/seymour rebuild pattern §7- Rebuild pattern data"));
+
         ctx.getSource().sendFeedback(Component.literal("§8§m----------------------------------------------------"));
         return 1;
     }

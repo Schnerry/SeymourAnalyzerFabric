@@ -35,19 +35,19 @@ public final class PieceTypeUtil {
     }
 
     private static boolean containsHelmetKeyword(String lower) {
-        return helmetWords.contains(lower);
+        return helmetWords.stream().anyMatch(lower::contains);
     }
 
     private static boolean containsChestplateKeyword(String lower) {
-        return chestplateWords.contains(lower);
+        return chestplateWords.stream().anyMatch(lower::contains);
     }
 
     private static boolean containsLeggingsKeyword(String lower) {
-        return leggingsWords.contains(lower);
+        return leggingsWords.stream().anyMatch(lower::contains);
     }
 
     private static boolean containsBootsKeyword(String lower) {
-        return bootsWords.contains(lower);
+        return bootsWords.stream().anyMatch(lower::contains);
     }
 }
 
