@@ -171,10 +171,6 @@
       {"hex": "191919", "name": "Exo pure black", "pieces": ["helmet", "chestplate", "leggings", "boots"]}
     ],
     "Other In-Game Dyes": [
-      {"hex": "0013FF", "name": "Pure Blue Dye", "pieces": ["helmet", "chestplate", "leggings", "boots"]},
-      {"hex": "FFFFFF", "name": "Pure White Dye", "pieces": ["helmet", "chestplate", "leggings", "boots"]},
-      {"hex": "FFF700", "name": "Pure Yellow Dye", "pieces": ["helmet", "chestplate", "leggings", "boots"]},
-      {"hex": "000000", "name": "Pure Black Dye", "pieces": ["helmet", "chestplate", "leggings", "boots"]},
       {"hex": "7FFFD4", "name": "Aquamarine Dye", "pieces": ["helmet", "chestplate", "leggings", "boots"]},
       {"hex": "B80036", "name": "Archfiend Dye", "pieces": ["helmet", "chestplate", "leggings", "boots"]},
       {"hex": "002FA7", "name": "Bingo Blue Dye", "pieces": ["helmet", "chestplate", "leggings", "boots"]},
@@ -294,8 +290,8 @@
       {"hex": "2AB5A5", "name": "Adaptive Armor (Tank Leggings + Boots)", "pieces": ["leggings", "boots"]},
       {"hex": "D579FF", "name": "Adaptive Armor (Mage Chestplate)", "pieces": ["chestplate"]},
       {"hex": "6E00A0", "name": "Adaptive Armor (Mage Leggings + Boots)", "pieces": ["leggings", "boots"]},
-      {"hex": "FF4242", "name": "Adaptive Armor (Berserker Chestplate)", "pieces": ["chestplate"]},
-      {"hex": "BB0000", "name": "Adaptive Armor (Berserker Leggings + Boots)", "pieces": ["leggings", "boots"]},
+      {"hex": "BB0000", "name": "Adaptive Armor (Berserker Chestplate)", "pieces": ["chestplate"]},
+      {"hex": "FF4242", "name": "Adaptive Armor (Berserker Leggings + Boots)", "pieces": ["leggings", "boots"]},
       {"hex": "FFC234", "name": "Adaptive Armor (Healer Chestplate)", "pieces": ["chestplate"]},
       {"hex": "FFF7E6", "name": "Adaptive Armor (Healer Leggings + Boots)", "pieces": ["leggings", "boots"]},
       {"hex": "D9D9D9", "name": "Steel/Metal/Stone Chestplate", "pieces": ["chestplate"]},
@@ -328,19 +324,19 @@
       {"hex": "0C0C96", "name": "Burned Pants", "pieces": ["leggings"]},
       {"hex": "993333", "name": "Leggings of the Coven", "pieces": ["leggings"]},
       {"hex": "993333", "name": "Wizardman Leggings", "pieces": ["leggings"]},
-      {"hex": "4F2886", "name": "Gunthers Sneakers", "pieces": ["boots"]},
+      {"hex": "4F2886", "name": "Gunther's Sneakers", "pieces": ["boots"]},
       {"hex": "380024", "name": "Exceedingly Comfy Sneakers", "pieces": ["boots"]},
       {"hex": "1A004C", "name": "Snake-in-a-boot", "pieces": ["boots"]},
       {"hex": "3333FF", "name": "Ugly Boots", "pieces": ["boots"]},
       {"hex": "FFD700", "name": "Eleanor's Set", "pieces": ["helmet", "chestplate", "leggings", "boots"]}
     ],
-    "Slayer": [
+    "Slayer/Mytho": [
       {"hex": "1B1B1B", "name": "Reaper Armor 3p", "pieces": ["chestplate", "leggings", "boots"]},
       {"hex": "FF0000", "name": "Reaper Armor 3p (enraged)", "pieces": ["chestplate", "leggings", "boots"]},
       {"hex": "0E1736", "name": "Primordial Armor 3p", "pieces": ["chestplate", "leggings", "boots"]},
       {"hex": "000000", "name": "Tarantula Armor", "pieces": ["helmet", "chestplate", "leggings", "boots"]},
       {"hex": "FF0000", "name": "Chestplate of the Pack", "pieces": ["chestplate"]},
-      {"hex": "FFFFFF ", "name": "Helmet of the Pack", "pieces": ["helmet"]},
+      {"hex": "FFFFFF", "name": "Helmet of the Pack", "pieces": ["helmet"]},
       {"hex": "0A0011", "name": "Final Destination Chestplate + Boots", "pieces": ["chestplate", "boots"]},
       {"hex": "FF75FF", "name": "Final Destination Leggings", "pieces": ["leggings"]},
       {"hex": "2A5B48", "name": "Challenger's Leggings + Boots", "pieces": ["leggings", "boots"]},
@@ -352,7 +348,7 @@
       {"hex": "37B042", "name": "Goblin Armor 3p", "pieces": ["chestplate", "leggings", "boots"]},
       {"hex": "B3B3B3", "name": "Heat Armor", "pieces": ["helmet", "chestplate", "leggings", "boots"]},
       {"hex": "7A7964", "name": "Miners/Prospecting Armor", "pieces": ["helmet", "chestplate", "leggings", "boots"]},
-      {"hex": "0000FF", "name": "Lapis Armor", "pieces": ["helmet", "chestplate", "leggings", "boots"]},
+      {"hex": "0000FF", "name": "Lapis Armor 3p", "pieces": ["chestplate", "leggings", "boots"]},
       {"hex": "00FF00", "name": "Emerald Armor", "pieces": ["helmet", "chestplate", "leggings", "boots"]},
       {"hex": "3588FF", "name": "Vanguard 3p", "pieces": ["chestplate", "leggings", "boots"]},
       {"hex": "5B0DAE", "name": "Glossy Mineral Armor 3p", "pieces": ["chestplate", "leggings", "boots"]},
@@ -403,10 +399,12 @@
     "White-Black",
     "Farming",
     "Fishing",
-    "Dragon Armor",
-    "Kuudra",
+    "Mining",
+    "Dragon",
+    "Crimson",
     "Dungeon Armor",
     "Rift Armor",
+    "Slayer/Mytho",
     "Other Armor"
   ]
 }
