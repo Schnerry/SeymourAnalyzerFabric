@@ -1,5 +1,7 @@
 package schnerry.seymouranalyzer.gui;
 
+import lombok.Setter;
+import com.mojang.blaze3d.platform.Window;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
@@ -11,13 +13,14 @@ import net.minecraft.client.input.CharacterEvent;
 import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.network.chat.Component;
 import org.lwjgl.glfw.GLFW;
-import schnerry.seymouranalyzer.Seymouranalyzer;
+import schnerry.seymouranalyzer.SeymourAnalyzer;
 import schnerry.seymouranalyzer.config.ClothConfig;
 import schnerry.seymouranalyzer.data.ArmorPiece;
 import schnerry.seymouranalyzer.data.CollectionManager;
 import schnerry.seymouranalyzer.util.ColorMath;
 
 import java.util.*;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /**
@@ -86,6 +89,7 @@ public class DatabaseScreen extends ModScreen {
     private String pendingInitialSearch = null;
 
     // Remember position state (static = persists between opens)
+    @Setter
     private static boolean rememberPosition = false;
     private static String savedSearchText = "";
     private static String savedHexSearchText = "";
@@ -94,10 +98,6 @@ public class DatabaseScreen extends ModScreen {
     private static int savedScrollOffset = 0;
     private static boolean savedShowDupesOnly = false;
     private static boolean savedShowFades = true;
-
-    public static void setRememberPosition(boolean value) {
-        rememberPosition = value;
-    }
 
     private void saveCurrentState() {
         savedSearchText   = searchField != null ? searchField.getValue() : "";
@@ -160,7 +160,7 @@ public class DatabaseScreen extends ModScreen {
         // Clear dupe cache since piece list changed
         closestDupeCache.clear();
 
-        Seymouranalyzer.LOGGER.info("Loaded {} pieces into database GUI", allPieces.size());
+        SeymourAnalyzer.LOGGER.info("Loaded {} pieces into database GUI", allPieces.size());
         filteredPieces = new ArrayList<>(allPieces);
     }
 
@@ -1004,7 +1004,7 @@ public class DatabaseScreen extends ModScreen {
             int maxScroll = Math.max(0, filteredPieces.size() - maxVisibleRows);
             scrollOffset = ScrollbarRenderer.calculateScrollFromDrag(click.y(), scrollbarY, scrollbarHeight,
                 filteredPieces.size(), maxVisibleRows);
-            scrollOffset = Math.max(0, Math.min(maxScroll, scrollOffset));
+            scrollOffset = Math.clamp(scrollOffset, 0, maxScroll);
             return true;
         }
 
@@ -1082,7 +1082,7 @@ public class DatabaseScreen extends ModScreen {
                     }
                 }
                 regexBuilder.append("$");
-                final java.util.regex.Pattern compiled = java.util.regex.Pattern.compile(regexBuilder.toString());
+                final Pattern compiled = Pattern.compile(regexBuilder.toString());
 
                 result = result.stream()
                     .filter(piece -> {
@@ -1193,7 +1193,7 @@ public class DatabaseScreen extends ModScreen {
 
     private void updateExpandedPiece(int mouseX, int mouseY) {
         // Check if shift is held using InputUtil
-        var window = Minecraft.getInstance().getWindow();
+        Window window = Minecraft.getInstance().getWindow();
         boolean shiftHeld = InputConstants.isKeyDown(window, GLFW.GLFW_KEY_LEFT_SHIFT)
                          || InputConstants.isKeyDown(window, GLFW.GLFW_KEY_RIGHT_SHIFT);
         isShiftHeld = shiftHeld;
@@ -1313,7 +1313,7 @@ public class DatabaseScreen extends ModScreen {
                     int maxScroll = Math.max(0, filteredPieces.size() - maxVisibleRows);
                     scrollOffset = ScrollbarRenderer.calculateScrollFromDrag(mouseY, scrollbarY, scrollbarHeight,
                         filteredPieces.size(), maxVisibleRows);
-                    scrollOffset = Math.max(0, Math.min(maxScroll, scrollOffset));
+                    scrollOffset = Math.clamp(scrollOffset, 0, maxScroll);
                     return true;
                 }
             }

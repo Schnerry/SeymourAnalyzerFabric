@@ -1,9 +1,12 @@
 package schnerry.seymouranalyzer.data;
 
 import com.google.gson.Gson;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import schnerry.seymouranalyzer.Seymouranalyzer;
+import schnerry.seymouranalyzer.SeymourAnalyzer;
 import schnerry.seymouranalyzer.util.ColorMath;
+import schnerry.seymouranalyzer.util.PieceTypeUtil;
 
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -43,7 +46,7 @@ public class ChecklistCacheGenerator {
      * This is called on mod init and after collection changes
      */
     public static void generateAllCaches() {
-        Seymouranalyzer.LOGGER.info("Starting full checklist cache generation...");
+        SeymourAnalyzer.LOGGER.info("Starting full checklist cache generation...");
 
         Map<String, ArmorPiece> collection = CollectionManager.getInstance().getCollection();
         ChecklistCache cache = ChecklistCache.getInstance();
@@ -51,14 +54,14 @@ public class ChecklistCacheGenerator {
         // Load checklist data
         Map<String, List<ChecklistEntry>> normalCategories = loadChecklistData();
         if (normalCategories.isEmpty()) {
-            Seymouranalyzer.LOGGER.warn("No checklist data found, skipping cache generation");
+            SeymourAnalyzer.LOGGER.warn("No checklist data found, skipping cache generation");
             return;
         }
 
         // Load fade dye categories
         Map<String, List<ChecklistEntry>> fadeDyeCategories = loadFadeDyeData();
         if (fadeDyeCategories.isEmpty()) {
-            Seymouranalyzer.LOGGER.warn("No fade dye data found, skipping fade dye cache generation");
+            SeymourAnalyzer.LOGGER.warn("No fade dye data found, skipping fade dye cache generation");
         }
 
         // Generate normal color caches
@@ -92,7 +95,7 @@ public class ChecklistCacheGenerator {
         // Clear InfoBoxRenderer's cached hover data so it will be regenerated with new cache data
         schnerry.seymouranalyzer.render.InfoBoxRenderer.forceCloseHoveredDataCache();
 
-        Seymouranalyzer.LOGGER.info("Completed full checklist cache generation for {} normal and {} fade dye categories",
+        SeymourAnalyzer.LOGGER.info("Completed full checklist cache generation for {} normal and {} fade dye categories",
             normalCategories.size(), fadeDyeCategories.size());
     }
 
@@ -131,7 +134,7 @@ public class ChecklistCacheGenerator {
                     String uuid = collectionEntry.getKey();
                     ArmorPiece piece = collectionEntry.getValue();
 
-                    if (!matchesPieceType(piece.getPieceName(), pieceType)) {
+                    if (!PieceTypeUtil.matchesPieceType(piece.getPieceName(), pieceType)) {
                         continue;
                     }
 
@@ -227,36 +230,15 @@ public class ChecklistCacheGenerator {
     }
 
     /**
-     * Check if a piece name matches a piece type
-     */
-    private static boolean matchesPieceType(String pieceName, String pieceType) {
-        String lowerName = pieceName.toLowerCase();
-
-        return switch (pieceType) {
-            case "helmet" -> lowerName.contains("helm") || lowerName.contains("hat") ||
-                             lowerName.contains("hood") || lowerName.contains("crown") ||
-                             lowerName.contains("cap") || lowerName.contains("mask");
-            case "chestplate" -> lowerName.contains("chest") || lowerName.contains("tunic") ||
-                                lowerName.contains("jacket") || lowerName.contains("shirt") ||
-                                lowerName.contains("vest") || lowerName.contains("robe");
-            case "leggings" -> lowerName.contains("legging") || lowerName.contains("pants") ||
-                              lowerName.contains("trousers");
-            case "boots" -> lowerName.contains("boot") || lowerName.contains("shoes") ||
-                           lowerName.contains("sneakers") || lowerName.contains("sandals");
-            default -> false;
-        };
-    }
-
-    /**
      * Load checklist data from JSON
      */
     private static Map<String, List<ChecklistEntry>> loadChecklistData() {
         Map<String, List<ChecklistEntry>> categories = new LinkedHashMap<>();
 
         try {
-            InputStream inputStream = Seymouranalyzer.class.getResourceAsStream("/data/seymouranalyzer/checklistdata.json");
+            InputStream inputStream = SeymourAnalyzer.class.getResourceAsStream("/data/seymouranalyzer/checklistdata.json");
             if (inputStream == null) {
-                Seymouranalyzer.LOGGER.error("Could not load checklistdata.json");
+                SeymourAnalyzer.LOGGER.error("Could not load checklistdata.json");
                 return categories;
             }
 
@@ -267,17 +249,17 @@ public class ChecklistCacheGenerator {
             JsonObject categoriesJson = root.getAsJsonObject("categories");
             for (String categoryName : categoriesJson.keySet()) {
                 List<ChecklistEntry> entries = new ArrayList<>();
-                var array = categoriesJson.getAsJsonArray(categoryName);
+                JsonArray array = categoriesJson.getAsJsonArray(categoryName);
 
-                for (var element : array) {
-                    var obj = element.getAsJsonObject();
+                for (JsonElement element : array) {
+                    JsonObject obj = element.getAsJsonObject();
                     ChecklistEntry entry = new ChecklistEntry();
                     entry.hex = obj.get("hex").getAsString().toUpperCase();
                     entry.name = obj.get("name").getAsString();
                     entry.pieces = new ArrayList<>();
 
-                    var piecesArray = obj.getAsJsonArray("pieces");
-                    for (var pieceElement : piecesArray) {
+                    JsonArray piecesArray = obj.getAsJsonArray("pieces");
+                    for (JsonElement pieceElement : piecesArray) {
                         entry.pieces.add(pieceElement.getAsString());
                     }
 
@@ -287,7 +269,7 @@ public class ChecklistCacheGenerator {
                 categories.put(categoryName, entries);
             }
         } catch (Exception e) {
-            Seymouranalyzer.LOGGER.error("Failed to load checklist data", e);
+            SeymourAnalyzer.LOGGER.error("Failed to load checklist data", e);
         }
 
         return categories;
@@ -300,9 +282,9 @@ public class ChecklistCacheGenerator {
         Map<String, List<ChecklistEntry>> fadeDyeCategories = new LinkedHashMap<>();
 
         try {
-            InputStream inputStream = Seymouranalyzer.class.getResourceAsStream("/data/seymouranalyzer/colors.json");
+            InputStream inputStream = SeymourAnalyzer.class.getResourceAsStream("/data/seymouranalyzer/colors.json");
             if (inputStream == null) {
-                Seymouranalyzer.LOGGER.error("Could not load colors.json for fade dyes");
+                SeymourAnalyzer.LOGGER.error("Could not load colors.json for fade dyes");
                 return fadeDyeCategories;
             }
 
@@ -311,7 +293,7 @@ public class ChecklistCacheGenerator {
             JsonObject fadeDyes = root.getAsJsonObject("FADE_DYES");
 
             if (fadeDyes == null) {
-                Seymouranalyzer.LOGGER.warn("No FADE_DYES section found in colors.json");
+                SeymourAnalyzer.LOGGER.warn("No FADE_DYES section found in colors.json");
                 return fadeDyeCategories;
             }
 
@@ -338,12 +320,12 @@ public class ChecklistCacheGenerator {
                 }
             }
 
-            Seymouranalyzer.LOGGER.info("Loaded {} fade dye categories with {} total stages",
+            SeymourAnalyzer.LOGGER.info("Loaded {} fade dye categories with {} total stages",
                 fadeDyeCategories.size(),
                 fadeDyeCategories.values().stream().mapToInt(List::size).sum());
 
         } catch (Exception e) {
-            Seymouranalyzer.LOGGER.error("Failed to load fade dye data", e);
+            SeymourAnalyzer.LOGGER.error("Failed to load fade dye data", e);
         }
 
         return fadeDyeCategories;

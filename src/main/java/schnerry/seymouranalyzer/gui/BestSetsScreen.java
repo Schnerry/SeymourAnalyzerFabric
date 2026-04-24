@@ -15,12 +15,12 @@ import java.util.stream.Collectors;
 
 /**
  * Best Sets GUI - finds the truly optimal best matching 4-piece armor sets
- *
+ * <p>
  * Algorithm:
  * 1. Generates ALL valid 4-piece combinations (where all pairwise ΔE ≤ 5.0)
  * 2. Sorts all combinations by average ΔE (best to worst)
  * 3. Greedily selects non-overlapping sets from the sorted list
- *
+ * <p>
  * This guarantees the best possible sets based on average ΔE,
  * with each piece used only once across all selected sets.
  */
@@ -627,13 +627,13 @@ public class BestSetsScreen extends ModScreen {
 
             List<Map.Entry<String, Double>> sorted = pieceAvgs.entrySet().stream()
                 .sorted(Map.Entry.<String, Double>comparingByValue().reversed())
-                .collect(Collectors.toList());
+                .toList();
 
-            this.worstPieceType = sorted.get(0).getKey();
+            this.worstPieceType = sorted.getFirst().getKey();
 
             // Calculate average without worst piece (best 3 pieces)
             List<Double> best3Deltas = new ArrayList<>();
-            String worst = sorted.get(0).getKey();
+            String worst = sorted.getFirst().getKey();
 
             if (!worst.equals("helmet")) best3Deltas.addAll(Arrays.asList(d_hc, d_hl, d_hb));
             if (!worst.equals("chestplate")) best3Deltas.addAll(Arrays.asList(d_hc, d_cl, d_cb));
@@ -649,16 +649,7 @@ public class BestSetsScreen extends ModScreen {
         }
     }
 
-    private static class ContextMenu {
-        final String hex;
-        final int x;
-        final int y;
-
-        ContextMenu(String hex, int x, int y) {
-            this.hex = hex;
-            this.x = x;
-            this.y = y;
-        }
+    private record ContextMenu(String hex, int x, int y) {
     }
 }
 

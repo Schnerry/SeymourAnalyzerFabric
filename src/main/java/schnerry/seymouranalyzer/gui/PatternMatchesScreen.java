@@ -283,9 +283,17 @@ public class PatternMatchesScreen extends ModScreen {
     }
 
     private String getPatternName(String patternType) {
-        if (patternType.equals("paired")) return "PAIRED";
-        if (patternType.equals("repeating")) return "REPEATING";
-        if (patternType.equals("palindrome")) return "PALINDROME";
+        switch (patternType) {
+            case "paired" -> {
+                return "PAIRED";
+            }
+            case "repeating" -> {
+                return "REPEATING";
+            }
+            case "palindrome" -> {
+                return "PALINDROME";
+            }
+        }
         if (patternType.startsWith("axbxcx_")) {
             char c = patternType.charAt(7);
             return c + "x" + c + "x" + c + "x";
@@ -294,9 +302,17 @@ public class PatternMatchesScreen extends ModScreen {
     }
 
     private String getPatternDescription(String patternType, String hex) {
-        if (patternType.equals("paired")) return "AABBCC";
-        if (patternType.equals("repeating")) return "ABCABC";
-        if (patternType.equals("palindrome")) return "ABCCBA";
+        switch (patternType) {
+            case "paired" -> {
+                return "AABBCC";
+            }
+            case "repeating" -> {
+                return "ABCABC";
+            }
+            case "palindrome" -> {
+                return "ABCCBA";
+            }
+        }
         if (patternType.startsWith("axbxcx_")) {
             char c = patternType.charAt(7);
             return c + "x" + c + "x" + c + "x";
@@ -345,7 +361,7 @@ public class PatternMatchesScreen extends ModScreen {
                     int maxScroll = Math.max(0, totalRows - maxVisible);
                     scrollOffset = ScrollbarRenderer.calculateScrollFromDrag(mouseY, scrollbarY, scrollbarHeight,
                         totalRows, maxVisible);
-                    scrollOffset = Math.max(0, Math.min(maxScroll, scrollOffset));
+                    scrollOffset = Math.clamp(scrollOffset, 0, maxScroll);
                     return true;
                 }
             }
@@ -471,7 +487,7 @@ public class PatternMatchesScreen extends ModScreen {
             int maxScroll = Math.max(0, totalRows - maxVisible);
             scrollOffset = ScrollbarRenderer.calculateScrollFromDrag(click.y(), scrollbarY, scrollbarHeight,
                 totalRows, maxVisible);
-            scrollOffset = Math.max(0, Math.min(maxScroll, scrollOffset));
+            scrollOffset = Math.clamp(scrollOffset, 0, maxScroll);
             return true;
         }
 

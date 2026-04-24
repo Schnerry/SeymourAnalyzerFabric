@@ -11,7 +11,7 @@ import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.Level;
-import schnerry.seymouranalyzer.Seymouranalyzer;
+import schnerry.seymouranalyzer.SeymourAnalyzer;
 import schnerry.seymouranalyzer.analyzer.ColorAnalyzer;
 import schnerry.seymouranalyzer.analyzer.PatternDetector;
 import schnerry.seymouranalyzer.config.ClothConfig;
@@ -39,7 +39,7 @@ public class ChestScanner {
 
     public void startScan() {
         if (exportingEnabled) {
-            Seymouranalyzer.LOGGER.warn("Cannot start scanning while exporting");
+            SeymourAnalyzer.LOGGER.warn("Cannot start scanning while exporting");
             return;
         }
         scanningEnabled = true;
@@ -50,13 +50,13 @@ public class ChestScanner {
         // Force save any pending changes when stopping scan
         CollectionManager.getInstance().forceSync();
         // Cache will automatically regenerate on next tick when collection size change is detected
-        Seymouranalyzer.LOGGER.info("Scanning stopped, collection saved");
+        SeymourAnalyzer.LOGGER.info("Scanning stopped, collection saved");
     }
 
 
     public void startExport() {
         if (scanningEnabled) {
-            Seymouranalyzer.LOGGER.warn("Cannot start exporting while scanning");
+            SeymourAnalyzer.LOGGER.warn("Cannot start exporting while scanning");
             return;
         }
         exportCollection.clear();
@@ -206,7 +206,7 @@ public class ChestScanner {
             }
 
         } catch (Exception e) {
-            Seymouranalyzer.LOGGER.error("Error scanning chest contents", e);
+            SeymourAnalyzer.LOGGER.error("Error scanning chest contents", e);
         }
     }
 
@@ -352,7 +352,7 @@ public class ChestScanner {
             }
 
         } catch (Exception e) {
-            Seymouranalyzer.LOGGER.error("Error scanning item frames", e);
+            SeymourAnalyzer.LOGGER.error("Error scanning item frames", e);
         }
     }
 

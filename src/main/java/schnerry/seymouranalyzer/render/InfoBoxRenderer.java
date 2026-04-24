@@ -2,19 +2,24 @@ package schnerry.seymouranalyzer.render;
 
 import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.network.chat.Component;
 import org.lwjgl.glfw.GLFW;
 import schnerry.seymouranalyzer.analyzer.ColorAnalyzer;
 import schnerry.seymouranalyzer.analyzer.PatternDetector;
 import schnerry.seymouranalyzer.config.ClothConfig;
+import schnerry.seymouranalyzer.data.ArmorPiece;
 import schnerry.seymouranalyzer.data.ChecklistCache;
 import schnerry.seymouranalyzer.data.CollectionManager;
 import schnerry.seymouranalyzer.scanner.ChestScanner;
 import schnerry.seymouranalyzer.util.ItemStackUtils;
 import schnerry.seymouranalyzer.util.PieceTypeUtil;
 import schnerry.seymouranalyzer.util.StringUtility;
+import java.util.List;
+import java.util.Map;
 
 /**
  * Renders info box showing detailed color analysis for hovered items
@@ -155,7 +160,7 @@ public class InfoBoxRenderer {
     }
 
     @SuppressWarnings("unused") // delta is required by Fabric API callback signature
-    private static void render(GuiGraphics guiGraphics, float delta, net.minecraft.client.gui.screens.Screen currentScreen) {
+    private static void render(GuiGraphics guiGraphics, float delta, Screen currentScreen) {
         if (DEBUG) {
             System.out.println("[InfoBox] render() called");
             System.out.println("[InfoBox] Current screen instance: " + System.identityHashCode(currentScreen));
@@ -197,7 +202,7 @@ public class InfoBoxRenderer {
 
         String uuid = ItemStackUtils.getOrCreateItemUUID(stack);
 
-        var analysis = ColorAnalyzer.getInstance().analyzeArmorColor(hex, itemName);
+        ColorAnalyzer.AnalysisResult analysis = ColorAnalyzer.getInstance().analyzeArmorColor(hex, itemName);
         if (analysis == null || analysis.bestMatch() == null) return;
 
         ClothConfig config = ClothConfig.getInstance();
@@ -260,15 +265,15 @@ public class InfoBoxRenderer {
         String hexUpper = targetHex.toUpperCase();
 
         // Determine piece type
-        String pieceType = getPieceTypeFromName(itemName);
+        String pieceType = PieceTypeUtil.detectPieceType(itemName);
         if (pieceType == null) {
             return new ChecklistStatus(false, false, Integer.MAX_VALUE);
         }
 
         // Check normal color cache
-        for (var categoryCache : cache.getNormalColorCache().values()) {
+        for (ChecklistCache.CategoryCache categoryCache : cache.getNormalColorCache().values()) {
             if (categoryCache.matchesByIndex != null) {
-                for (var stageMatches : categoryCache.matchesByIndex.values()) {
+                for (ChecklistCache.StageMatches stageMatches : categoryCache.matchesByIndex.values()) {
                     if (stageMatches.stageHex != null && stageMatches.stageHex.equalsIgnoreCase(hexUpper)) {
                         // This hex is a target in checklist
                         ChecklistCache.MatchInfo matchInfo = getMatchForPieceType(stageMatches, pieceType);
@@ -285,9 +290,9 @@ public class InfoBoxRenderer {
         }
 
         // Check fade dye cache
-        for (var categoryCache : cache.getFadeDyeOptimalCache().values()) {
+        for (ChecklistCache.CategoryCache categoryCache : cache.getFadeDyeOptimalCache().values()) {
             if (categoryCache.matchesByIndex != null) {
-                for (var stageMatches : categoryCache.matchesByIndex.values()) {
+                for (ChecklistCache.StageMatches stageMatches : categoryCache.matchesByIndex.values()) {
                     if (stageMatches.stageHex != null && stageMatches.stageHex.equalsIgnoreCase(hexUpper)) {
                         // This hex is a target in checklist
                         ChecklistCache.MatchInfo matchInfo = getMatchForPieceType(stageMatches, pieceType);
@@ -307,10 +312,6 @@ public class InfoBoxRenderer {
         return new ChecklistStatus(false, false, Integer.MAX_VALUE);
     }
 
-    private static String getPieceTypeFromName(String itemName) {
-        return PieceTypeUtil.detectPieceType(itemName);
-    }
-
     private static ChecklistCache.MatchInfo getMatchForPieceType(ChecklistCache.StageMatches stageMatches, String pieceType) {
         return switch (pieceType) {
             case "helmet" -> stageMatches.helmet;
@@ -325,7 +326,7 @@ public class InfoBoxRenderer {
         if (matchInfo == null || matchInfo.hex == null) return Integer.MAX_VALUE;
 
         // Analyze the matched piece to get its tier
-        var analysis = ColorAnalyzer.getInstance().analyzeArmorColor(matchInfo.hex, matchInfo.name);
+        ColorAnalyzer.AnalysisResult analysis = ColorAnalyzer.getInstance().analyzeArmorColor(matchInfo.hex, matchInfo.name);
         if (analysis != null) {
             return analysis.tier();
         }
@@ -333,12 +334,12 @@ public class InfoBoxRenderer {
     }
 
     private static int checkDupeCount(String hex, String uuid) {
-        var collection = CollectionManager.getInstance().getCollection();
+        Map<String, ArmorPiece> collection = CollectionManager.getInstance().getCollection();
         String hexUpper = hex.toUpperCase();
         int dupeCount = 0;
         boolean isThisItemInCollection = false;
 
-        for (var entry : collection.entrySet()) {
+        for (Map.Entry<String, ArmorPiece> entry : collection.entrySet()) {
             if (entry.getValue().getHexcode().toUpperCase().equals(hexUpper)) {
                 dupeCount++;
 
@@ -424,7 +425,7 @@ public class InfoBoxRenderer {
         int padding = 10; // 5px on each side
 
         ClothConfig config = ClothConfig.getInstance();
-        var textRenderer = client.font;
+        Font textRenderer = client.font;
 
         int maxTextWidth = 0;
 
@@ -454,9 +455,9 @@ public class InfoBoxRenderer {
             // Top 3 matches
             maxTextWidth = Math.max(maxTextWidth, textRenderer.width("§7§lTop 3 Matches:"));
 
-            var top3 = data.analysisResult.top3Matches();
+            List<ColorAnalyzer.ColorMatch> top3 = data.analysisResult.top3Matches();
             for (int i = 0; i < Math.min(3, top3.size()); i++) {
-                var match = top3.get(i);
+                ColorAnalyzer.ColorMatch match = top3.get(i);
                 String colorPrefix = getTierColorCode(match.tier(), match.isFade(), match.isCustom());
                 String line1 = colorPrefix + (i + 1) + ". §f" + match.name();
                 String line2 = "§7  ΔE: " + colorPrefix + String.format("%.5f", match.deltaE()) + " §7#" + match.targetHex();
@@ -494,7 +495,7 @@ public class InfoBoxRenderer {
 
         // Add padding and clamp to min/max
         int calculatedWidth = maxTextWidth + padding;
-        return Math.min(Math.max(calculatedWidth, minWidth), maxWidth);
+        return Math.clamp(calculatedWidth, minWidth, maxWidth);
     }
 
     private static void renderInfoBox(GuiGraphics guiGraphics, Minecraft client) {
@@ -554,10 +555,10 @@ public class InfoBoxRenderer {
             guiGraphics.drawString(client.font, Component.literal("§7§lTop 3 Matches:"),
                 boxX + 5, boxY + yOffset, 0xFFFFFFFF, true);
 
-            var top3 = hoveredItemData.analysisResult.top3Matches();
+            List<ColorAnalyzer.ColorMatch> top3 = hoveredItemData.analysisResult.top3Matches();
 
             for (int i = 0; i < Math.min(3, top3.size()); i++) {
-                var match = top3.get(i);
+                ColorAnalyzer.ColorMatch match = top3.get(i);
                 int matchY = boxY + yOffset + 12 + (i * 25);
 
                 String colorPrefix = getTierColorCode(match.tier(), match.isFade(), match.isCustom());

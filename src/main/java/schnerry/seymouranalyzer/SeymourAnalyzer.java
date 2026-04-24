@@ -7,7 +7,7 @@ import schnerry.seymouranalyzer.config.ClothConfig;
 import schnerry.seymouranalyzer.data.ColorDatabase;
 import schnerry.seymouranalyzer.data.CollectionManager;
 
-public class Seymouranalyzer implements ModInitializer {
+public class SeymourAnalyzer implements ModInitializer {
 	public static final String MOD_ID = "seymouranalyzer";
 	public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
 

@@ -2,18 +2,19 @@ package schnerry.seymouranalyzer.debug;
 
 import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.core.component.DataComponentType;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.world.item.component.CustomData;
-import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.Tag;
 import net.minecraft.network.chat.Component;
-import schnerry.seymouranalyzer.Seymouranalyzer;
+import net.minecraft.world.item.enchantment.ItemEnchantments;
+import schnerry.seymouranalyzer.SeymourAnalyzer;
+import schnerry.seymouranalyzer.render.InfoBoxRenderer;
 
-import java.util.List;
 import java.util.Set;
 
 /**
@@ -49,7 +50,7 @@ public class ItemDebugger {
             registered = true;
         }
 
-        Seymouranalyzer.LOGGER.info("[DEBUG] Debug mode enabled - hover over any item!");
+        SeymourAnalyzer.LOGGER.info("[DEBUG] Debug mode enabled - hover over any item!");
     }
 
     /**
@@ -72,7 +73,7 @@ public class ItemDebugger {
             if (client.screen instanceof AbstractContainerScreen<?>) {
                 // Use the mixin-captured ItemStack from InfoBoxRenderer
                 // This avoids reflection and works reliably even with other mods
-                ItemStack stack = schnerry.seymouranalyzer.render.InfoBoxRenderer.getInstance().getLastHoveredStack();
+                ItemStack stack = InfoBoxRenderer.getInstance().getLastHoveredStack();
 
                 if (stack != null && !stack.isEmpty()) {
                     // Only log if it's a different item than last time
@@ -83,7 +84,7 @@ public class ItemDebugger {
                         // Disable after logging once
                         enabled = false;
 
-                        var player = client.player;
+                        LocalPlayer player = client.player;
                         if (player != null) {
                             player.displayClientMessage(
                                 Component.literal("§a[Seymour Debug] §7Item data logged to console! Debug mode disabled."),
@@ -91,12 +92,12 @@ public class ItemDebugger {
                             );
                         }
 
-                        Seymouranalyzer.LOGGER.info("[DEBUG] Debug mode disabled after logging item");
+                        SeymourAnalyzer.LOGGER.info("[DEBUG] Debug mode disabled after logging item");
                     }
                 }
             }
         } catch (Exception e) {
-            Seymouranalyzer.LOGGER.error("[DEBUG] Error checking hovered item", e);
+            SeymourAnalyzer.LOGGER.error("[DEBUG] Error checking hovered item", e);
         }
     }
 
@@ -104,33 +105,33 @@ public class ItemDebugger {
      * Log ALL data about an ItemStack to console
      */
     private void logAllItemData(ItemStack stack) {
-        Seymouranalyzer.LOGGER.info("==================== ITEM DEBUG START ====================");
+        SeymourAnalyzer.LOGGER.info("==================== ITEM DEBUG START ====================");
 
         try {
             // Basic info
-            Seymouranalyzer.LOGGER.info("=== BASIC INFO ===");
-            Seymouranalyzer.LOGGER.info("Item: {}", stack.getItem().toString());
-            Seymouranalyzer.LOGGER.info("Registry ID: {}", stack.getItem().getDescriptionId());
-            Seymouranalyzer.LOGGER.info("Count: {}", stack.getCount());
-            Seymouranalyzer.LOGGER.info("Name: {}", stack.getHoverName().getString());
-            Seymouranalyzer.LOGGER.info("Max Stack Size: {}", stack.getMaxStackSize());
-            Seymouranalyzer.LOGGER.info("Damaged: {}", stack.isDamaged());
-            Seymouranalyzer.LOGGER.info("Damageable: {}", stack.isDamageableItem());
+            SeymourAnalyzer.LOGGER.info("=== BASIC INFO ===");
+            SeymourAnalyzer.LOGGER.info("Item: {}", stack.getItem().toString());
+            SeymourAnalyzer.LOGGER.info("Registry ID: {}", stack.getItem().getDescriptionId());
+            SeymourAnalyzer.LOGGER.info("Count: {}", stack.getCount());
+            SeymourAnalyzer.LOGGER.info("Name: {}", stack.getHoverName().getString());
+            SeymourAnalyzer.LOGGER.info("Max Stack Size: {}", stack.getMaxStackSize());
+            SeymourAnalyzer.LOGGER.info("Damaged: {}", stack.isDamaged());
+            SeymourAnalyzer.LOGGER.info("Damageable: {}", stack.isDamageableItem());
 
             // Display name and lore
-            Seymouranalyzer.LOGGER.info("\n=== DISPLAY INFO ===");
+            SeymourAnalyzer.LOGGER.info("\n=== DISPLAY INFO ===");
             // Tooltip API changed in 1.21.11 - just log hover name and lore component
-            Seymouranalyzer.LOGGER.info("Hover Name: {}", stack.getHoverName().getString());
+            SeymourAnalyzer.LOGGER.info("Hover Name: {}", stack.getHoverName().getString());
 
             // All components
-            Seymouranalyzer.LOGGER.info("\n=== DATA COMPONENTS ===");
+            SeymourAnalyzer.LOGGER.info("\n=== DATA COMPONENTS ===");
             Set<DataComponentType<?>> componentTypes = stack.getComponents().keySet();
-            Seymouranalyzer.LOGGER.info("Total Components: {}", componentTypes.size());
+            SeymourAnalyzer.LOGGER.info("Total Components: {}", componentTypes.size());
 
             for (DataComponentType<?> type : componentTypes) {
                 try {
                     Object value = stack.get(type);
-                    Seymouranalyzer.LOGGER.info("Component: {} = {}", type, value);
+                    SeymourAnalyzer.LOGGER.info("Component: {} = {}", type, value);
 
                     // Special handling for specific component types
                     if (type == DataComponents.CUSTOM_DATA) {
@@ -139,51 +140,51 @@ public class ItemDebugger {
                             logNbtData(customData.copyTag());
                         }
                     } else if (type == DataComponents.DYED_COLOR) {
-                        Seymouranalyzer.LOGGER.info("  -> Dyed Color Details: {}", value);
+                        SeymourAnalyzer.LOGGER.info("  -> Dyed Color Details: {}", value);
                     } else if (type == DataComponents.CUSTOM_NAME) {
-                        Seymouranalyzer.LOGGER.info("  -> Custom Name: {}", value);
+                        SeymourAnalyzer.LOGGER.info("  -> Custom Name: {}", value);
                     } else if (type == DataComponents.LORE) {
-                        Seymouranalyzer.LOGGER.info("  -> Lore: {}", value);
+                        SeymourAnalyzer.LOGGER.info("  -> Lore: {}", value);
                     }
                 } catch (Exception e) {
-                    Seymouranalyzer.LOGGER.error("  Error reading component {}: {}", type, e.getMessage());
+                    SeymourAnalyzer.LOGGER.error("  Error reading component {}: {}", type, e.getMessage());
                 }
             }
 
             // NBT data (if any)
-            Seymouranalyzer.LOGGER.info("\n=== NBT DATA ===");
+            SeymourAnalyzer.LOGGER.info("\n=== NBT DATA ===");
             CustomData customData = stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY);
             if (customData != null && !customData.isEmpty()) {
                 CompoundTag nbt = customData.copyTag();
                 logNbtData(nbt);
             } else {
-                Seymouranalyzer.LOGGER.info("No custom NBT data");
+                SeymourAnalyzer.LOGGER.info("No custom NBT data");
             }
 
             // Enchantments (if any)
-            Seymouranalyzer.LOGGER.info("\n=== ENCHANTMENTS ===");
-            var enchantments = stack.getEnchantments();
+            SeymourAnalyzer.LOGGER.info("\n=== ENCHANTMENTS ===");
+            ItemEnchantments enchantments = stack.getEnchantments();
             if (enchantments.isEmpty()) {
-                Seymouranalyzer.LOGGER.info("No enchantments");
+                SeymourAnalyzer.LOGGER.info("No enchantments");
             } else {
-                Seymouranalyzer.LOGGER.info("Enchantments: {}", enchantments);
+                SeymourAnalyzer.LOGGER.info("Enchantments: {}", enchantments);
             }
 
             // Item-specific data
-            Seymouranalyzer.LOGGER.info("\n=== ITEM TYPE SPECIFIC ===");
-            Seymouranalyzer.LOGGER.info("Item Class: {}", stack.getItem().getClass().getName());
-            Seymouranalyzer.LOGGER.info("Is Damageable: {}", stack.isDamageableItem());
-            Seymouranalyzer.LOGGER.info("Max Damage: {}", stack.getMaxDamage());
+            SeymourAnalyzer.LOGGER.info("\n=== ITEM TYPE SPECIFIC ===");
+            SeymourAnalyzer.LOGGER.info("Item Class: {}", stack.getItem().getClass().getName());
+            SeymourAnalyzer.LOGGER.info("Is Damageable: {}", stack.isDamageableItem());
+            SeymourAnalyzer.LOGGER.info("Max Damage: {}", stack.getMaxDamage());
 
             // Raw toString
-            Seymouranalyzer.LOGGER.info("\n=== RAW DATA ===");
-            Seymouranalyzer.LOGGER.info("ItemStack: {}", stack);
+            SeymourAnalyzer.LOGGER.info("\n=== RAW DATA ===");
+            SeymourAnalyzer.LOGGER.info("ItemStack: {}", stack);
 
         } catch (Exception e) {
-            Seymouranalyzer.LOGGER.error("Error logging item data", e);
+            SeymourAnalyzer.LOGGER.error("Error logging item data", e);
         }
 
-        Seymouranalyzer.LOGGER.info("==================== ITEM DEBUG END ====================\n");
+        SeymourAnalyzer.LOGGER.info("==================== ITEM DEBUG END ====================\n");
     }
 
     /**
@@ -201,23 +202,23 @@ public class ItemDebugger {
 
         for (String key : nbt.keySet()) {
             try {
-                var element = nbt.get(key);
+                Tag element = nbt.get(key);
                 if (element == null) {
-                    Seymouranalyzer.LOGGER.info("{}[NBT] {} = null", indentStr, key);
+                    SeymourAnalyzer.LOGGER.info("{}[NBT] {} = null", indentStr, key);
                     continue;
                 }
 
                 // Handle different NBT types
                 if (element instanceof CompoundTag compound) {
-                    Seymouranalyzer.LOGGER.info("{}[NBT] {} (Compound):", indentStr, key);
+                    SeymourAnalyzer.LOGGER.info("{}[NBT] {} (Compound):", indentStr, key);
                     logNbtData(compound, indent + 1);
                 } else {
                     // Use asString() for primitive types (returns Optional<String>)
                     String value = element.asString().orElse(element.toString());
-                    Seymouranalyzer.LOGGER.info("{}[NBT] {} = {}", indentStr, key, value);
+                    SeymourAnalyzer.LOGGER.info("{}[NBT] {} = {}", indentStr, key, value);
                 }
             } catch (Exception e) {
-                Seymouranalyzer.LOGGER.error("{}[NBT] Error reading key {}: {}", indentStr, key, e.getMessage());
+                SeymourAnalyzer.LOGGER.error("{}[NBT] Error reading key {}: {}", indentStr, key, e.getMessage());
             }
         }
     }

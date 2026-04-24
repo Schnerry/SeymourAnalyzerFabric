@@ -3,8 +3,13 @@ package schnerry.seymouranalyzer.data;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
+import lombok.Getter;
 import net.fabricmc.loader.api.FabricLoader;
-import schnerry.seymouranalyzer.Seymouranalyzer;
+import schnerry.seymouranalyzer.SeymourAnalyzer;
+import schnerry.seymouranalyzer.SeymourAnalyzerClient;
+import schnerry.seymouranalyzer.gui.GuiScaleManager;
+import schnerry.seymouranalyzer.render.HexTooltipRenderer;
+import schnerry.seymouranalyzer.scanner.ChestScanner;
 
 import java.io.File;
 import java.io.FileReader;
@@ -30,6 +35,7 @@ public class CollectionManager {
     });
 
     private final File collectionFile;
+    @Getter
     private final Map<String, ArmorPiece> collection = new ConcurrentHashMap<>();
     private final AtomicBoolean isDirty = new AtomicBoolean(false);
     private final AtomicBoolean isSaving = new AtomicBoolean(false);
@@ -40,7 +46,7 @@ public class CollectionManager {
     private CollectionManager() {
         File configDir = new File(FabricLoader.getInstance().getConfigDir().toFile(), "seymouranalyzer");
         if (!configDir.exists() && !configDir.mkdirs()) {
-            Seymouranalyzer.LOGGER.error("Failed to create seymouranalyzer config directory");
+            SeymourAnalyzer.LOGGER.error("Failed to create seymouranalyzer config directory");
         }
         collectionFile = new File(configDir, "collection.json");
         load();
@@ -63,14 +69,14 @@ public class CollectionManager {
                         ArmorPiece piece = GSON.fromJson(entry.getValue(), ArmorPiece.class);
                         collection.put(entry.getKey(), piece);
                     } catch (Exception e) {
-                        Seymouranalyzer.LOGGER.warn("Failed to parse armor piece: " + entry.getKey(), e);
+                        SeymourAnalyzer.LOGGER.warn("Failed to parse armor piece: " + entry.getKey(), e);
                     }
                 });
 
-                Seymouranalyzer.LOGGER.info("Loaded {} armor pieces from collection", collection.size());
+                SeymourAnalyzer.LOGGER.info("Loaded {} armor pieces from collection", collection.size());
             }
         } catch (Exception e) {
-            Seymouranalyzer.LOGGER.error("Failed to load collection", e);
+            SeymourAnalyzer.LOGGER.error("Failed to load collection", e);
         }
     }
 
@@ -92,7 +98,7 @@ public class CollectionManager {
 
     private void saveSync() {
         if (isSaving.get()) {
-            Seymouranalyzer.LOGGER.warn("Save already in progress, skipping");
+            SeymourAnalyzer.LOGGER.warn("Save already in progress, skipping");
             return;
         }
 
@@ -108,9 +114,9 @@ public class CollectionManager {
 
             isDirty.set(false);
             lastSaveTime = System.currentTimeMillis();
-            Seymouranalyzer.LOGGER.info("Saved {} armor pieces to collection", collection.size());
+            SeymourAnalyzer.LOGGER.info("Saved {} armor pieces to collection", collection.size());
         } catch (Exception e) {
-            Seymouranalyzer.LOGGER.error("Failed to save collection", e);
+            SeymourAnalyzer.LOGGER.error("Failed to save collection", e);
         } finally {
             isSaving.set(false);
         }
@@ -161,7 +167,7 @@ public class CollectionManager {
         int currentSize = collection.size();
         if (currentSize != lastCollectionSize && currentSize > 0) {
             // Don't regenerate during active scanning/exporting to avoid lag
-            schnerry.seymouranalyzer.scanner.ChestScanner scanner = schnerry.seymouranalyzer.SeymouranalyzerClient.getScanner();
+            ChestScanner scanner = SeymourAnalyzerClient.getScanner();
             if (scanner != null && (scanner.isScanningEnabled() || scanner.isExportingEnabled())) {
                 // Don't update lastCollectionSize during scanning - this way when scanning stops,
                 // the size mismatch will trigger regeneration
@@ -170,7 +176,7 @@ public class CollectionManager {
 
             // Don't regenerate while in a mod GUI (e.g., database screen, checklist screen)
             // to avoid lag while browsing
-            schnerry.seymouranalyzer.gui.GuiScaleManager guiManager = schnerry.seymouranalyzer.gui.GuiScaleManager.getInstance();
+            GuiScaleManager guiManager = GuiScaleManager.getInstance();
             if (guiManager != null && guiManager.isInModGui()) {
                 // Don't update lastCollectionSize while in GUI - this way when GUI closes,
                 // the size mismatch will trigger regeneration
@@ -185,13 +191,13 @@ public class CollectionManager {
             new Thread(() -> {
                 try {
                     if (sizeDiff > 0) {
-                        Seymouranalyzer.LOGGER.info("Collection size increased by {} (now {}), regenerating checklist cache...", sizeDiff, currentSize);
+                        SeymourAnalyzer.LOGGER.info("Collection size increased by {} (now {}), regenerating checklist cache...", sizeDiff, currentSize);
                     } else {
-                        Seymouranalyzer.LOGGER.info("Collection size decreased by {} (now {}), regenerating checklist cache...", -sizeDiff, currentSize);
+                        SeymourAnalyzer.LOGGER.info("Collection size decreased by {} (now {}), regenerating checklist cache...", -sizeDiff, currentSize);
                     }
                     ChecklistCacheGenerator.generateAllCaches();
                 } catch (Exception e) {
-                    Seymouranalyzer.LOGGER.error("Failed to regenerate checklist cache", e);
+                    SeymourAnalyzer.LOGGER.error("Failed to regenerate checklist cache", e);
                 }
             }, "ChecklistCacheRegenerator").start();
         }
@@ -211,13 +217,13 @@ public class CollectionManager {
             piece.setUuid(UUID.randomUUID().toString());
         }
         collection.put(piece.getUuid(), piece);
-        schnerry.seymouranalyzer.render.HexTooltipRenderer.getInstance().clearDbCache();
+        HexTooltipRenderer.getInstance().clearDbCache();
         markDirty(); // Don't save immediately!
     }
 
     public void removePiece(String uuid) {
         collection.remove(uuid);
-        schnerry.seymouranalyzer.render.HexTooltipRenderer.getInstance().clearDbCache();
+        HexTooltipRenderer.getInstance().clearDbCache();
         markDirty(); // Don't save immediately!
     }
 
@@ -230,13 +236,9 @@ public class CollectionManager {
         return collection.containsKey(uuid);
     }
 
-    public Map<String, ArmorPiece> getCollection() {
-        return collection;
-    }
-
     public void clear() {
         collection.clear();
-        schnerry.seymouranalyzer.render.HexTooltipRenderer.getInstance().clearDbCache();
+        HexTooltipRenderer.getInstance().clearDbCache();
         markDirty();
         forceSync(); // Clear is important, save immediately
     }

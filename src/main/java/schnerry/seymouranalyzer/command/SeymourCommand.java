@@ -1,24 +1,28 @@
 package schnerry.seymouranalyzer.command;
 
 import com.mojang.brigadier.CommandDispatcher;
-import com.mojang.brigadier.LiteralMessage;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.suggestion.SuggestionProvider;
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
+import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.HoverEvent;
 import net.minecraft.network.chat.Style;
-import net.minecraft.network.chat.Component;
+import schnerry.seymouranalyzer.SeymourAnalyzer;
+import schnerry.seymouranalyzer.SeymourAnalyzerClient;
 import schnerry.seymouranalyzer.config.ClothConfig;
 import schnerry.seymouranalyzer.data.ArmorPiece;
 import schnerry.seymouranalyzer.data.CollectionManager;
 import schnerry.seymouranalyzer.data.ColorDatabase;
 import schnerry.seymouranalyzer.gui.*;
+import schnerry.seymouranalyzer.scanner.ChestScanner;
+import schnerry.seymouranalyzer.analyzer.ColorAnalyzer;
 import schnerry.seymouranalyzer.util.ColorMath;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 import static net.fabricmc.fabric.api.client.command.v2.ClientCommandManager.*;
 
@@ -448,7 +452,7 @@ public class SeymourCommand {
 
     private static int listCustomColors(CommandContext<FabricClientCommandSource> ctx) {
         ClothConfig config = ClothConfig.getInstance();
-        var colors = config.getCustomColors();
+        Map<String, String> colors = config.getCustomColors();
 
         if (colors.isEmpty()) {
             ctx.getSource().sendFeedback(Component.literal("§a[Seymour Analyzer] §7No custom colors added yet!"));
@@ -473,7 +477,7 @@ public class SeymourCommand {
             return 0;
         }
 
-        if (pattern.length() < 1 || pattern.length() > 6) {
+        if (pattern.isEmpty() || pattern.length() > 6) {
             ctx.getSource().sendError(Component.literal("§cPattern must be 1-6 characters long!"));
             return 0;
         }
@@ -515,7 +519,7 @@ public class SeymourCommand {
 
     private static int listWords(CommandContext<FabricClientCommandSource> ctx) {
         ClothConfig config = ClothConfig.getInstance();
-        var words = config.getWordList();
+        Map<String, String> words = config.getWordList();
 
         if (words.isEmpty()) {
             ctx.getSource().sendFeedback(Component.literal("§a[Seymour Analyzer] §7No words added yet!"));
@@ -549,7 +553,7 @@ public class SeymourCommand {
     }
 
     private static int showStats(CommandContext<FabricClientCommandSource> ctx) {
-        var collection = CollectionManager.getInstance().getCollection();
+        Map<String, ArmorPiece> collection = CollectionManager.getInstance().getCollection();
 
         if (collection.isEmpty()) {
             ctx.getSource().sendFeedback(Component.literal("§a[Seymour Analyzer] §7Collection is empty! Start scanning to add pieces."));
@@ -575,9 +579,9 @@ public class SeymourCommand {
         // Track duplicates (same hex, different UUID)
         java.util.Map<String, Integer> hexCounts = new java.util.HashMap<>();
 
-        for (var piece : collection.values()) {
+        for (ArmorPiece piece : collection.values()) {
             // Count by tier
-            var bestMatch = piece.getBestMatch();
+                ArmorPiece.BestMatch bestMatch = piece.getBestMatch();
             if (bestMatch != null) {
                 int tier = bestMatch.tier;
                 if (tier == 0) t0Count++;
@@ -617,7 +621,7 @@ public class SeymourCommand {
         // Count duplicates
         int dupeHexCount = 0;
         int totalDupes = 0;
-        for (var entry : hexCounts.entrySet()) {
+        for (Map.Entry<String, Integer> entry : hexCounts.entrySet()) {
             if (entry.getValue() > 1) {
                 dupeHexCount++;
                 totalDupes += entry.getValue();
@@ -672,19 +676,19 @@ public class SeymourCommand {
     }
 
     private static int startScan(CommandContext<FabricClientCommandSource> ctx) {
-        schnerry.seymouranalyzer.SeymouranalyzerClient.getScanner().startScan();
+        SeymourAnalyzerClient.getScanner().startScan();
         ctx.getSource().sendFeedback(Component.literal("§a[Seymour Analyzer] §7Chest scanning §astarted§7! Open chests to scan armor pieces."));
         return 1;
     }
 
     private static int stopScan(CommandContext<FabricClientCommandSource> ctx) {
-        schnerry.seymouranalyzer.SeymouranalyzerClient.getScanner().stopScan();
+        SeymourAnalyzerClient.getScanner().stopScan();
         ctx.getSource().sendFeedback(Component.literal("§a[Seymour Analyzer] §7Chest scanning §cstopped§7!"));
         return 1;
     }
 
     private static int startExport(CommandContext<FabricClientCommandSource> ctx) {
-        var scanner = schnerry.seymouranalyzer.SeymouranalyzerClient.getScanner();
+        ChestScanner scanner = SeymourAnalyzerClient.getScanner();
         if (scanner.isScanningEnabled()) {
             ctx.getSource().sendError(Component.literal("§c[Seymour Analyzer] Please stop scanning before starting export!"));
             return 0;
@@ -695,13 +699,13 @@ public class SeymourCommand {
     }
 
     private static int stopExport(CommandContext<FabricClientCommandSource> ctx) {
-        var scanner = schnerry.seymouranalyzer.SeymouranalyzerClient.getScanner();
+        ChestScanner scanner = SeymourAnalyzerClient.getScanner();
         scanner.stopExport();
 
         ctx.getSource().sendFeedback(Component.literal("§a[Seymour Analyzer] §7Exporting §astopped§7! Copying data to clipboard..."));
 
         try {
-            var exportCollection = scanner.getExportCollection();
+        Map<String, ArmorPiece> exportCollection = scanner.getExportCollection();
 
             // Build pretty export string (one piece per line)
             StringBuilder pretty = new StringBuilder();
@@ -741,7 +745,7 @@ public class SeymourCommand {
                 errorMsg = e.getClass().getSimpleName() + " - check console for details";
             }
             ctx.getSource().sendError(Component.literal("§c[Seymour] Failed to copy export to clipboard: " + errorMsg));
-            schnerry.seymouranalyzer.Seymouranalyzer.LOGGER.error("Clipboard export failed", e);
+            SeymourAnalyzer.LOGGER.error("Clipboard export failed", e);
         }
 
         return 1;
@@ -889,18 +893,18 @@ public class SeymourCommand {
             }
 
             // Search for pieces with these hex codes
-            var collection = CollectionManager.getInstance().getCollection();
+            Map<String, ArmorPiece> collection = CollectionManager.getInstance().getCollection();
             java.util.List<schnerry.seymouranalyzer.data.ArmorPiece> foundPieces = new java.util.ArrayList<>();
             java.util.Set<String> foundChestLocations = new java.util.HashSet<>();
             java.util.List<net.minecraft.core.BlockPos> blocksToHighlight = new java.util.ArrayList<>();
 
-            for (var piece : collection.values()) {
+            for (ArmorPiece piece : collection.values()) {
                 String pieceHex = piece.getHexcode().toUpperCase();
                 if (validHexes.contains(pieceHex)) {
                     foundPieces.add(piece);
 
                     // Track chest location if available and add to highlighter
-                    var chestLoc = piece.getChestLocation();
+                    ArmorPiece.ChestLocation chestLoc = piece.getChestLocation();
                     if (chestLoc != null) {
                         foundChestLocations.add(chestLoc.toString());
                         // Add block position to highlight
@@ -935,10 +939,10 @@ public class SeymourCommand {
                 // Limit display to first 20 pieces
                 int displayLimit = Math.min(20, foundPieces.size());
                 for (int i = 0; i < displayLimit; i++) {
-                    var piece = foundPieces.get(i);
+                    ArmorPiece piece = foundPieces.get(i);
                     ctx.getSource().sendFeedback(Component.literal("  §7" + piece.getPieceName() + " §f#" + piece.getHexcode()));
 
-                    var chestLoc = piece.getChestLocation();
+                    ArmorPiece.ChestLocation chestLoc = piece.getChestLocation();
                     if (chestLoc != null) {
                         ctx.getSource().sendFeedback(Component.literal("    §7at §e" + chestLoc.toString()));
                     }
@@ -952,18 +956,18 @@ public class SeymourCommand {
                     ctx.getSource().sendFeedback(Component.literal("§a§lFound in " + foundChestLocations.size() + " container(s)!"));
 
                     // Build clickable message using ClickEvent.RunCommand record
-                    var style = net.minecraft.network.chat.Style.EMPTY
+                    Style style = Style.EMPTY
                         .withColor(net.minecraft.network.chat.TextColor.fromRgb(0xFFFF55))
                         .withUnderlined(true);
 
                     try {
                         // ClickEvent is an interface with nested record implementations
                         // Use ClickEvent.RunCommand which is a record
-                        var clickEvent = new net.minecraft.network.chat.ClickEvent.RunCommand("/seymour search clear");
+                        ClickEvent.RunCommand clickEvent = new ClickEvent.RunCommand("/seymour search clear");
                         style = style.withClickEvent(clickEvent);
 
                         // HoverEvent.ShowText is also a record
-                        var hoverEvent = new net.minecraft.network.chat.HoverEvent.ShowText(Component.literal("Clear search now"));
+                        HoverEvent.ShowText hoverEvent = new HoverEvent.ShowText(Component.literal("Clear search now"));
                         style = style.withHoverEvent(hoverEvent);
                     } catch (Exception e) {
                         ctx.getSource().sendError(Component.literal("§c[Seymour] Failed to create clickable text: " + e.getMessage()));
@@ -1023,8 +1027,8 @@ public class SeymourCommand {
             try {
                 Thread.sleep(50); // Small delay like the old module
 
-                var collection = CollectionManager.getInstance().getCollection();
-                var keys = new java.util.ArrayList<>(collection.keySet());
+                Map<String, ArmorPiece> collection = CollectionManager.getInstance().getCollection();
+                ArrayList<String> keys = new ArrayList<>(collection.keySet());
                 int total = keys.size();
                 int updated = 0;
 
@@ -1034,7 +1038,7 @@ public class SeymourCommand {
 
                 for (int i = 0; i < total; i++) {
                     String uuid = keys.get(i);
-                    var piece = collection.get(uuid);
+                    ArmorPiece piece = collection.get(uuid);
 
                     if (piece != null && piece.getHexcode() != null) {
                         String wordMatch = detector.detectWordMatch(piece.getHexcode());
@@ -1070,8 +1074,8 @@ public class SeymourCommand {
             try {
                 Thread.sleep(50);
 
-                var collection = CollectionManager.getInstance().getCollection();
-                var keys = new java.util.ArrayList<>(collection.keySet());
+                Map<String, ArmorPiece> collection = CollectionManager.getInstance().getCollection();
+                ArrayList<String> keys = new ArrayList<>(collection.keySet());
                 int total = keys.size();
                 int updated = 0;
 
@@ -1081,13 +1085,13 @@ public class SeymourCommand {
 
                 for (int i = 0; i < total; i++) {
                     String uuid = keys.get(i);
-                    var piece = collection.get(uuid);
+                    ArmorPiece piece = collection.get(uuid);
 
                     if (piece != null && piece.getHexcode() != null && piece.getPieceName() != null) {
-                        var analysis = analyzer.analyzeArmorColor(piece.getHexcode(), piece.getPieceName());
+                        ColorAnalyzer.AnalysisResult analysis = analyzer.analyzeArmorColor(piece.getHexcode(), piece.getPieceName());
 
                         if (analysis != null && analysis.bestMatch() != null) {
-                            var best = analysis.bestMatch();
+                            ColorAnalyzer.ColorMatch best = analysis.bestMatch();
 
                             // Calculate absolute distance
                             int itemRgb = Integer.parseInt(piece.getHexcode(), 16);
@@ -1130,8 +1134,8 @@ public class SeymourCommand {
             try {
                 Thread.sleep(50);
 
-                var collection = CollectionManager.getInstance().getCollection();
-                var keys = new java.util.ArrayList<>(collection.keySet());
+                Map<String, ArmorPiece> collection = CollectionManager.getInstance().getCollection();
+                ArrayList<String> keys = new ArrayList<>(collection.keySet());
                 int total = keys.size();
                 int updated = 0;
 
@@ -1141,10 +1145,10 @@ public class SeymourCommand {
 
                 for (int i = 0; i < total; i++) {
                     String uuid = keys.get(i);
-                    var piece = collection.get(uuid);
+                    ArmorPiece piece = collection.get(uuid);
 
                     if (piece != null && piece.getHexcode() != null && piece.getPieceName() != null) {
-                        var analysis = analyzer.analyzeArmorColor(piece.getHexcode(), piece.getPieceName());
+                        ColorAnalyzer.AnalysisResult analysis = analyzer.analyzeArmorColor(piece.getHexcode(), piece.getPieceName());
 
                         if (analysis != null && analysis.top3Matches() != null && !analysis.top3Matches().isEmpty()) {
                             int itemRgb = Integer.parseInt(piece.getHexcode(), 16);
@@ -1153,7 +1157,7 @@ public class SeymourCommand {
                             java.util.List<schnerry.seymouranalyzer.data.ArmorPiece.ColorMatch> top3 = new java.util.ArrayList<>();
 
                             for (int m = 0; m < Math.min(3, analysis.top3Matches().size()); m++) {
-                                var match = analysis.top3Matches().get(m);
+                                ColorAnalyzer.ColorMatch match = analysis.top3Matches().get(m);
                                 int matchRgb = Integer.parseInt(match.targetHex(), 16);
                                 int matchAbsoluteDist = Math.abs(((itemRgb >> 16) & 0xFF) - ((matchRgb >> 16) & 0xFF)) +
                                                        Math.abs(((itemRgb >> 8) & 0xFF) - ((matchRgb >> 8) & 0xFF)) +
@@ -1196,8 +1200,8 @@ public class SeymourCommand {
             try {
                 Thread.sleep(50);
 
-                var collection = CollectionManager.getInstance().getCollection();
-                var keys = new java.util.ArrayList<>(collection.keySet());
+                Map<String, ArmorPiece> collection = CollectionManager.getInstance().getCollection();
+                ArrayList<String> keys = new ArrayList<>(collection.keySet());
                 int total = keys.size();
                 int updated = 0;
 
@@ -1207,7 +1211,7 @@ public class SeymourCommand {
 
                 for (int i = 0; i < total; i++) {
                     String uuid = keys.get(i);
-                    var piece = collection.get(uuid);
+                    ArmorPiece piece = collection.get(uuid);
 
                     if (piece != null && piece.getHexcode() != null) {
                         String pattern = detector.detectPattern(piece.getHexcode());

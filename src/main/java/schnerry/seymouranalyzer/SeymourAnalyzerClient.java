@@ -23,13 +23,13 @@ import schnerry.seymouranalyzer.scanner.ChestScanner;
 /**
  * Client-side initialization
  */
-public class SeymouranalyzerClient implements ClientModInitializer {
+public class SeymourAnalyzerClient implements ClientModInitializer {
     @Getter
     private static ChestScanner chestScanner;
 
     @Override
     public void onInitializeClient() {
-        Seymouranalyzer.LOGGER.info("Initializing Seymour Analyzer client...");
+        SeymourAnalyzer.LOGGER.info("Initializing Seymour Analyzer client...");
 
         // Initialize scanner
         chestScanner = new ChestScanner();
@@ -42,27 +42,27 @@ public class SeymouranalyzerClient implements ClientModInitializer {
             Vec3 cameraPos = Minecraft.getInstance().gameRenderer.getMainCamera().position();
             highlighter.renderHighlights(context.matrices(), context.consumers(), cameraPos);
         });
-        Seymouranalyzer.LOGGER.info("Initialized BlockHighlighter");
+        SeymourAnalyzer.LOGGER.info("Initialized BlockHighlighter");
 
         // Initialize ItemSlotHighlighter (registers screen render events)
         ItemSlotHighlighter.getInstance();
-        Seymouranalyzer.LOGGER.info("Initialized ItemSlotHighlighter");
+        SeymourAnalyzer.LOGGER.info("Initialized ItemSlotHighlighter");
 
         // Initialize InfoBoxRenderer (registers screen render events)
         InfoBoxRenderer.getInstance();
-        Seymouranalyzer.LOGGER.info("Initialized InfoBoxRenderer");
+        SeymourAnalyzer.LOGGER.info("Initialized InfoBoxRenderer");
 
         // Initialize ItemDebugger (for /seymour debug command)
         ItemDebugger.getInstance();
-        Seymouranalyzer.LOGGER.info("Initialized ItemDebugger");
+        SeymourAnalyzer.LOGGER.info("Initialized ItemDebugger");
 
         // Initialize HexTooltipRenderer (shows hex on item tooltips like F3+H)
         HexTooltipRenderer.getInstance();
-        Seymouranalyzer.LOGGER.info("Initialized HexTooltipRenderer");
+        SeymourAnalyzer.LOGGER.info("Initialized HexTooltipRenderer");
 
         // Initialize GuiScaleManager (handles automatic GUI scale forcing)
         GuiScaleManager.getInstance();
-        Seymouranalyzer.LOGGER.info("Initialized GuiScaleManager");
+        SeymourAnalyzer.LOGGER.info("Initialized GuiScaleManager");
 
         // Register Seymour visitor chat listener (for auto-roll gambling)
         VisitorChatListener.register();
@@ -74,18 +74,18 @@ public class SeymouranalyzerClient implements ClientModInitializer {
                 Thread.sleep(1000);
                 ChecklistCacheGenerator.generateAllCaches();
             } catch (Exception e) {
-                Seymouranalyzer.LOGGER.error("Failed to generate initial checklist cache", e);
+                SeymourAnalyzer.LOGGER.error("Failed to generate initial checklist cache", e);
             }
         }, "ChecklistCacheInitializer").start();
 
         // Register keybindings (Press O to open GUI)
         KeyBindings.register();
-        Seymouranalyzer.LOGGER.info("Registered keybindings");
+        SeymourAnalyzer.LOGGER.info("Registered keybindings");
 
         // Register commands (MUST be in client initializer for client commands)
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> {
             SeymourCommand.register(dispatcher);
-            Seymouranalyzer.LOGGER.info("Registered /seymour commands");
+            SeymourAnalyzer.LOGGER.info("Registered /seymour commands");
         });
 
         // Register client tick for scanner
@@ -99,11 +99,11 @@ public class SeymouranalyzerClient implements ClientModInitializer {
 
         // Register shutdown hook to save collection on exit
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-            Seymouranalyzer.LOGGER.info("Saving collection on shutdown...");
+            SeymourAnalyzer.LOGGER.info("Saving collection on shutdown...");
             CollectionManager.getInstance().forceSync();
         }, "CollectionShutdownSaver"));
 
-        Seymouranalyzer.LOGGER.info("Seymour Analyzer client initialized!");
+        SeymourAnalyzer.LOGGER.info("Seymour Analyzer client initialized!");
     }
 
     public static ChestScanner getScanner() {

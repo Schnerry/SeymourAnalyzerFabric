@@ -244,13 +244,12 @@ public class GamblingRoller {
             if (deltaE <= 1.0)  return Tier.T0;
             if (deltaE <= 2.0)  return Tier.T1;
             if (deltaE <= 5.0)  return Tier.T2;
-            return Tier.T3;
         } else {
             if (deltaE <= 1.0)  return Tier.FADE_T0;
             if (deltaE <= 2.0)  return Tier.FADE_T1;
             if (deltaE <= 5.0)  return Tier.FADE_T2;
-            return Tier.T3;
         }
+        return Tier.T3;
     }
 
     private static MatchPriority tierToMatchPriority(Tier tier) {
