@@ -2,7 +2,7 @@ package schnerry.seymouranalyzer.scanner;
 
 import lombok.Getter;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.screens.inventory.ContainerScreen;
+import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.world.entity.decoration.ItemFrame;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.inventory.Slot;
@@ -11,6 +11,7 @@ import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.entity.BlockEntity;
 import schnerry.seymouranalyzer.SeymourAnalyzer;
 import schnerry.seymouranalyzer.analyzer.ColorAnalyzer;
 import schnerry.seymouranalyzer.analyzer.PatternDetector;
@@ -80,8 +81,8 @@ public class ChestScanner {
 
         long now = System.currentTimeMillis();
 
-        // Check for chest GUI opened
-        if (client.screen instanceof ContainerScreen screen) {
+        // Check for storage container GUI opened (chests, hoppers, furnaces, etc.)
+        if (client.screen instanceof AbstractContainerScreen<?> screen) {
             if (now - lastChestOpenTime >= SCAN_DELAY_MS) {
                 lastChestOpenTime = now;
                 scanChestContents(screen, client);
@@ -98,11 +99,12 @@ public class ChestScanner {
     /**
      * Scan chest contents - exact port from index.js scanChestContents()
      */
-    private void scanChestContents(ContainerScreen screen, Minecraft client) {
+    private void scanChestContents(AbstractContainerScreen<?> screen, Minecraft client) {
         if (!scanningEnabled && !exportingEnabled) return;
 
         try {
             if (screen.getMenu() == null) return;
+            if (!isLookingAtStorageContainer(client)) return;
 
             ArmorPiece.ChestLocation chestLoc = getChestLocationFromLooking(client);
             List<Slot> slots = screen.getMenu().slots;
@@ -354,6 +356,20 @@ public class ChestScanner {
         } catch (Exception e) {
             SeymourAnalyzer.LOGGER.error("Error scanning item frames", e);
         }
+    }
+
+    /**
+     * True if the block under the player's crosshair is a persistent storage container block entity.
+     * This includes chests, barrels, shulkers, hoppers, furnaces, droppers/dispensers, etc.
+     */
+    private boolean isLookingAtStorageContainer(Minecraft client) {
+        if (client.level == null || client.hitResult == null || client.hitResult.getType() != HitResult.Type.BLOCK) {
+            return false;
+        }
+
+        BlockPos pos = ((BlockHitResult) client.hitResult).getBlockPos();
+        BlockEntity blockEntity = client.level.getBlockEntity(pos);
+        return blockEntity instanceof net.minecraft.world.Container;
     }
 
     /**

@@ -8,6 +8,7 @@ import net.minecraft.network.chat.Component;
 import schnerry.seymouranalyzer.data.ArmorPiece;
 import schnerry.seymouranalyzer.data.CollectionManager;
 import schnerry.seymouranalyzer.util.ColorMath;
+import schnerry.seymouranalyzer.util.PieceTypeUtil;
 
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
@@ -368,7 +369,10 @@ public class BestSetsScreen extends ModScreen {
         for (ArmorPiece piece : collection.values()) {
             if (piece.getHexcode() == null || piece.getPieceName() == null) continue;
 
-            String type = getPieceType(piece.getPieceName());
+            String type = PieceTypeUtil.detectPieceType(piece.getPieceName());
+            if (type == null) {
+                continue;
+            }
             PieceWithLab pwl = new PieceWithLab(piece);
 
             switch (type) {
@@ -560,30 +564,6 @@ public class BestSetsScreen extends ModScreen {
             this.piece = piece;
             this.lab = ColorMath.hexToLab(piece.getHexcode());
         }
-    }
-
-    private String getPieceType(String pieceName) {
-        String lower = pieceName.toLowerCase();
-
-        if (lower.contains("helmet") || lower.contains("hat") || lower.contains("hood") ||
-            lower.contains("cap") || lower.contains("crown") || lower.contains("mask")) {
-            return "helmet";
-        }
-        if (lower.contains("chestplate") || lower.contains("tunic") || lower.contains("shirt") ||
-            lower.contains("vest") || lower.contains("jacket") || lower.contains("robe") ||
-            lower.contains("coat") || lower.contains("plate")) {
-            return "chestplate";
-        }
-        if (lower.contains("leggings") || lower.contains("pants") || lower.contains("trousers") ||
-            lower.contains("legs") || lower.contains("shorts")) {
-            return "leggings";
-        }
-        if (lower.contains("boots") || lower.contains("shoes") || lower.contains("sandals") ||
-            lower.contains("sneakers") || lower.contains("feet")) {
-            return "boots";
-        }
-
-        return "unknown";
     }
 
     /**
