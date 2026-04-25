@@ -450,7 +450,7 @@ public class ItemSlotHighlighter {
 
                 if (match.isCustom()) {
                     switch (tier) {
-                        case 1 -> possibleMatches.putIfAbsent(schnerry.seymouranalyzer.config.MatchPriority.CUSTOM_T1, COLOR_CUSTOM_T1);
+                        case 0, 1 -> possibleMatches.putIfAbsent(schnerry.seymouranalyzer.config.MatchPriority.CUSTOM_T1, COLOR_CUSTOM_T1);
                         case 2 -> possibleMatches.putIfAbsent(schnerry.seymouranalyzer.config.MatchPriority.CUSTOM_T2, COLOR_CUSTOM_T2);
                     }
                 } else if (match.isFade()) {
