@@ -183,7 +183,7 @@ public class ColorAnalyzer {
             if (bestTier2OrLower.isPresent()) {
                 ColorMatch better = bestTier2OrLower.get();
                 guarded.remove(better);
-                guarded.add(0, better);
+                guarded.addFirst(better);
                 currentBest = better;
             }
         }
@@ -199,7 +199,7 @@ public class ColorAnalyzer {
             if (bestNonFadeNear.isPresent()) {
                 ColorMatch better = bestNonFadeNear.get();
                 guarded.remove(better);
-                guarded.add(0, better);
+                guarded.addFirst(better);
             }
         }
 
@@ -275,20 +275,6 @@ public class ColorAnalyzer {
     }
 
     private int calculateTier(double deltaE, boolean isCustom, boolean isFade) {
-        if (isCustom) {
-            if (deltaE <= 2) return 1;  // Custom T1
-            if (deltaE <= 5) return 2;  // Custom T2
-            return 3;
-        }
-
-        if (isFade) {
-            if (deltaE <= 1) return 0;  // Fade T1<
-            if (deltaE <= 2) return 1;  // Fade T1
-            if (deltaE <= 5) return 2;  // Fade T2
-            return 3;
-        }
-
-        // Normal colors
         if (deltaE <= 1) return 0;  // T1<
         if (deltaE <= 2) return 1;  // T1
         if (deltaE <= 5) return 2;  // T2
