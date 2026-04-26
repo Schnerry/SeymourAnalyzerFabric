@@ -2,7 +2,12 @@ package schnerry.seymouranalyzer.keybind;
 
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
+import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
+import net.fabricmc.fabric.api.client.screen.v1.ScreenKeyboardEvents;
 import net.minecraft.client.KeyMapping;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
+import net.minecraft.client.input.KeyEvent;
 import net.minecraft.resources.Identifier;
 import com.mojang.blaze3d.platform.InputConstants;
 import org.lwjgl.glfw.GLFW;
@@ -58,7 +63,6 @@ public class KeyBindings {
         ));
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
-
             if (openDatabaseGuiKey.consumeClick()) {
                 client.setScreen(new DatabaseScreen(null));
             }
@@ -70,9 +74,21 @@ public class KeyBindings {
             if (openChecklistGuiKey.consumeClick()) {
                 client.setScreen(new ArmorChecklistScreen(null));
             }
+        });
 
-            if (debugCaptureKey.consumeClick()) {
-                ItemDebugger.getInstance().onCaptureKeyPressed();
+        // debugCaptureKey needs to work while a screen is open.
+        // consumeClick() is blocked by Minecraft when a screen has focus,
+        // so we listen for raw key events on every opened screen instead.
+        ScreenEvents.AFTER_INIT.register((client, screen, scaledWidth, scaledHeight) -> {
+            if (screen instanceof AbstractContainerScreen<?>) {
+                ScreenKeyboardEvents.afterKeyPress(screen).register(
+                    (Screen s, KeyEvent context) -> {
+                        InputConstants.Key boundKey = KeyBindingHelper.getBoundKeyOf(debugCaptureKey);
+                        if (boundKey.getType() == InputConstants.Type.KEYSYM && boundKey.getValue() == context.key()) {
+                            ItemDebugger.getInstance().onCaptureKeyPressed();
+                        }
+                    }
+                );
             }
         });
     }

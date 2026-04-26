@@ -38,18 +38,12 @@ public class ItemDebugger {
      */
     public void enable() {
         enabled = true;
-
-        // Register HUD render callback if not already registered (just for showing hint)
-        if (!registered) {
-            registered = true;
-        }
-
-        SeymourAnalyzer.LOGGER.info("[DEBUG] Debug mode enabled - hover over an item and press the capture key!");
+        registered = true;
 
         Minecraft client = Minecraft.getInstance();
         if (client.player != null) {
             client.player.displayClientMessage(
-                Component.literal("§a[Seymour Debug] §eEnabled! §7Hover over any item and press the §ecapture key §7(configurable in keybind settings)."),
+                Component.literal("§a[Seymour Debug] §eEnabled! §7Open an inventory, hover over an item and press the §ecapture key§7."),
                 false
             );
         }

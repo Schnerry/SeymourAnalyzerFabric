@@ -1008,8 +1008,6 @@ public class SeymourCommand {
 
     private static int enableDebugMode(CommandContext<FabricClientCommandSource> ctx) {
         ItemDebugger.getInstance().enable();
-        ctx.getSource().sendFeedback(Component.literal("§a[Seymour Debug] §eEnabled! §7Hover over any item to log ALL data to console."));
-        ctx.getSource().sendFeedback(Component.literal("§7Check your console/logs for detailed output."));
         return 1;
     }
 
