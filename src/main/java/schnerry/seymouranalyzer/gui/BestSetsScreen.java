@@ -5,6 +5,7 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
+import schnerry.seymouranalyzer.SeymourAnalyzer;
 import schnerry.seymouranalyzer.data.ArmorPiece;
 import schnerry.seymouranalyzer.data.CollectionManager;
 import schnerry.seymouranalyzer.util.ColorMath;
@@ -54,7 +55,7 @@ public class BestSetsScreen extends ModScreen {
             cachedCollectionSize == currentSize &&
             (currentTime - cacheTimestamp) < CACHE_VALIDITY_MS) {
             bestSets = new ArrayList<>(cachedBestSets);
-            System.out.println("[Best Sets] Loaded " + bestSets.size() + " sets from cache");
+            SeymourAnalyzer.LOGGER.info("[Best Sets] Loaded {} sets from cache", bestSets.size());
         }
     }
 
@@ -131,7 +132,7 @@ public class BestSetsScreen extends ModScreen {
             for (int i = 0; i < visibleCount; i++) {
                 ArmorSet set = bestSets.get(scrollOffset + i);
                 int rowY = START_Y + (i * ROW_HEIGHT);
-                drawSetRow(guiGraphics, set, rowY, scrollOffset + i + 1, mouseX, mouseY);
+                drawSetRow(guiGraphics, set, rowY, scrollOffset + i + 1);
             }
 
             // Scroll info
@@ -148,7 +149,7 @@ public class BestSetsScreen extends ModScreen {
         }
     }
 
-    private void drawSetRow(GuiGraphics guiGraphics, ArmorSet set, int rowY, int rank, int mouseX, int mouseY) {
+    private void drawSetRow(GuiGraphics guiGraphics, ArmorSet set, int rowY, int rank) {
         // Rank
         guiGraphics.drawString(this.font, "§e#" + rank, 20, rowY, 0xFFFFFFFF);
 
@@ -205,6 +206,24 @@ public class BestSetsScreen extends ModScreen {
         guiGraphics.drawString(this.font, "§7W/o worst: §b" + String.format("%.2f", set.avgWithout1), 770, rowY + 12, 0xFFFFFFFF);
         guiGraphics.drawString(this.font, "§7W/o worst 2: §d" + String.format("%.2f", set.avgWithout2), 770, rowY + 24, 0xFFFFFFFF);
         guiGraphics.drawString(this.font, "§7Worst: §c" + set.worstPieceType, 770, rowY + 36, 0xFFFFFFFF);
+
+        // Average hex swatches
+        ColorMath.RGB avgRgb = ColorMath.hexToRgb(set.avgHex);
+        ColorMath.RGB top3Rgb = ColorMath.hexToRgb(set.top3AvgHex);
+        int swatchSize = 8;
+        int swatchX = 770;
+        int avgSwatchY = rowY + 50;
+        int top3SwatchY = rowY + 62;
+
+        // All 4 avg hex
+        guiGraphics.fill(swatchX, avgSwatchY, swatchX + swatchSize, avgSwatchY + swatchSize,
+            0xFF000000 | (avgRgb.r() << 16) | (avgRgb.g() << 8) | avgRgb.b());
+        guiGraphics.drawString(this.font, "§7Avg: §f#" + set.avgHex, swatchX + swatchSize + 3, avgSwatchY, 0xFFFFFFFF);
+
+        // Top 3 avg hex
+        guiGraphics.fill(swatchX, top3SwatchY, swatchX + swatchSize, top3SwatchY + swatchSize,
+            0xFF000000 | (top3Rgb.r() << 16) | (top3Rgb.g() << 8) | top3Rgb.b());
+        guiGraphics.drawString(this.font, "§7Top3: §f#" + set.top3AvgHex, swatchX + swatchSize + 3, top3SwatchY, 0xFFFFFFFF);
 
         // Separator line
         guiGraphics.fill(20, rowY + 75, this.width - 40, rowY + 76, 0xFF3C3C3C);
@@ -330,24 +349,20 @@ public class BestSetsScreen extends ModScreen {
         bestSets.clear();
 
         // Re-init to update button state
-        if (this.minecraft != null) {
-            this.minecraft.execute(this::init);
-        }
+        this.minecraft.execute(this::init);
 
         // Run calculation asynchronously
         CompletableFuture.runAsync(() -> {
             try {
                 performCalculation();
             } catch (Exception e) {
-                e.printStackTrace();
+                SeymourAnalyzer.LOGGER.error("[Best Sets] Calculation failed", e);
             } finally {
                 isCalculating = false;
                 calculationProgress = 100;
 
                 // Re-init to update button state back
-                if (this.minecraft != null) {
-                    this.minecraft.execute(this::init);
-                }
+                this.minecraft.execute(this::init);
             }
         });
     }
@@ -383,8 +398,8 @@ public class BestSetsScreen extends ModScreen {
             }
         }
 
-        System.out.println("[Best Sets] Pieces: " + helmets.size() + " helmets, " + chestplates.size() +
-                          " chests, " + leggings.size() + " legs, " + boots.size() + " boots");
+        SeymourAnalyzer.LOGGER.info("[Best Sets] Pieces: {} helmets, {} chests, {} legs, {} boots",
+            helmets.size(), chestplates.size(), leggings.size(), boots.size());
 
         calculationProgress = 10;
 
@@ -394,9 +409,8 @@ public class BestSetsScreen extends ModScreen {
         leggings = filterViablePieces(leggings, Arrays.asList(helmets, chestplates, boots));
         boots = filterViablePieces(boots, Arrays.asList(helmets, chestplates, leggings));
 
-        System.out.println("[Best Sets] After filtering: " + helmets.size() + " helmets, " +
-                          chestplates.size() + " chests, " + leggings.size() + " legs, " +
-                          boots.size() + " boots");
+        SeymourAnalyzer.LOGGER.info("[Best Sets] After filtering: {} helmets, {} chests, {} legs, {} boots",
+            helmets.size(), chestplates.size(), leggings.size(), boots.size());
 
         calculationProgress = 15;
 
@@ -407,7 +421,7 @@ public class BestSetsScreen extends ModScreen {
         final long[] processedCombinations = {0};
         final int[] lastProgress = {15};
 
-        System.out.println("[Best Sets] Total theoretical combinations: " + totalCombinations);
+        SeymourAnalyzer.LOGGER.info("[Best Sets] Total theoretical combinations: {}", totalCombinations);
 
         // Make lists final for lambda
         final List<PieceWithLab> finalChestplates = chestplates;
@@ -473,10 +487,9 @@ public class BestSetsScreen extends ModScreen {
                             continue;
                         }
 
-                        // Create the set with pre-computed LAB values and deltas
+                        // Create the set with pre-computed deltas
                         ArmorSet set = new ArmorSet(
                             helmet.piece, chest.piece, leg.piece, boot.piece,
-                            helmet.lab, chest.lab, leg.lab, boot.lab,
                             hcDelta, hlDelta, hbDelta, clDelta, cbDelta, lbDelta
                         );
 
@@ -489,7 +502,7 @@ public class BestSetsScreen extends ModScreen {
         });
 
         calculationProgress = 85;
-        System.out.println("[Best Sets] Found " + allValidSets.size() + " valid combinations");
+        SeymourAnalyzer.LOGGER.info("[Best Sets] Found {} valid combinations", allValidSets.size());
 
         // Sort all valid sets by average delta E (best first)
         allValidSets.sort(Comparator.comparingDouble(set -> set.avgDeltaE));
@@ -531,7 +544,8 @@ public class BestSetsScreen extends ModScreen {
         long endTime = System.currentTimeMillis();
         long totalTimeMs = endTime - startTime;
         double totalTimeSec = totalTimeMs / 1000.0;
-        System.out.println("[Best Sets] Selected " + bestSets.size() + " optimal sets in " + totalTimeMs + "ms (" + String.format("%.2f", totalTimeSec) + " seconds)");
+        SeymourAnalyzer.LOGGER.info("[Best Sets] Selected {} optimal sets in {}ms ({} seconds)",
+            bestSets.size(), totalTimeMs, String.format("%.2f", totalTimeSec));
     }
 
     /**
@@ -580,9 +594,11 @@ public class BestSetsScreen extends ModScreen {
         final double avgWithout2; // Average ΔE of best 2 pieces
         final String worstPieceType;
 
-        // Constructor with pre-computed LAB values and deltas (MAJOR optimization)
+        final String avgHex;      // Average hex of all 4 pieces
+        final String top3AvgHex;  // Average hex of best 3 pieces (excluding worst)
+
+        // Constructor with pre-computed deltas
         ArmorSet(ArmorPiece helmet, ArmorPiece chestplate, ArmorPiece leggings, ArmorPiece boots,
-                 ColorMath.LAB helmetLab, ColorMath.LAB chestLab, ColorMath.LAB legsLab, ColorMath.LAB bootsLab,
                  double d_hc, double d_hl, double d_hb, double d_cl, double d_cb, double d_lb) {
             this.helmet = helmet;
             this.chestplate = chestplate;
@@ -626,6 +642,37 @@ public class BestSetsScreen extends ModScreen {
             double[] allDeltas = {d_hc, d_hl, d_hb, d_cl, d_cb, d_lb};
             Arrays.sort(allDeltas);
             this.avgWithout2 = allDeltas[0]; // Best pair
+
+            // Compute average hex of all 4 pieces
+            this.avgHex = computeAvgHex(new ArmorPiece[]{helmet, chestplate, leggings, boots});
+
+            // Compute average hex of best 3 pieces (excluding worst)
+            List<ArmorPiece> best3Pieces = new ArrayList<>(Arrays.asList(helmet, chestplate, leggings, boots));
+            best3Pieces.removeIf(p -> {
+                String type = PieceTypeUtil.detectPieceType(p.getPieceName());
+                return worst.equals(type);
+            });
+            // Fallback: if nothing removed (type mismatch), use all 4
+            if (best3Pieces.size() == 4) best3Pieces.remove(3);
+            this.top3AvgHex = computeAvgHex(best3Pieces.toArray(new ArmorPiece[0]));
+        }
+
+        private static String computeAvgHex(ArmorPiece[] pieces) {
+            int rSum = 0, gSum = 0, bSum = 0;
+            int count = 0;
+            for (ArmorPiece p : pieces) {
+                if (p == null || p.getHexcode() == null) continue;
+                ColorMath.RGB rgb = ColorMath.hexToRgb(p.getHexcode());
+                rSum += rgb.r();
+                gSum += rgb.g();
+                bSum += rgb.b();
+                count++;
+            }
+            if (count == 0) return "000000";
+            int r = rSum / count;
+            int g = gSum / count;
+            int b = bSum / count;
+            return String.format("%02X%02X%02X", r, g, b);
         }
     }
 

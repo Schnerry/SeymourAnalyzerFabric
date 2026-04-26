@@ -1,8 +1,6 @@
 package schnerry.seymouranalyzer.debug;
 
-import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.core.component.DataComponentType;
 import net.minecraft.core.component.DataComponents;
@@ -25,7 +23,6 @@ public class ItemDebugger {
     private static ItemDebugger instance;
     private boolean enabled = false;
     private boolean registered = false;
-    private ItemStack lastLoggedStack = null;
 
     private ItemDebugger() {}
 
@@ -37,20 +34,25 @@ public class ItemDebugger {
     }
 
     /**
-     * Enable debug mode - will log next hovered item
+     * Enable debug mode - waits for capture key press while hovering an item
      */
-    @SuppressWarnings("deprecation")
     public void enable() {
         enabled = true;
-        lastLoggedStack = null;
 
-        // Register HUD render callback if not already registered
+        // Register HUD render callback if not already registered (just for showing hint)
         if (!registered) {
-            HudRenderCallback.EVENT.register((context, tickCounter) -> checkHoveredItem());
             registered = true;
         }
 
-        SeymourAnalyzer.LOGGER.info("[DEBUG] Debug mode enabled - hover over any item!");
+        SeymourAnalyzer.LOGGER.info("[DEBUG] Debug mode enabled - hover over an item and press the capture key!");
+
+        Minecraft client = Minecraft.getInstance();
+        if (client.player != null) {
+            client.player.displayClientMessage(
+                Component.literal("§a[Seymour Debug] §eEnabled! §7Hover over any item and press the §ecapture key §7(configurable in keybind settings)."),
+                false
+            );
+        }
     }
 
     /**
@@ -59,45 +61,49 @@ public class ItemDebugger {
     @SuppressWarnings("unused")
     public void disable() {
         enabled = false;
-        lastLoggedStack = null;
     }
 
     /**
-     * Check for hovered item every frame
+     * Called when the capture keybind is pressed.
+     * Logs the currently hovered item if debug mode is active.
      */
-    private void checkHoveredItem() {
+    public void onCaptureKeyPressed() {
         if (!enabled) return;
 
         try {
             Minecraft client = Minecraft.getInstance();
             if (client.screen instanceof AbstractContainerScreen<?>) {
-                // Use the mixin-captured ItemStack from InfoBoxRenderer
-                // This avoids reflection and works reliably even with other mods
                 ItemStack stack = InfoBoxRenderer.getInstance().getLastHoveredStack();
 
                 if (stack != null && !stack.isEmpty()) {
-                    // Only log if it's a different item than last time
-                    if (lastLoggedStack == null || !ItemStack.matches(lastLoggedStack, stack)) {
-                        lastLoggedStack = stack.copy();
-                        logAllItemData(stack);
+                    logAllItemData(stack);
+                    enabled = false;
 
-                        // Disable after logging once
-                        enabled = false;
-
-                        LocalPlayer player = client.player;
-                        if (player != null) {
-                            player.displayClientMessage(
-                                Component.literal("§a[Seymour Debug] §7Item data logged to console! Debug mode disabled."),
-                                false
-                            );
-                        }
-
-                        SeymourAnalyzer.LOGGER.info("[DEBUG] Debug mode disabled after logging item");
+                    if (client.player != null) {
+                        client.player.displayClientMessage(
+                            Component.literal("§a[Seymour Debug] §7Item data logged to console! Debug mode disabled."),
+                            false
+                        );
                     }
+                    SeymourAnalyzer.LOGGER.info("[DEBUG] Debug mode disabled after logging item");
+                } else {
+                    if (client.player != null) {
+                        client.player.displayClientMessage(
+                            Component.literal("§a[Seymour Debug] §cNo item hovered! Open an inventory and hover over an item first."),
+                            false
+                        );
+                    }
+                }
+            } else {
+                if (client.player != null) {
+                    client.player.displayClientMessage(
+                        Component.literal("§a[Seymour Debug] §cOpen an inventory screen first, then hover over an item and press the key."),
+                        false
+                    );
                 }
             }
         } catch (Exception e) {
-            SeymourAnalyzer.LOGGER.error("[DEBUG] Error checking hovered item", e);
+            SeymourAnalyzer.LOGGER.error("[DEBUG] Error logging hovered item", e);
         }
     }
 
@@ -110,7 +116,7 @@ public class ItemDebugger {
         try {
             // Basic info
             SeymourAnalyzer.LOGGER.info("=== BASIC INFO ===");
-            SeymourAnalyzer.LOGGER.info("Item: {}", stack.getItem().toString());
+            SeymourAnalyzer.LOGGER.info("Item: {}", stack.getItem());
             SeymourAnalyzer.LOGGER.info("Registry ID: {}", stack.getItem().getDescriptionId());
             SeymourAnalyzer.LOGGER.info("Count: {}", stack.getCount());
             SeymourAnalyzer.LOGGER.info("Name: {}", stack.getHoverName().getString());
@@ -154,7 +160,7 @@ public class ItemDebugger {
             // NBT data (if any)
             SeymourAnalyzer.LOGGER.info("\n=== NBT DATA ===");
             CustomData customData = stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY);
-            if (customData != null && !customData.isEmpty()) {
+            if (!customData.isEmpty()) {
                 CompoundTag nbt = customData.copyTag();
                 logNbtData(nbt);
             } else {
@@ -223,4 +229,3 @@ public class ItemDebugger {
         }
     }
 }
-

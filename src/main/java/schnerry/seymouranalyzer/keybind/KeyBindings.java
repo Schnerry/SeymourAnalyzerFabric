@@ -7,6 +7,7 @@ import net.minecraft.resources.Identifier;
 import com.mojang.blaze3d.platform.InputConstants;
 import org.lwjgl.glfw.GLFW;
 import schnerry.seymouranalyzer.config.ConfigScreen;
+import schnerry.seymouranalyzer.debug.ItemDebugger;
 import schnerry.seymouranalyzer.gui.ArmorChecklistScreen;
 import schnerry.seymouranalyzer.gui.DatabaseScreen;
 
@@ -21,6 +22,7 @@ public class KeyBindings {
     private static KeyMapping openDatabaseGuiKey;
     private static KeyMapping openConfigGuiKey;
     private static KeyMapping openChecklistGuiKey;
+    private static KeyMapping debugCaptureKey;
 
     public static void register() {
         // O for Database GUI
@@ -47,6 +49,14 @@ public class KeyBindings {
             SEYMOURANALYZER_CATEGORY
         ));
 
+        // No default key for debug capture (configurable in keybind settings)
+        debugCaptureKey = KeyBindingHelper.registerKeyBinding(new KeyMapping(
+            "key.seymouranalyzer.debugcapture",
+            InputConstants.Type.KEYSYM,
+            InputConstants.UNKNOWN.getValue(),
+            SEYMOURANALYZER_CATEGORY
+        ));
+
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
 
             if (openDatabaseGuiKey.consumeClick()) {
@@ -59,6 +69,10 @@ public class KeyBindings {
 
             if (openChecklistGuiKey.consumeClick()) {
                 client.setScreen(new ArmorChecklistScreen(null));
+            }
+
+            if (debugCaptureKey.consumeClick()) {
+                ItemDebugger.getInstance().onCaptureKeyPressed();
             }
         });
     }

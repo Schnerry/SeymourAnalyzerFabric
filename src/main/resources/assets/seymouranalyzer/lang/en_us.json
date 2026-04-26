@@ -2,5 +2,6 @@
   "key.seymouranalyzer.opendatabasegui": "Open Database GUI",
   "key.seymouranalyzer.openconfiggui": "Open Config GUI",
   "key.seymouranalyzer.openchecklistgui": "Open Checklist GUI",
+  "key.seymouranalyzer.debugcapture": "Debug: Capture Hovered Item",
   "key.category.seymouranalyzer.main": "Seymour Analyzer"
 }
