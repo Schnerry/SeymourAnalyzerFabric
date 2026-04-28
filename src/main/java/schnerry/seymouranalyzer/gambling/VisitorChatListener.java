@@ -68,7 +68,7 @@ public class VisitorChatListener {
 
     private static boolean isSeymourCompletionMessage(String text) {
         return (text.contains("seymour") && text.contains(SEYMOUR_COMPLETION_PHRASE))
-                || text.contains("offer accepted with seymour");
+                || text.contains("offer accepted with seymour") || text.contains("offer accepted w/seymour");
     }
 
     private record SeymourPieceResult(int rgb, Item item, long timestamp, String skyblockId) {}

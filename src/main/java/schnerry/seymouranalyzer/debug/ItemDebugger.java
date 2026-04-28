@@ -22,7 +22,6 @@ import java.util.Set;
 public class ItemDebugger {
     private static ItemDebugger instance;
     private boolean enabled = false;
-    private boolean registered = false;
 
     private ItemDebugger() {}
 
@@ -38,7 +37,6 @@ public class ItemDebugger {
      */
     public void enable() {
         enabled = true;
-        registered = true;
 
         Minecraft client = Minecraft.getInstance();
         if (client.player != null) {
