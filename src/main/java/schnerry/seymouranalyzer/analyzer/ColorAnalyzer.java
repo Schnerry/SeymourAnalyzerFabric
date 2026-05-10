@@ -287,7 +287,7 @@ public class ColorAnalyzer {
      */
     private MatchPriority getMatchPriority(ColorMatch match) {
         if (match.isCustom) {
-            if (match.tier == 1) return MatchPriority.CUSTOM_T1;
+            if (match.tier == 1 || match.tier == 0) return MatchPriority.CUSTOM_T1;
             if (match.tier == 2) return MatchPriority.CUSTOM_T2;
         }
 
