@@ -218,12 +218,14 @@ public class CollectionManager {
         }
         collection.put(piece.getUuid(), piece);
         HexTooltipRenderer.getInstance().clearDbCache();
+        schnerry.seymouranalyzer.render.InfoBoxRenderer.invalidateOwnedDeltaCache();
         markDirty(); // Don't save immediately!
     }
 
     public void removePiece(String uuid) {
         collection.remove(uuid);
         HexTooltipRenderer.getInstance().clearDbCache();
+        schnerry.seymouranalyzer.render.InfoBoxRenderer.invalidateOwnedDeltaCache();
         markDirty(); // Don't save immediately!
     }
 
@@ -239,6 +241,7 @@ public class CollectionManager {
     public void clear() {
         collection.clear();
         HexTooltipRenderer.getInstance().clearDbCache();
+        schnerry.seymouranalyzer.render.InfoBoxRenderer.invalidateOwnedDeltaCache();
         markDirty();
         forceSync(); // Clear is important, save immediately
     }

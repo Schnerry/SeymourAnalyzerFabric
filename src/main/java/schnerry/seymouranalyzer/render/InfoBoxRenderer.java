@@ -18,8 +18,10 @@ import schnerry.seymouranalyzer.scanner.ChestScanner;
 import schnerry.seymouranalyzer.util.ItemStackUtils;
 import schnerry.seymouranalyzer.util.PieceTypeUtil;
 import schnerry.seymouranalyzer.util.StringUtility;
+import schnerry.seymouranalyzer.util.ColorMath;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Renders info box showing detailed color analysis for hovered items
@@ -36,6 +38,11 @@ public class InfoBoxRenderer {
     private static int dragOffsetX = 0;
     private static int dragOffsetY = 0;
     private static Object currentOpenGui = null; // Track which GUI is open
+
+    /** Cache: targetHex → best owned ΔE. Cleared when collection changes. */
+    private static final Map<String, Double> ownedDeltaCache = new ConcurrentHashMap<>();
+    /** UUID of the last item whose HoveredItemData was fully computed. */
+    private static String lastComputedUuid = null;
 
     public static void resetPosition() {
         boxX = 50;
@@ -82,6 +89,14 @@ public class InfoBoxRenderer {
         // Check if it's a Seymour armor piece
         if (StringUtility.isSeymourArmor(itemName)) {
             if (DEBUG) System.out.println("[InfoBox] Is Seymour armor, analyzing...");
+
+            // Skip full recomputation if we already have data for this exact item
+            String uuid = ItemStackUtils.getOrCreateItemUUID(stack);
+            if (uuid != null && uuid.equals(lastComputedUuid) && hoveredItemData != null) {
+                if (DEBUG) System.out.println("[InfoBox] Skipping recompute - same UUID as last item");
+                return;
+            }
+
             setHoveredItemData(stack, itemName);
         } else {
             if (DEBUG) System.out.println("[InfoBox] Not Seymour armor, ignoring");
@@ -104,7 +119,18 @@ public class InfoBoxRenderer {
     public static void forceCloseHoveredDataCache() {
         hoveredItemData = null;
         lastHoveredStack = null;
+        lastComputedUuid = null;
+        ownedDeltaCache.clear();
         if (DEBUG) System.out.println("[InfoBox] Forced clear of hovered item data cache");
+    }
+
+    /**
+     * Invalidate the owned-delta cache when the collection changes (scan, clear, etc.).
+     * Forces recomputation of comparison values on the next hover.
+     */
+    public static void invalidateOwnedDeltaCache() {
+        ownedDeltaCache.clear();
+        lastComputedUuid = null; // Force recompute even for the currently hovered item
     }
 
     /**
@@ -133,11 +159,14 @@ public class InfoBoxRenderer {
         boolean isOwned;
         boolean isNeededForChecklist;
         int matchTier; // Tier of the assigned match in checklist
+        /** For each of the top 3 matches: delta of the best owned piece to that target (-1 = none owned) */
+        double[] ownedBestDeltasForTop3;
 
         HoveredItemData(String bestMatchName, String bestMatchHex, double deltaE, int absoluteDist,
                        int tier, boolean isFadeDye, boolean isCustom, String itemHex,
                        ColorAnalyzer.AnalysisResult analysisResult, String wordMatch, String specialPattern,
-                       String uuid, String itemName, int dupeCount, boolean isOwned, boolean isNeededForChecklist, int matchTier) {
+                       String uuid, String itemName, int dupeCount, boolean isOwned, boolean isNeededForChecklist,
+                       int matchTier, double[] ownedBestDeltasForTop3) {
             this.bestMatchName = bestMatchName;
             this.bestMatchHex = bestMatchHex;
             this.deltaE = deltaE;
@@ -156,6 +185,7 @@ public class InfoBoxRenderer {
             this.isOwned = isOwned;
             this.isNeededForChecklist = isNeededForChecklist;
             this.matchTier = matchTier;
+            this.ownedBestDeltasForTop3 = ownedBestDeltasForTop3;
         }
     }
 
@@ -220,6 +250,16 @@ public class InfoBoxRenderer {
         ChecklistStatus checklistStatus = getChecklistStatusForHex(analysis.bestMatch().targetHex(), itemName);
         int dupeCount = config.isDupesEnabled() ? checkDupeCount(hex, uuid) : 0;
 
+        // Compute owned-best deltas for each of the top matches (for shift comparison)
+        // Uses ownedDeltaCache keyed by targetHex so repeated hovers over the same piece are free
+        List<ColorAnalyzer.ColorMatch> topMatches = analysis.top3Matches();
+        double[] ownedBestDeltas = new double[topMatches.size()];
+        for (int i = 0; i < ownedBestDeltas.length; i++) {
+            String targetHex = topMatches.get(i).targetHex();
+            ownedBestDeltas[i] = ownedDeltaCache.computeIfAbsent(
+                targetHex, t -> findBestOwnedDeltaForTarget(t, uuid));
+        }
+
         hoveredItemData = new HoveredItemData(
             analysis.bestMatch().name(),
             analysis.bestMatch().targetHex(),
@@ -237,8 +277,12 @@ public class InfoBoxRenderer {
             dupeCount,
             checklistStatus.hasMatch,
             checklistStatus.isNeeded,
-            checklistStatus.matchTier
+            checklistStatus.matchTier,
+            ownedBestDeltas
         );
+
+        // Mark this UUID as computed so we skip recomputation on the next frame
+        lastComputedUuid = uuid;
     }
 
     private static class ChecklistStatus {
@@ -315,6 +359,23 @@ public class InfoBoxRenderer {
         return Integer.MAX_VALUE;
     }
 
+    /**
+     * Find the best ΔE to a target hex among all owned pieces (excluding self by uuid).
+     * Returns -1 if no owned piece found.
+     */
+    private static double findBestOwnedDeltaForTarget(String targetHex, String selfUuid) {
+        Map<String, ArmorPiece> collection = CollectionManager.getInstance().getCollection();
+        double best = Double.MAX_VALUE;
+        for (Map.Entry<String, ArmorPiece> entry : collection.entrySet()) {
+            if (selfUuid != null && selfUuid.equals(entry.getKey())) continue;
+            ArmorPiece piece = entry.getValue();
+            if (piece.getHexcode() == null || piece.getHexcode().isEmpty()) continue;
+            double delta = ColorMath.calculateDeltaE(piece.getHexcode(), targetHex);
+            if (delta < best) best = delta;
+        }
+        return best == Double.MAX_VALUE ? -1.0 : best;
+    }
+
     private static int checkDupeCount(String hex, String uuid) {
         Map<String, ArmorPiece> collection = CollectionManager.getInstance().getCollection();
         String hexUpper = hex.toUpperCase();
@@ -381,22 +442,25 @@ public class InfoBoxRenderer {
     }
 
     private static int calculateBoxHeight(HoveredItemData data, boolean isShiftHeld) {
-        if (data == null) return 90; // Return default height if data is null
+        if (data == null) return 90;
 
         ClothConfig config = ClothConfig.getInstance();
-        int height = isShiftHeld ? 120 : 90;
 
-        if (config.isWordsEnabled() && data.wordMatch != null) height += 10;
-        if (config.isPatternsEnabled() && data.specialPattern != null) height += 10;
+        int baseHeight = 28; // title + piece line
+        if (config.isWordsEnabled() && data.wordMatch != null) baseHeight += 10;
+        if (config.isPatternsEnabled() && data.specialPattern != null) baseHeight += 10;
 
-        // Add height for checklist indicator: either have T2+ or needed
-        if (!isShiftHeld && (data.isOwned || data.isNeededForChecklist)) {
-            height += 10;
+        if (isShiftHeld) {
+            int matchCount = Math.min(10, data.analysisResult.top3Matches().size());
+            // "Top N Matches:" header (10px) + each match takes 25px (name + delta lines + gap)
+            baseHeight += 10 + matchCount * 25 + 8; // 8px bottom padding
+        } else {
+            baseHeight += 62; // single match block (closest/target/deltaE/abs/tier = ~60px)
+            if (data.isOwned || data.isNeededForChecklist) baseHeight += 10;
+            if (config.isDupesEnabled() && data.dupeCount > 0) baseHeight += 10;
         }
 
-        if (config.isDupesEnabled() && data.dupeCount > 0) height += 10;
-
-        return height;
+        return baseHeight;
     }
 
     private static int calculateBoxWidth(HoveredItemData data, Minecraft client, boolean isShiftHeld) {
@@ -434,15 +498,18 @@ public class InfoBoxRenderer {
         }
 
         if (isShiftHeld) {
-            // Top 3 matches
-            maxTextWidth = Math.max(maxTextWidth, textRenderer.width("§7§lTop 3 Matches:"));
+            // Top matches (up to 10 non-T3)
+            int matchCount = data.analysisResult.top3Matches().size();
+            maxTextWidth = Math.max(maxTextWidth, textRenderer.width("§7§lTop " + matchCount + " Matches:"));
 
             List<ColorAnalyzer.ColorMatch> top3 = data.analysisResult.top3Matches();
-            for (int i = 0; i < Math.min(3, top3.size()); i++) {
+            for (int i = 0; i < Math.min(10, top3.size()); i++) {
                 ColorAnalyzer.ColorMatch match = top3.get(i);
                 String colorPrefix = getTierColorCode(match.tier(), match.isFade(), match.isCustom());
-                String line1 = colorPrefix + (i + 1) + ". §f" + match.name();
-                String line2 = "§7  ΔE: " + colorPrefix + String.format("%.5f", match.deltaE()) + " §7#" + match.targetHex();
+                String line1 = colorPrefix + (i + 1) + ". §f" + match.name() + " §7- #" + match.targetHex();
+                // Include worst-case comparison suffix width (+/-xx.xx)
+                String line2 = "§7  ΔE: " + colorPrefix + String.format("%.5f", match.deltaE()) +
+                               " §7| Abs: §f" + match.absoluteDistance() + " §7| §c-xx.xx";
                 maxTextWidth = Math.max(maxTextWidth, textRenderer.width(line1));
                 maxTextWidth = Math.max(maxTextWidth, textRenderer.width(line2));
             }
@@ -532,19 +599,42 @@ public class InfoBoxRenderer {
         }
 
         if (isShiftHeld) {
-            // Top 3 matches
-            guiGraphics.drawString(client.font, Component.literal("§7§lTop 3 Matches:"),
+            // Top matches (up to 10 non-T3)
+            List<ColorAnalyzer.ColorMatch> top3 = hoveredItemData.analysisResult.top3Matches();
+            int matchCount = top3.size();
+            guiGraphics.drawString(client.font, Component.literal("§7§lTop " + matchCount + " Matches:"),
                 boxX + 5, boxY + yOffset, 0xFFFFFFFF, true);
 
-            List<ColorAnalyzer.ColorMatch> top3 = hoveredItemData.analysisResult.top3Matches();
+            double[] ownedDeltas = hoveredItemData.ownedBestDeltasForTop3;
 
-            for (int i = 0; i < Math.min(3, top3.size()); i++) {
+            for (int i = 0; i < Math.min(10, matchCount); i++) {
                 ColorAnalyzer.ColorMatch match = top3.get(i);
                 int matchY = boxY + yOffset + 12 + (i * 25);
 
                 String colorPrefix = getTierColorCode(match.tier(), match.isFade(), match.isCustom());
-                String line1 = colorPrefix + (i + 1) + ". §f" + match.name();
-                String line2 = "§7  ΔE: " + colorPrefix + String.format("%.5f", match.deltaE()) + " §7#" + match.targetHex();
+                String line1 = colorPrefix + (i + 1) + ". §f" + match.name() + " §7- #" + match.targetHex();
+
+                // Build comparison suffix: difference vs best owned piece for this target
+                String compSuffix = "";
+                if (ownedDeltas != null && i < ownedDeltas.length && ownedDeltas[i] >= 0) {
+                    double ownedDelta = ownedDeltas[i];
+                    double diff = ownedDelta - match.deltaE(); // positive = this piece is better (lower ΔE)
+                    boolean selfIsOwned = CollectionManager.getInstance().getCollection()
+                        .containsKey(hoveredItemData.uuid);
+                    if (diff > 0.005 && selfIsOwned) {
+                        // This piece is in DB and is the best owned for this target
+                        compSuffix = " §7| §eBest!";
+                    } else if (diff > 0.005) {
+                        compSuffix = " §7| §a+" + String.format("%.2f", diff);
+                    } else if (diff < -0.005) {
+                        compSuffix = " §7| §c" + String.format("%.2f", diff);
+                    } else {
+                        compSuffix = " §7| §7±0.00";
+                    }
+                }
+
+                String line2 = "§7  ΔE: " + colorPrefix + String.format("%.5f", match.deltaE()) +
+                               " §7| Abs: §f" + match.absoluteDistance() + compSuffix;
 
                 guiGraphics.drawString(client.font, Component.literal(line1),
                     boxX + 5, matchY, 0xFFFFFFFF, true);

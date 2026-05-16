@@ -71,17 +71,18 @@ public class GamblingRoller {
         Random rand = new Random();
         List<ItemStack> strip = new ArrayList<>(count);
 
+        // Use the winner's item type for ALL slots so the strip is visually consistent
+        Item fixedItem = (winnerItem != null) ? winnerItem : ARMOR_TYPES.get(rand.nextInt(ARMOR_TYPES.size()));
+
         for (int i = 0; i < count; i++) {
             boolean isWinner = (i == winnerIndex);
             int rgb;
-            Item item;
+            Item item = fixedItem;
 
             if (isWinner && winnerRgb >= 0) {
                 rgb = winnerRgb & 0xFFFFFF;
-                item = (winnerItem != null) ? winnerItem : ARMOR_TYPES.get(rand.nextInt(ARMOR_TYPES.size()));
             } else {
                 rgb = rand.nextInt(0xFFFFFF + 1);
-                item = ARMOR_TYPES.get(rand.nextInt(ARMOR_TYPES.size()));
             }
 
             while (ROLL_COLOR_MAP.containsKey(rgb)) {

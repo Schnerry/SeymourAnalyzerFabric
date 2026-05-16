@@ -116,13 +116,15 @@ public class SeymourCommand {
                 .then(literal("stop")
                     .executes(SeymourCommand::stopScan)))
 
-            // /seymour export start/stop
+            // /seymour export start/stop/database
             .then(literal("export")
                 .executes(SeymourCommand::showExportHelp)
                 .then(literal("start")
                     .executes(SeymourCommand::startExport))
                 .then(literal("stop")
-                    .executes(SeymourCommand::stopExport)))
+                    .executes(SeymourCommand::stopExport))
+                .then(literal("database")
+                    .executes(SeymourCommand::exportDatabase)))
 
             // /seymour db [search] - open database GUI with optional search
             .then(literal("db")
@@ -355,9 +357,10 @@ public class SeymourCommand {
     }
 
     private static int showExportHelp(CommandContext<FabricClientCommandSource> ctx) {
-        ctx.getSource().sendFeedback(Component.literal("§c[Seymour] §7Usage: §f/seymour export <start|stop>"));
+        ctx.getSource().sendFeedback(Component.literal("§c[Seymour] §7Usage: §f/seymour export <start|stop|database>"));
         ctx.getSource().sendFeedback(Component.literal("  §f/seymour export start §8- Start export mode"));
-        ctx.getSource().sendFeedback(Component.literal("  §f/seymour export stop §8- Stop and copy to clipboard"));
+        ctx.getSource().sendFeedback(Component.literal("  §f/seymour export stop §8- Stop and copy scanned pieces to clipboard"));
+        ctx.getSource().sendFeedback(Component.literal("  §f/seymour export database §8- Export entire database to clipboard"));
         return 0;
     }
 
@@ -754,6 +757,47 @@ public class SeymourCommand {
             SeymourAnalyzer.LOGGER.error("Clipboard export failed", e);
         }
 
+        return 1;
+    }
+
+    private static int exportDatabase(CommandContext<FabricClientCommandSource> ctx) {
+        try {
+            Map<String, ArmorPiece> collection = CollectionManager.getInstance().getCollection();
+
+            StringBuilder pretty = new StringBuilder();
+            pretty.append("Seymour Database Export - ").append(collection.size())
+                .append(" piece").append(collection.size() == 1 ? "" : "s").append("\n\n");
+
+            for (ArmorPiece piece : collection.values()) {
+                String name = piece.getPieceName() != null ? piece.getPieceName() : "Unknown";
+                String hex = piece.getHexcode() != null ? ("#" + piece.getHexcode().toUpperCase()) : "#??????";
+
+                String top = "N/A";
+                if (piece.getBestMatch() != null) {
+                    ArmorPiece.BestMatch best = piece.getBestMatch();
+                    top = best.colorName + " (ΔE: " + String.format("%.2f", best.deltaE) +
+                          " | Abs: " + best.absoluteDistance + ")";
+                }
+
+                pretty.append(name).append(" | ").append(hex).append(" | Top: ").append(top);
+
+                if (piece.getSpecialPattern() != null) {
+                    pretty.append(" | Pattern: ").append(piece.getSpecialPattern());
+                }
+
+                pretty.append("\n");
+            }
+
+            Minecraft mc = Minecraft.getInstance();
+            mc.keyboardHandler.setClipboard(pretty.toString());
+
+            ctx.getSource().sendFeedback(Component.literal("§a[Seymour Analyzer] §7Exported §e" +
+                collection.size() + "§7 pieces from database to clipboard!"));
+
+        } catch (Exception e) {
+            ctx.getSource().sendError(Component.literal("§c[Seymour] Failed to export database: " + e.getMessage()));
+            SeymourAnalyzer.LOGGER.error("Database export failed", e);
+        }
         return 1;
     }
 

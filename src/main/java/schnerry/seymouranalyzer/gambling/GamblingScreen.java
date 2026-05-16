@@ -215,7 +215,7 @@ public class GamblingScreen extends Screen {
         int lineH = 14;
         int ty    = py + 16;
 
-        String itemName = winner.getHoverName().getString();
+        String itemName = getPieceTypeName(winner);
         String rareName = GamblingRoller.getRarityName(winner);
         String hexStr   = GamblingRoller.getHexString(winner);
 
@@ -294,6 +294,15 @@ public class GamblingScreen extends Screen {
         g.fill(x,         y + h - 1, x + w, y + h,     border);
         g.fill(x,         y,         x + 1, y + h,     border);
         g.fill(x + w - 1, y,         x + w, y + h,     border);
+    }
+
+    private String getPieceTypeName(ItemStack stack) {
+        net.minecraft.world.item.Item item = stack.getItem();
+        if (item == net.minecraft.world.item.Items.LEATHER_HELMET)     return "Velvet Top Hat";
+        if (item == net.minecraft.world.item.Items.LEATHER_CHESTPLATE) return "Cashmere Jacket";
+        if (item == net.minecraft.world.item.Items.LEATHER_LEGGINGS)   return "Satin Trousers";
+        if (item == net.minecraft.world.item.Items.LEATHER_BOOTS)      return "Oxford Shoes";
+        return stack.getHoverName().getString();
     }
 
     @Override

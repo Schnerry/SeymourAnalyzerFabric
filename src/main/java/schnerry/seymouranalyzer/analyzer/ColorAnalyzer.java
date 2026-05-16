@@ -147,10 +147,23 @@ public class ColorAnalyzer {
         // - Do not let priority override a materially closer normal/custom candidate
         finalList = applySelectionGuards(finalList);
 
-        // Step 8: Get top 3 from the combined list
-        List<ColorMatch> top3 = finalList.stream()
-            .limit(3)
+        // Step 8: Build result list - up to 10 non-T3 matches, minimum 3 total
+        List<ColorMatch> nonT3 = finalList.stream()
+            .filter(m -> m.tier <= 2)
+            .limit(10)
             .collect(Collectors.toList());
+
+        List<ColorMatch> top3;
+        if (nonT3.size() >= 3) {
+            top3 = nonT3;
+        } else {
+            // Pad with T3+ entries to reach at least 3
+            top3 = new ArrayList<>(nonT3);
+            finalList.stream()
+                .filter(m -> m.tier > 2)
+                .limit(Math.max(0, 3 - nonT3.size()))
+                .forEach(top3::add);
+        }
 
         if (top3.isEmpty()) {
             SeymourAnalyzer.LOGGER.warn("[ColorAnalyzer] No matches found for hex: {}", hexcode);
