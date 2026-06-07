@@ -153,22 +153,22 @@
       {"hex": "FF00FF", "name": "Pure Pink", "pieces": ["helmet", "chestplate", "leggings", "boots"]}
     ],
     "Exo Pure Dyes": [
-      {"hex": "993333", "name": "Exo pure red", "pieces": ["helmet", "chestplate", "leggings", "boots"]},
-      {"hex": "D87F33", "name": "Exo pure orange", "pieces": ["helmet", "chestplate", "leggings", "boots"]},
-      {"hex": "E5E533", "name": "Exo pure yellow", "pieces": ["helmet", "chestplate", "leggings", "boots"]},
-      {"hex": "7FCC19", "name": "Exo pure green", "pieces": ["helmet", "chestplate", "leggings", "boots"]},
-      {"hex": "667F33", "name": "Exo pure dark green", "pieces": ["helmet", "chestplate", "leggings", "boots"]},
-      {"hex": "6699D8", "name": "Exo pure light blue", "pieces": ["helmet", "chestplate", "leggings", "boots"]},
-      {"hex": "4C7F99", "name": "Exo pure cyan", "pieces": ["helmet", "chestplate", "leggings", "boots"]},
-      {"hex": "334CB2", "name": "Exo pure blue", "pieces": ["helmet", "chestplate", "leggings", "boots"]},
-      {"hex": "F27FA5", "name": "Exo pure pink", "pieces": ["helmet", "chestplate", "leggings", "boots"]},
-      {"hex": "7F3FB2", "name": "Exo pure purple", "pieces": ["helmet", "chestplate", "leggings", "boots"]},
-      {"hex": "B24CD8", "name": "Exo pure magenta", "pieces": ["helmet", "chestplate", "leggings", "boots"]},
-      {"hex": "664C33", "name": "Exo pure brown", "pieces": ["helmet", "chestplate", "leggings", "boots"]},
+      {"hex": "993333", "name": "Exo Pure Red", "pieces": ["helmet", "chestplate", "leggings", "boots"]},
+      {"hex": "D87F33", "name": "Exo Pure Orange", "pieces": ["helmet", "chestplate", "leggings", "boots"]},
+      {"hex": "E5E533", "name": "Exo Pure Yellow", "pieces": ["helmet", "chestplate", "leggings", "boots"]},
+      {"hex": "7FCC19", "name": "Exo Pure Green", "pieces": ["helmet", "chestplate", "leggings", "boots"]},
+      {"hex": "667F33", "name": "Exo Pure Dark Green", "pieces": ["helmet", "chestplate", "leggings", "boots"]},
+      {"hex": "6699D8", "name": "Exo Pure Light Blue", "pieces": ["helmet", "chestplate", "leggings", "boots"]},
+      {"hex": "4C7F99", "name": "Exo Pure Cyan", "pieces": ["helmet", "chestplate", "leggings", "boots"]},
+      {"hex": "334CB2", "name": "Exo Pure Blue", "pieces": ["helmet", "chestplate", "leggings", "boots"]},
+      {"hex": "F27FA5", "name": "Exo Pure Pink", "pieces": ["helmet", "chestplate", "leggings", "boots"]},
+      {"hex": "B24CD8", "name": "Exo Pure Magenta", "pieces": ["helmet", "chestplate", "leggings", "boots"]},
+      {"hex": "7F3FB2", "name": "Exo Pure Purple", "pieces": ["helmet", "chestplate", "leggings", "boots"]},
+      {"hex": "664C33", "name": "Exo Pure Brown", "pieces": ["helmet", "chestplate", "leggings", "boots"]},
       {"hex": "FFFFFF", "name": "Exo Pure White", "pieces": ["helmet", "chestplate", "leggings", "boots"]},
-      {"hex": "999999", "name": "Exo pure light grey", "pieces": ["helmet", "chestplate", "leggings", "boots"]},
-      {"hex": "4C4C4C", "name": "Exo pure grey", "pieces": ["helmet", "chestplate", "leggings", "boots"]},
-      {"hex": "191919", "name": "Exo pure black", "pieces": ["helmet", "chestplate", "leggings", "boots"]}
+      {"hex": "999999", "name": "Exo Pure Light Grey", "pieces": ["helmet", "chestplate", "leggings", "boots"]},
+      {"hex": "4C4C4C", "name": "Exo Pure Grey", "pieces": ["helmet", "chestplate", "leggings", "boots"]},
+      {"hex": "191919", "name": "Exo Pure Black", "pieces": ["helmet", "chestplate", "leggings", "boots"]}
     ],
     "Other In-Game Dyes": [
       {"hex": "7FFFD4", "name": "Aquamarine Dye", "pieces": ["helmet", "chestplate", "leggings", "boots"]},
@@ -208,7 +208,11 @@
       {"hex": "FF43A4", "name": "Wild Strawberry Dye", "pieces": ["helmet", "chestplate", "leggings", "boots"]},
       {"hex": "FCD12A", "name": "Treasure Dye", "pieces": ["helmet", "chestplate", "leggings", "boots"]},
       {"hex": "6F6F0C", "name": "Mythological Dye", "pieces": ["helmet", "chestplate", "leggings", "boots"]},
-      {"hex": "E7413C", "name": "Necron Dye", "pieces": ["helmet", "chestplate", "leggings", "boots"]}
+      {"hex": "E7413C", "name": "Necron Dye", "pieces": ["helmet", "chestplate", "leggings", "boots"]},
+      {"hex": "FFFFFF", "name": "Pure White Dye", "pieces": ["helmet", "chestplate", "leggings", "boots"]},
+      {"hex": "000000", "name": "Pure Black Dye", "pieces": ["helmet", "chestplate", "leggings", "boots"]},
+      {"hex": "0013FF", "name": "Pure Blue Dye", "pieces": ["helmet", "chestplate", "leggings", "boots"]},
+      {"hex": "FFF700", "name": "Pure Yellow Dye", "pieces": ["helmet", "chestplate", "leggings", "boots"]}
     ],
     "Fairy": [
       {"hex": "330066", "name": "Fairy - 330066", "pieces": ["helmet", "chestplate", "leggings", "boots"]},
@@ -268,7 +272,7 @@
       {"hex": "29F0E9", "name": "Wise Dragon Armor 3p", "pieces": ["chestplate", "leggings", "boots"]},
       {"hex": "DDE4F0", "name": "Young Dragon Armor 3p", "pieces": ["chestplate", "leggings", "boots"]}
     ],
-    "Dungeon Armor": [
+    "Dungeon": [
       {"hex": "9E7003", "name": "Rotten Helm + Boots", "pieces": ["helmet", "boots"]},
       {"hex": "017D31", "name": "Rotten Chestplate + Leggings", "pieces": ["chestplate", "leggings"]},
       {"hex": "ADFF2F", "name": "Bouncy Armor", "pieces": ["helmet", "chestplate", "leggings", "boots"]},
@@ -315,7 +319,7 @@
       {"hex": "BFBFBF", "name": "Spirit Boots", "pieces": ["boots"]},
       {"hex": "450101", "name": "Crypt Witherlord", "pieces": ["helmet", "chestplate", "leggings", "boots"]}
     ],
-    "Rift Armor": [
+    "Rift": [
       {"hex": "35B73B", "name": "Wyld Leggings", "pieces": ["leggings"]},
       {"hex": "154918", "name": "Wyld Boots", "pieces": ["boots"]},
       {"hex": "FF4600", "name": "Orange Chestplate", "pieces": ["chestplate"]},
@@ -357,7 +361,7 @@
       {"hex": "C83200", "name": "Yog Armor", "pieces": ["helmet", "chestplate", "leggings", "boots"]},
       {"hex": "586158", "name": "Fallen Star Armor 3p", "pieces": ["chestplate", "leggings", "boots"]}
     ],
-    "Other Armor": [
+    "Other": [
       {"hex": "8D3592", "name": "Melody Shoes", "pieces": ["boots"]},
       {"hex": "F6DE51", "name": "Charlie's Trousers", "pieces": ["leggings"]},
       {"hex": "006633", "name": "Canopy Chestplate", "pieces": ["chestplate"]},
@@ -402,10 +406,10 @@
     "Mining",
     "Dragon",
     "Crimson",
-    "Dungeon Armor",
-    "Rift Armor",
+    "Dungeon",
+    "Rift",
     "Slayer/Mytho",
-    "Other Armor"
+    "Other"
   ]
 }
 

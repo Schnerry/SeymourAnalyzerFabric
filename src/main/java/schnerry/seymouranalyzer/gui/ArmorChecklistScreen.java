@@ -679,12 +679,8 @@ public class ArmorChecklistScreen extends ModScreen {
             case "Great Spook" -> "G.Spook";
             case "Ghostly Boots" -> "G.Boots";
             case "White-Black" -> "B-White";
-            case "Dragon Armor" -> "Dragon";
-            case "Dungeon Armor" -> "Dungeon";
-            case "Other Armor" -> "Other";
-            case "Mining" -> "Mining";
             case "Slayer/Mytho" -> "Slayer";
-            case "Custom" -> "Custom";
+
             // Fade dye abbreviations
             case "Black Ice" -> "BIce";
             case "Black Opal" -> "BOpal";
