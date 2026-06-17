@@ -104,7 +104,7 @@ public class ChestScanner {
 
         try {
             if (screen.getMenu() == null) return;
-            if (!isLookingAtStorageContainer(client)) return;
+            if (screen.getTitle().getString().contains("Auctions")) return;
 
             ArmorPiece.ChestLocation chestLoc = getChestLocationFromLooking(client);
             List<Slot> slots = screen.getMenu().slots;
@@ -356,20 +356,6 @@ public class ChestScanner {
         } catch (Exception e) {
             SeymourAnalyzer.LOGGER.error("Error scanning item frames", e);
         }
-    }
-
-    /**
-     * True if the block under the player's crosshair is a persistent storage container block entity.
-     * This includes chests, barrels, shulkers, hoppers, furnaces, droppers/dispensers, etc.
-     */
-    private boolean isLookingAtStorageContainer(Minecraft client) {
-        if (client.level == null || client.hitResult == null || client.hitResult.getType() != HitResult.Type.BLOCK) {
-            return false;
-        }
-
-        BlockPos pos = ((BlockHitResult) client.hitResult).getBlockPos();
-        BlockEntity blockEntity = client.level.getBlockEntity(pos);
-        return blockEntity instanceof net.minecraft.world.Container;
     }
 
     /**
