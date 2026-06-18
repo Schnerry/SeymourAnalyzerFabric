@@ -216,4 +216,42 @@ public class ItemDebugger {
             }
         }
     }
+
+    public void copyCurrentPieceHexToClipboard() {
+        if (!enabled) return;
+
+        try {
+            Minecraft client = Minecraft.getInstance();
+            if (client.screen instanceof AbstractContainerScreen<?>) {
+                ItemStack stack = InfoBoxRenderer.getInstance().getLastHoveredStack();
+
+                if (stack != null && !stack.isEmpty()) {
+                    CustomData customData = stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY);
+                    CompoundTag nbt = customData.copyTag();
+                    String hex = String.valueOf(nbt.getString("SeymourHex"));
+                    if (!hex.isEmpty()) {
+                        // Copy to clipboard
+                        client.keyboardHandler.setClipboard(hex);
+                        client.player.sendSystemMessage(
+                            Component.literal("§a[Seymour] §7Copied piece hex to clipboard: §e" + hex)
+                        );
+                    } else {
+                        client.player.sendSystemMessage(
+                            Component.literal("§a[Seymour] §cNo piece hex found in hovered item.")
+                        );
+                    }
+                } else {
+                    client.player.sendSystemMessage(
+                        Component.literal("§a[Seymour] §cNo item hovered! Open an inventory and hover over an item first.")
+                    );
+                }
+            } else {
+                client.player.sendSystemMessage(
+                    Component.literal("§a[Seymour] §cOpen an inventory screen first, then hover over an item and press the key.")
+                );
+            }
+        } catch (Exception e) {
+            SeymourAnalyzer.LOGGER.error("§a[Seymour] Error copying piece hex", e);
+        }
+    }
 }

@@ -238,6 +238,24 @@ public class CollectionManager {
         return collection.containsKey(uuid);
     }
 
+    /**
+     * Update only the chest location of an already-known piece.
+     * No-ops if the piece is unknown or the location hasn't changed.
+     * Returns true if an update was actually written.
+     */
+    public boolean updatePieceLocation(String uuid, ArmorPiece.ChestLocation newLocation) {
+        if (uuid == null || newLocation == null) return false;
+        ArmorPiece piece = collection.get(uuid);
+        if (piece == null) return false;
+        ArmorPiece.ChestLocation cur = piece.getChestLocation();
+        if (cur != null && cur.x == newLocation.x && cur.y == newLocation.y && cur.z == newLocation.z) {
+            return false; // already up to date
+        }
+        piece.setChestLocation(newLocation);
+        markDirty();
+        return true;
+    }
+
     public void clear() {
         collection.clear();
         HexTooltipRenderer.getInstance().clearDbCache();

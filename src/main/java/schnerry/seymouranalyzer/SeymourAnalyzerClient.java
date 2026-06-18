@@ -19,6 +19,7 @@ import schnerry.seymouranalyzer.render.HexTooltipRenderer;
 import schnerry.seymouranalyzer.render.InfoBoxRenderer;
 import schnerry.seymouranalyzer.render.ItemSlotHighlighter;
 import schnerry.seymouranalyzer.scanner.ChestScanner;
+import schnerry.seymouranalyzer.scanner.TradeScanner;
 
 /**
  * Client-side initialization
@@ -67,6 +68,9 @@ public class SeymourAnalyzerClient implements ClientModInitializer {
         // Register Seymour visitor chat listener (for auto-roll gambling)
         VisitorChatListener.register();
 
+        // Register TradeScanner chat listener (for trade-completion detection)
+        TradeScanner.register();
+
         // Generate checklist caches on startup (runs async to avoid blocking)
         new Thread(() -> {
             try {
@@ -92,6 +96,7 @@ public class SeymourAnalyzerClient implements ClientModInitializer {
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             if (client.player != null && client.level != null) {
                 chestScanner.tick(client);
+                TradeScanner.getInstance().tick(client);
                 // Tick collection manager for auto-save
                 CollectionManager.getInstance().tick();
             }

@@ -25,6 +25,7 @@ import schnerry.seymouranalyzer.render.HexTooltipRenderer;
 import schnerry.seymouranalyzer.render.InfoBoxRenderer;
 import schnerry.seymouranalyzer.render.ItemSlotHighlighter;
 import schnerry.seymouranalyzer.scanner.ChestScanner;
+import schnerry.seymouranalyzer.scanner.ScanBadge;
 import schnerry.seymouranalyzer.analyzer.ColorAnalyzer;
 import schnerry.seymouranalyzer.util.ColorMath;
 
@@ -128,8 +129,13 @@ public class SeymourCommand {
                     .executes(SeymourCommand::exportDatabase)))
 
             // /seymour db [search] - open database GUI with optional search
+            // /seymour db hex <hex> - force hex-field search
             .then(literal("db")
                 .executes(SeymourCommand::openDatabaseGUI)
+                .then(literal("hex")
+                    .executes(SeymourCommand::showDbHexHelp)
+                    .then(argument("hex", StringArgumentType.word())
+                        .executes(SeymourCommand::openDatabaseGUIWithHexSearch)))
                 .then(argument("search", StringArgumentType.greedyString())
                     .executes(SeymourCommand::openDatabaseGUIWithSearch)))
 
@@ -199,6 +205,21 @@ public class SeymourCommand {
             // /seymour discord - clickable Seymour Cafe Discord invite
             .then(literal("discord")
                 .executes(SeymourCommand::showDiscordInvite))
+
+            // /seymour undo <badgeId> - undo a scan badge (remove its pieces from DB)
+            .then(literal("undo")
+                .then(argument("badgeId", StringArgumentType.word())
+                    .executes(SeymourCommand::undoScanBadge)))
+
+            // /seymour trade add <badgeId>    - add received pieces from a trade to DB
+            // /seymour trade remove <badgeId> - remove traded-away pieces from DB
+            .then(literal("trade")
+                .then(literal("add")
+                    .then(argument("badgeId", StringArgumentType.word())
+                        .executes(SeymourCommand::tradeAdd)))
+                .then(literal("remove")
+                    .then(argument("badgeId", StringArgumentType.word())
+                        .executes(SeymourCommand::tradeRemove))))
         );
     }
 
@@ -287,6 +308,10 @@ public class SeymourCommand {
                 ctx.getSource().sendFeedback(Component.literal("§a[Seymour Analyzer] §7Item frame scanning " +
                     (config.isItemFramesEnabled() ? "§aenabled" : "§cdisabled") + "§7!"));
                 break;
+            case "scanOnlyOwnIsland":
+                config.setScanOnlyOwnIsland(!config.isScanOnlyOwnIsland());
+                ctx.getSource().sendFeedback(Component.literal("$a[Seymour Analyzer] §7 Scanning on other islands " +
+                        (config.isScanOnlyOwnIsland() ? "§cdisabled" : "§aenabled") + "§7!"));
             case "hextooltip":
                 boolean newState = !HexTooltipRenderer.getInstance().isEnabled();
                 HexTooltipRenderer.getInstance().setEnabled(newState);
@@ -308,6 +333,10 @@ public class SeymourCommand {
                 ctx.getSource().sendFeedback(Component.literal("§a[Seymour Analyzer] §7DB Compare (Shift tooltip) " +
                     (config.isDbCompareEnabled() ? "§aenabled" : "§cdisabled") + "§7!"));
                 break;
+            case "dbcompareonlydiffpieces":
+                config.setDbCompareOnlyDiffPieces(!config.isDbCompareOnlyDiffPieces());
+                ctx.getSource().sendFeedback(Component.literal("§a[Seymour Analyzer] §7DB Compare Only Different Pieces " +
+                    (config.isDbCompareOnlyDiffPieces() ? "§aenabled" : "§cdisabled") + "§7!"));
             case "autopin":
                 config.setAutoPinGui(!config.isAutoPinGui());
                 // Sync static fields in both screens
@@ -342,10 +371,12 @@ public class SeymourCommand {
         ctx.getSource().sendFeedback(Component.literal("  §edupes §8- " + getToggleIndicator(config.isDupesEnabled()) + " §7Toggle dupe highlights"));
         ctx.getSource().sendFeedback(Component.literal("  §ehighfades §8- " + getToggleIndicator(config.isShowHighFades()) + " §7Toggle high fade matches (T2+)"));
         ctx.getSource().sendFeedback(Component.literal("  §eitemframes §8- " + getToggleIndicator(config.isItemFramesEnabled()) + " §7Toggle item frame scanning"));
+        ctx.getSource().sendFeedback(Component.literal("  §escanonlyownisland §8- " + getToggleIndicator(config.isScanOnlyOwnIsland()) + " §7Toggle scanning on other islands"));
         ctx.getSource().sendFeedback(Component.literal("  §ehextooltip §8- " + getToggleIndicator(schnerry.seymouranalyzer.render.HexTooltipRenderer.getInstance().isEnabled()) + " §7Toggle hex tooltip display"));
         ctx.getSource().sendFeedback(Component.literal("  §ehexcolor §8- " + getToggleIndicator(config.isColoredHexText()) + " §7Toggle colored hex text"));
         ctx.getSource().sendFeedback(Component.literal("  §eautoroll §8- " + getToggleIndicator(config.isAutoRollOnVisitor()) + " §7Toggle auto roll on Seymour visitor"));
         ctx.getSource().sendFeedback(Component.literal("  §edbcompare §8- " + getToggleIndicator(config.isDbCompareEnabled()) + " §7Toggle DB Compare in shift tooltip"));
+        ctx.getSource().sendFeedback(Component.literal("  §edbcompareonlydiff §8- " + getToggleIndicator(config.isDbCompareOnlyDiffPieces()) + " §7When DB Compare is enabled, only show different pieces"));
         ctx.getSource().sendFeedback(Component.literal("  §eautopin §8- " + getToggleIndicator(config.isAutoPinGui()) + " §7Auto set Pin Toggle in GUI (always remembers position)"));
         return 0;
     }
@@ -701,6 +732,98 @@ public class SeymourCommand {
         return 1;
     }
 
+    private static int undoScanBadge(CommandContext<FabricClientCommandSource> ctx) {
+        String badgeId = StringArgumentType.getString(ctx, "badgeId");
+        ChestScanner scanner = SeymourAnalyzerClient.getScanner();
+        ScanBadge badge = scanner.getBadge(badgeId);
+
+        if (badge == null) {
+            ctx.getSource().sendFeedback(Component.literal("§c[Seymour Analyzer] §7Scan badge not found or already undone."));
+            return 0;
+        }
+
+        int removed = 0;
+        for (String uuid : badge.getPieceUuids()) {
+            if (CollectionManager.getInstance().hasPiece(uuid)) {
+                CollectionManager.getInstance().removePiece(uuid);
+                removed++;
+            }
+        }
+
+        scanner.removeBadge(badgeId);
+        CollectionManager.getInstance().forceSync();
+
+        String source = badge.getSource().equals("item_frames") ? " (item frames)" : "";
+        ctx.getSource().sendFeedback(Component.literal(
+            "§a[Seymour Analyzer] §7Removed §e" + removed + " §7piece" +
+            (removed == 1 ? "" : "s") + source + " §7from database. New total: §e" +
+            CollectionManager.getInstance().size()));
+        return 1;
+    }
+
+    // ── Trade commands ────────────────────────────────────────────────────────
+
+    private static int tradeAdd(CommandContext<FabricClientCommandSource> ctx) {
+        String badgeId = StringArgumentType.getString(ctx, "badgeId");
+        schnerry.seymouranalyzer.scanner.TradeScanner.TradeBadge badge =
+            schnerry.seymouranalyzer.scanner.TradeScanner.getInstance().getAddBadge(badgeId);
+
+        if (badge == null) {
+            ctx.getSource().sendFeedback(Component.literal(
+                "§c[Seymour Analyzer] §7Trade badge not found or already used."));
+            return 0;
+        }
+
+        int added = 0;
+        for (schnerry.seymouranalyzer.data.ArmorPiece piece : badge.getPieces()) {
+            if (!CollectionManager.getInstance().hasPiece(piece.getUuid())) {
+                CollectionManager.getInstance().addPiece(piece);
+                added++;
+            }
+        }
+
+        schnerry.seymouranalyzer.scanner.TradeScanner.getInstance().removeAddBadge(badgeId);
+        CollectionManager.getInstance().forceSync();
+
+        ctx.getSource().sendFeedback(Component.literal(
+            "§a[Seymour Analyzer] §7Added §e" + added + " §7piece" +
+            (added == 1 ? "" : "s") + " from trade with §e" + badge.getTradePartner() +
+            " §7to database. New total: §e" + CollectionManager.getInstance().size()));
+        return 1;
+    }
+
+    private static int tradeRemove(CommandContext<FabricClientCommandSource> ctx) {
+        String badgeId = StringArgumentType.getString(ctx, "badgeId");
+        schnerry.seymouranalyzer.scanner.TradeScanner ts =
+            schnerry.seymouranalyzer.scanner.TradeScanner.getInstance();
+        ScanBadge badge = ts.getRemoveBadge(badgeId);
+
+        if (badge == null) {
+            ctx.getSource().sendFeedback(Component.literal(
+                "§c[Seymour Analyzer] §7Trade badge not found or already used."));
+            return 0;
+        }
+
+        int removed = 0;
+        for (String uuid : badge.getPieceUuids()) {
+            if (CollectionManager.getInstance().hasPiece(uuid)) {
+                CollectionManager.getInstance().removePiece(uuid);
+                removed++;
+            }
+        }
+
+        ts.removeRemoveBadge(badgeId);
+        // Also clean from ChestScanner badge history (registered there as fallback)
+        SeymourAnalyzerClient.getScanner().removeBadge(badgeId);
+        CollectionManager.getInstance().forceSync();
+
+        ctx.getSource().sendFeedback(Component.literal(
+            "§a[Seymour Analyzer] §7Removed §e" + removed + " §7traded piece" +
+            (removed == 1 ? "" : "s") + " §7from database. New total: §e" +
+            CollectionManager.getInstance().size()));
+        return 1;
+    }
+
     private static int startExport(CommandContext<FabricClientCommandSource> ctx) {
         ChestScanner scanner = SeymourAnalyzerClient.getScanner();
         if (scanner.isScanningEnabled()) {
@@ -813,25 +936,6 @@ public class SeymourCommand {
             ctx.getSource().sendError(Component.literal("§c[Seymour] §7Error: " + e.getMessage()));
             return reportCommandError(ctx, "opening database GUI", e);
         }
-        return 1;
-    }
-
-    private static int openDatabaseGUIWithSearch(CommandContext<FabricClientCommandSource> ctx) {
-        String searchText = StringArgumentType.getString(ctx, "search");
-
-
-        try {
-            runOnClientThread(() -> {
-                Minecraft mc = Minecraft.getInstance();
-                DatabaseScreen screen = new DatabaseScreen(null);
-                screen.setInitialSearch(searchText);
-                mc.setScreen(screen);
-            });
-        } catch (Exception e) {
-            ctx.getSource().sendError(Component.literal("§c[Seymour] §7Error: " + e.getMessage()));
-            return reportCommandError(ctx, "opening database GUI with search", e);
-        }
-
         return 1;
     }
 
@@ -1394,6 +1498,55 @@ public class SeymourCommand {
         return 1;
     }
 
+    private static int showDbHexHelp(CommandContext<FabricClientCommandSource> ctx) {
+        ctx.getSource().sendFeedback(Component.literal("§c[Seymour] §7Usage: §f/seymour db hex <hex>"));
+        ctx.getSource().sendFeedback(Component.literal("§7Example: §f/seymour db hex FF5733"));
+        return 0;
+    }
+
+    private static int openDatabaseGUIWithHexSearch(CommandContext<FabricClientCommandSource> ctx) {
+        String hexInput = StringArgumentType.getString(ctx, "hex");
+        String hex = hexInput.replace("#", "").toUpperCase();
+
+        if (!hex.matches("[0-9A-F]{6}")) {
+            ctx.getSource().sendError(Component.literal("§c[Seymour] Invalid hex: §f" + hexInput));
+            return 0;
+        }
+
+        try {
+            runOnClientThread(() -> {
+                Minecraft mc = Minecraft.getInstance();
+                DatabaseScreen screen = new DatabaseScreen(null);
+                screen.setHexSearch(hex);
+                mc.setScreen(screen);
+            });
+        } catch (Exception e) {
+            ctx.getSource().sendError(Component.literal("§c[Seymour] §7Error: " + e.getMessage()));
+            return reportCommandError(ctx, "opening database GUI with hex search", e);
+        }
+
+        return 1;
+    }
+
+    private static int openDatabaseGUIWithSearch(CommandContext<FabricClientCommandSource> ctx) {
+        String searchText = StringArgumentType.getString(ctx, "search");
+
+
+        try {
+            runOnClientThread(() -> {
+                Minecraft mc = Minecraft.getInstance();
+                DatabaseScreen screen = new DatabaseScreen(null);
+                screen.setInitialSearch(searchText);
+                mc.setScreen(screen);
+            });
+        } catch (Exception e) {
+            ctx.getSource().sendError(Component.literal("§c[Seymour] §7Error: " + e.getMessage()));
+            return reportCommandError(ctx, "opening database GUI with search", e);
+        }
+
+        return 1;
+    }
+
     private static int showDiscordInvite(CommandContext<FabricClientCommandSource> ctx) {
         try {
             Style inviteStyle = Style.EMPTY
@@ -1407,12 +1560,7 @@ public class SeymourCommand {
                     .setStyle(inviteStyle)
             );
 
-            Style linkStyle = Style.EMPTY
-                .withColor(TextColor.fromRgb(0xAAAAAA))
-                .withUnderlined(true)
-                .withClickEvent(new ClickEvent.OpenUrl(URI.create("https://discord.gg/qEgFQ4vSxp")));
 
-            ctx.getSource().sendFeedback(Component.literal("discord.gg/qEgFQ4vSxp").setStyle(linkStyle));
         } catch (Exception e) {
             ctx.getSource().sendError(Component.literal("§c[Seymour] Failed to create Discord invite link."));
             return reportCommandError(ctx, "creating discord invite", e);

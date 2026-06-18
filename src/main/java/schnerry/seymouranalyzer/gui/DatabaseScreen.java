@@ -88,6 +88,25 @@ public class DatabaseScreen extends ModScreen {
     // Pending initial search (set before init())
     private String pendingInitialSearch = null;
 
+    // Active hex search value - persists across rebuildWidgets()/re-init
+    // This is the authoritative source for the hex search, synced with hexSearchField
+    private String activeHexSearch = "";
+
+    // Active text search value - persists across rebuildWidgets()/re-init
+    private String activeTextSearch = "";
+
+    // Track whether we've already processed a command-based search in this instance
+    // This prevents rememberPosition from overwriting a fresh search on GUI re-init
+    private boolean commandSearchProcessed = false;
+
+    // True after the very first init() call; prevents restoreSavedState() from
+    // running on subsequent rebuildWidgets() calls (e.g. dupes-button toggle)
+    private boolean hasBeenInitialized = false;
+
+    // Set to true by removed() so init() knows it's a return-from-sub-screen,
+    // not a plain rebuildWidgets() call
+    private boolean wasRemoved = false;
+
     // Remember position state (static = persists between opens)
     @Setter
     private static boolean rememberPosition = false;
@@ -100,13 +119,13 @@ public class DatabaseScreen extends ModScreen {
     private static boolean savedShowFades = true;
 
     private void saveCurrentState() {
-        savedSearchText   = searchField != null ? searchField.getValue() : "";
-        savedHexSearchText = hexSearchField != null ? hexSearchField.getValue() : "";
-        savedSortColumn   = sortColumn;
+        savedSearchText    = activeTextSearch;
+        savedHexSearchText = activeHexSearch;
+        savedSortColumn    = sortColumn;
         savedSortAscending = sortAscending;
-        savedScrollOffset = scrollOffset;
+        savedScrollOffset  = scrollOffset;
         savedShowDupesOnly = showDupesOnly;
-        savedShowFades    = showFades;
+        savedShowFades     = showFades;
     }
 
     private void restoreSavedState() {
@@ -114,6 +133,9 @@ public class DatabaseScreen extends ModScreen {
         showFades     = savedShowFades;
         sortColumn    = savedSortColumn;
         sortAscending = savedSortAscending;
+        // Restore active search values
+        activeHexSearch  = savedHexSearchText;
+        activeTextSearch = savedSearchText;
         if (searchField != null && !savedSearchText.isEmpty())
             searchField.setValue(savedSearchText);
         if (hexSearchField != null && !savedHexSearchText.isEmpty())
@@ -165,8 +187,24 @@ public class DatabaseScreen extends ModScreen {
     }
 
     @Override
+    public void removed() {
+        super.removed();
+        // Mark that we left this screen (navigated to a sub-screen or away entirely).
+        // init() uses this to distinguish a return-from-sub-screen from a rebuildWidgets() call.
+        wasRemoved = true;
+    }
+
+    @Override
     protected void init() {
         super.init();
+
+        // Is this the very first init() for this screen instance?
+        boolean isFirstInit = !hasBeenInitialized;
+        // Are we returning from a sub-screen (removed() was called before this init())?
+        boolean isReturnFromSubScreen = hasBeenInitialized && wasRemoved;
+
+        hasBeenInitialized = true;
+        wasRemoved = false; // reset so rebuildWidgets() won't trigger the sub-screen path
 
         // Save current search text before re-initialization (in case GUI scale triggers re-init)
         String previousSearchText = searchField != null ? searchField.getValue() : null;
@@ -176,7 +214,10 @@ public class DatabaseScreen extends ModScreen {
         searchField = new EditBox(this.font, this.width - 255, 8, 235, 20, Component.literal("Search"));
         searchField.setMaxLength(50);
         searchField.setHint(Component.literal("Search hex/match/delta/pattern..."));
-        searchField.setResponder(text -> filterAndSort());
+        searchField.setResponder(text -> {
+            activeTextSearch = text;
+            filterAndSort();
+        });
         this.addRenderableWidget(searchField);
 
         // Wildcard help button placed left of the search field; hover to see usage
@@ -193,7 +234,10 @@ public class DatabaseScreen extends ModScreen {
         hexSearchField = new EditBox(this.font, this.width - 145, 35, 125, 20, Component.literal("Hex Search"));
         hexSearchField.setMaxLength(6);
         hexSearchField.setHint(Component.literal("Hex search (ΔE<5)..."));
-        hexSearchField.setResponder(text -> filterAndSort());
+        hexSearchField.setResponder(text -> {
+            activeHexSearch = text.toUpperCase().replace("#", "");
+            filterAndSort();
+        });
         this.addRenderableWidget(hexSearchField);
 
         // Checklist button (top left)
@@ -252,50 +296,73 @@ public class DatabaseScreen extends ModScreen {
 
         // Apply pending hex search if set (from guiGraphics menu in other screens)
         if (pendingHexSearch != null) {
-            hexSearchField.setValue(pendingHexSearch);
-            this.setFocused(hexSearchField);
-            hexSearchField.setFocused(true);
+            activeHexSearch = pendingHexSearch.toUpperCase().replace("#", "");
+            activeTextSearch = "";
             sortColumn = "distance";
             sortAscending = true;
             pendingHexSearch = null;
+            commandSearchProcessed = true;
         }
         // Apply pending initial search if set (from command argument)
+        // This has SECOND HIGHEST priority - overrides rememberPosition
         else if (pendingInitialSearch != null) {
             String search = pendingInitialSearch.replace("#", "").toUpperCase();
             if (search.length() == 6 && search.matches("[0-9A-F]{6}")) {
-                hexSearchField.setValue(search);
-                this.setFocused(hexSearchField);
-                hexSearchField.setFocused(true);
+                activeHexSearch = search;
+                activeTextSearch = "";
                 sortColumn = "distance";
                 sortAscending = true;
             } else {
-                searchField.setValue(pendingInitialSearch);
-                this.setFocused(searchField);
-                searchField.setFocused(true);
+                activeTextSearch = pendingInitialSearch; // keep original casing for text search
+                activeHexSearch = "";
             }
             pendingInitialSearch = null;
+            commandSearchProcessed = true;
         }
-        // Restore pinned state if enabled and no pending search
-        else if (rememberPosition) {
+        // Returning from a sub-screen (Word Matches, Pattern Matches, etc.) without pinned:
+        // reset search so the DB shows in its default state
+        else if (isReturnFromSubScreen && !rememberPosition) {
+            activeHexSearch = "";
+            activeTextSearch = "";
+            sortColumn = null;
+            commandSearchProcessed = false;
+        }
+        // Restore pinned state if enabled and no command-based search was just processed
+        // Only on the FIRST init() – not on rebuildWidgets() calls (would overwrite live state)
+        else if (rememberPosition && !commandSearchProcessed && isFirstInit) {
             restoreSavedState();
+            // activeHexSearch/activeTextSearch will be synced from field values set in restoreSavedState
+            activeHexSearch = hexSearchField.getValue().toUpperCase().replace("#", "");
+            activeTextSearch = searchField.getValue();
         }
         // If no pending search but we had previous text, restore it (GUI scale re-init)
-        else if (previousSearchText != null || previousHexText != null) {
-            if (previousSearchText != null && !previousSearchText.isEmpty()) {
-                searchField.setValue(previousSearchText);
-            }
+        // isFirstInit is false here on rebuildWidgets, but previousText values are set →
+        // still guard with isFirstInit to avoid overwriting user-changed activeHexSearch etc.
+        else if (isFirstInit && !commandSearchProcessed && (previousSearchText != null || previousHexText != null)) {
             if (previousHexText != null && !previousHexText.isEmpty()) {
-                hexSearchField.setValue(previousHexText);
+                activeHexSearch = previousHexText.toUpperCase().replace("#", "");
             }
-        }
-        // If no pending search, ensure one field can be focused by default
-        else {
-            // Don't focus anything by default, but ensure fields are clickable
-            // This allows the user to click into any field they want
+            if (previousSearchText != null && !previousSearchText.isEmpty()) {
+                activeTextSearch = previousSearchText;
+            }
         }
 
-        // Now that all fields are initialized, apply filters
+        // Now sync activeHexSearch / activeTextSearch into the actual fields and apply filters
+        if (!activeHexSearch.isEmpty() && activeHexSearch.matches("[0-9A-F]{6}")) {
+            hexSearchField.setValue(activeHexSearch);
+            this.setFocused(hexSearchField);
+            hexSearchField.setFocused(true);
+            if (!"distance".equals(sortColumn)) {
+                sortColumn = "distance";
+                sortAscending = true;
+            }
+        } else if (!activeTextSearch.isEmpty()) {
+            searchField.setValue(activeTextSearch);
+            this.setFocused(searchField);
+            searchField.setFocused(true);
+        }
         filterAndSort();
+
 
         // Restore scroll offset after filterAndSort (which resets it to 0)
         if (rememberPosition && pendingHexSearch == null && pendingInitialSearch == null) {
@@ -445,7 +512,7 @@ public class DatabaseScreen extends ModScreen {
         guiGraphics.text(this.font, t2FadeValue, row2X, 40, 0xFFFFFF55);
 
         if (filteredPieces.isEmpty()) {
-            String noResultsMsg = !searchField.getValue().isEmpty() || !hexSearchField.getValue().isEmpty()
+            String noResultsMsg = !activeTextSearch.isEmpty() || !activeHexSearch.isEmpty()
                 ? "No results for search"
                 : "No pieces. Use /seymour scan start";
             int msgWidth = this.font.width(noResultsMsg);
@@ -471,7 +538,8 @@ public class DatabaseScreen extends ModScreen {
         guiGraphics.text(this.font, "Absolute" + absArrow, 630, HEADER_Y, 0xFFAAAAAA);
 
         // Show "Closest" column when hex search is active with 6 digits
-        String hexSearchText = hexSearchField != null ? hexSearchField.getValue().replace("#", "") : "";
+        String hexSearchText = !activeHexSearch.isEmpty() ? activeHexSearch
+            : (hexSearchField != null ? hexSearchField.getValue().replace("#", "") : "");
         boolean showClosestColumn = hexSearchText.length() == 6 && hexSearchText.matches("[0-9A-Fa-f]{6}");
 
         if (showClosestColumn) {
@@ -665,7 +733,8 @@ public class DatabaseScreen extends ModScreen {
         }
 
         // Display "Closest" column when hex search is active
-        String hexSearchText = hexSearchField != null ? hexSearchField.getValue().replace("#", "") : "";
+        String hexSearchText = !activeHexSearch.isEmpty() ? activeHexSearch
+            : (hexSearchField != null ? hexSearchField.getValue().replace("#", "") : "");
         boolean showClosestColumn = hexSearchText.length() == 6 && hexSearchText.matches("[0-9A-Fa-f]{6}");
 
         if (showClosestColumn && piece.getCachedSearchDeltaE() != null && piece.getCachedSearchDistance() != null) {
@@ -763,11 +832,11 @@ public class DatabaseScreen extends ModScreen {
             // Draw deltaE with color
             int deColor;
             if (match.deltaE < 1) {
-                deColor = isFade ? 0xFF5555FF : 0xFFFF5555;
+                deColor = 0xFFFF5555;
             } else if (match.deltaE < 2) {
-                deColor = isFade ? 0xFF55FFFF : 0xFFFF55FF;
+                deColor = 0xFFFF55FF;
             } else if (match.deltaE < 5) {
-                deColor = isFade ? 0xFFFFFF55 : 0xFFFFAA00;
+                deColor = 0xFFFFAA00;
             } else {
                 deColor = 0xFFAAAAAA;
             }
@@ -1118,7 +1187,10 @@ public class DatabaseScreen extends ModScreen {
         }
 
         // Apply hex search filter (only with exactly 6 hex digits)
-        String hexSearchText = hexSearchField != null ? hexSearchField.getValue().toUpperCase().replace("#", "") : "";
+        // Use activeHexSearch as authoritative source (fallback to field value if activeHexSearch is empty)
+        String hexSearchText = !activeHexSearch.isEmpty()
+            ? activeHexSearch
+            : (hexSearchField != null ? hexSearchField.getValue().toUpperCase().replace("#", "") : "");
         boolean hasActiveHexSearch = hexSearchText.length() == 6 && hexSearchText.matches("[0-9A-F]{6}");
 
         if (hasActiveHexSearch) {
@@ -1335,7 +1407,8 @@ public class DatabaseScreen extends ModScreen {
                 clickedColumn = "absolute";
             } else if (mouseX >= 710 && mouseX <= 800) {
                 // Check if hex search is active before allowing distance sort
-                String hexSearchText = hexSearchField != null ? hexSearchField.getValue().replace("#", "") : "";
+                String hexSearchText = !activeHexSearch.isEmpty() ? activeHexSearch
+                    : (hexSearchField != null ? hexSearchField.getValue().replace("#", "") : "");
                 if (hexSearchText.length() == 6 && hexSearchText.matches("[0-9A-Fa-f]{6}")) {
                     clickedColumn = "distance";
                 }

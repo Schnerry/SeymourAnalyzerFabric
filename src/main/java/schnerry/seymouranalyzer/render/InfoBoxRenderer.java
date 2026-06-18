@@ -31,13 +31,26 @@ public class InfoBoxRenderer {
     private static final boolean DEBUG = false; // Disable debugging
     private static InfoBoxRenderer instance;
     private static HoveredItemData hoveredItemData = null;
-    private static ItemStack lastHoveredStack = null; // For debugger access
+    private static ItemStack lastHoveredStack = null;
     private static int boxX = 10;
     private static int boxY = 10;
+    private static float infoBoxScale = 1.0f;
+
+    // Move drag
     private static boolean isDragging = false;
     private static int dragOffsetX = 0;
     private static int dragOffsetY = 0;
-    private static Object currentOpenGui = null; // Track which GUI is open
+
+    // Resize drag (corner handle)
+    private static boolean isResizing = false;
+    private static double resizeDragStartX = 0;
+    private static double resizeDragStartY = 0;
+    private static float resizeDragStartScale = 1.0f;
+    private static int resizeDragStartBoxW = 0;
+    private static int resizeDragStartBoxH = 0;
+    private static final int HANDLE_SIZE = 12; // px of corner resize handle
+
+    private static Object currentOpenGui = null;
 
     /** Cache: targetHex → best owned ΔE. Cleared when collection changes. */
     private static final Map<String, Double> ownedDeltaCache = new ConcurrentHashMap<>();
@@ -47,18 +60,20 @@ public class InfoBoxRenderer {
     public static void resetPosition() {
         boxX = 50;
         boxY = 80;
-        // Save to config
+        infoBoxScale = 1.0f;
         ClothConfig config = ClothConfig.getInstance();
         config.setInfoBoxX(boxX);
         config.setInfoBoxY(boxY);
+        config.setInfoBoxScale(infoBoxScale);
         config.save();
     }
 
     private InfoBoxRenderer() {
-        // Load position from config
+        // Load position and scale from config
         ClothConfig config = ClothConfig.getInstance();
         boxX = config.getInfoBoxX();
         boxY = config.getInfoBoxY();
+        infoBoxScale = config.getInfoBoxScale();
 
         // Register screen render callback to render AFTER screen elements
         ScreenEvents.AFTER_INIT.register((client, screen, scaledWidth, scaledHeight) ->
@@ -251,13 +266,16 @@ public class InfoBoxRenderer {
         int dupeCount = config.isDupesEnabled() ? checkDupeCount(hex, uuid) : 0;
 
         // Compute owned-best deltas for each of the top matches (for shift comparison)
-        // Uses ownedDeltaCache keyed by targetHex so repeated hovers over the same piece are free
+        // Cache key includes the hovered piece's UUID so each piece gets its own
+        // "best OTHER owned" value (excluding itself), preventing stale cache hits
+        // when multiple pieces share the same target hex in their top-3.
         List<ColorAnalyzer.ColorMatch> topMatches = analysis.top3Matches();
         double[] ownedBestDeltas = new double[topMatches.size()];
         for (int i = 0; i < ownedBestDeltas.length; i++) {
             String targetHex = topMatches.get(i).targetHex();
+            String cacheKey = targetHex + "|" + (uuid != null ? uuid : "");
             ownedBestDeltas[i] = ownedDeltaCache.computeIfAbsent(
-                targetHex, t -> findBestOwnedDeltaForTarget(t, uuid));
+                cacheKey, k -> findBestOwnedDeltaForTarget(targetHex, uuid));
         }
 
         hoveredItemData = new HoveredItemData(
@@ -416,29 +434,64 @@ public class InfoBoxRenderer {
 
         if (hoveredItemData == null) return;
 
-        int boxWidth = calculateBoxWidth(hoveredItemData, client, isShiftHeld);
+        int boxWidth  = calculateBoxWidth(hoveredItemData, client, isShiftHeld);
         int boxHeight = calculateBoxHeight(hoveredItemData, isShiftHeld);
+        int scaledW   = (int)(boxWidth  * infoBoxScale);
+        int scaledH   = (int)(boxHeight * infoBoxScale);
 
-        boolean isMouseOverBox = mouseX >= boxX && mouseX <= boxX + boxWidth &&
-                                mouseY >= boxY && mouseY <= boxY + boxHeight;
+        boolean isOnCornerHandle =
+            mouseX >= boxX + scaledW - HANDLE_SIZE && mouseX <= boxX + scaledW &&
+            mouseY >= boxY + scaledH - HANDLE_SIZE && mouseY <= boxY + scaledH;
 
-        if (isShiftHeld && isMouseOverBox && isMouseDown && !isDragging) {
-            isDragging = true;
+        boolean isMouseOverBox =
+            mouseX >= boxX && mouseX <= boxX + scaledW &&
+            mouseY >= boxY && mouseY <= boxY + scaledH;
+
+        // ── Start resize (corner handle, no shift needed) ──────────────────────
+        if (!isDragging && !isResizing && isOnCornerHandle && isMouseDown) {
+            isResizing = true;
+            resizeDragStartX     = mouseX;
+            resizeDragStartY     = mouseY;
+            resizeDragStartScale = infoBoxScale;
+            resizeDragStartBoxW  = boxWidth;
+            resizeDragStartBoxH  = boxHeight;
+        }
+
+        // ── Start move (shift + drag inside box, not on corner handle) ──────────
+        if (!isDragging && !isResizing && isShiftHeld && isMouseOverBox && !isOnCornerHandle && isMouseDown) {
+            isDragging  = true;
             dragOffsetX = (int)(mouseX - boxX);
             dragOffsetY = (int)(mouseY - boxY);
         }
 
+        // ── Update resize ───────────────────────────────────────────────────────
+        if (isResizing && isMouseDown) {
+            double dx    = mouseX - resizeDragStartX;
+            double dy    = mouseY - resizeDragStartY;
+            double delta = (dx + dy) * 0.5;
+            float newScale = resizeDragStartScale + (float)(delta / Math.max(resizeDragStartBoxW, resizeDragStartBoxH));
+            infoBoxScale = (float) Math.clamp(newScale, 0.4f, 4.0f);
+        } else if (isResizing) {
+            isResizing = false;
+            saveToConfig();
+        }
+
+        // ── Update move ─────────────────────────────────────────────────────────
         if (isDragging && isMouseDown) {
             boxX = (int)(mouseX - dragOffsetX);
             boxY = (int)(mouseY - dragOffsetY);
         } else if (isDragging) {
             isDragging = false;
-            // Save position to config when dragging ends
-            ClothConfig config = ClothConfig.getInstance();
-            config.setInfoBoxX(boxX);
-            config.setInfoBoxY(boxY);
-            config.save();
+            saveToConfig();
         }
+    }
+
+    private static void saveToConfig() {
+        ClothConfig config = ClothConfig.getInstance();
+        config.setInfoBoxX(boxX);
+        config.setInfoBoxY(boxY);
+        config.setInfoBoxScale(infoBoxScale);
+        config.save();
     }
 
     private static int calculateBoxHeight(HoveredItemData data, boolean isShiftHeld) {
@@ -550,125 +603,124 @@ public class InfoBoxRenderer {
         boolean isShiftHeld = GLFW.glfwGetKey(client.getWindow().handle(), GLFW.GLFW_KEY_LEFT_SHIFT) == GLFW.GLFW_PRESS ||
                              GLFW.glfwGetKey(client.getWindow().handle(), GLFW.GLFW_KEY_RIGHT_SHIFT) == GLFW.GLFW_PRESS;
 
-        int boxWidth = calculateBoxWidth(hoveredItemData, client, isShiftHeld);
+        int boxWidth  = calculateBoxWidth(hoveredItemData, client, isShiftHeld);
         int boxHeight = calculateBoxHeight(hoveredItemData, isShiftHeld);
 
-        double mouseX = client.mouseHandler.xpos() * client.getWindow().getGuiScaledWidth() / client.getWindow().getWidth();
-        double mouseY = client.mouseHandler.ypos() * client.getWindow().getGuiScaledHeight() / client.getWindow().getHeight();
-        boolean isMouseOver = mouseX >= boxX && mouseX <= boxX + boxWidth &&
-                             mouseY >= boxY && mouseY <= boxY + boxHeight;
+        double mouseX   = client.mouseHandler.xpos() * client.getWindow().getGuiScaledWidth() / client.getWindow().getWidth();
+        double mouseY   = client.mouseHandler.ypos() * client.getWindow().getGuiScaledHeight() / client.getWindow().getHeight();
+        int scaledW     = (int)(boxWidth  * infoBoxScale);
+        int scaledH     = (int)(boxHeight * infoBoxScale);
+        boolean isMouseOver = mouseX >= boxX && mouseX <= boxX + scaledW &&
+                              mouseY >= boxY && mouseY <= boxY + scaledH;
+        boolean isOnHandle  = mouseX >= boxX + scaledW - HANDLE_SIZE && mouseX <= boxX + scaledW &&
+                              mouseY >= boxY + scaledH - HANDLE_SIZE && mouseY <= boxY + scaledH;
+
+        // ── Apply pose: translate to box origin, then scale ─────────────────────
+        var pose = guiGraphics.pose();
+        pose.pushMatrix();
+        pose.translate(boxX, boxY);
+        pose.scale(infoBoxScale, infoBoxScale);
+
+        // All coordinates below are relative to (0,0) = top-left corner of the box
 
         // Background
-        guiGraphics.fill(boxX, boxY, boxX + boxWidth, boxY + boxHeight, 0xFF000000);
+        guiGraphics.fill(0, 0, boxWidth, boxHeight, 0xFF000000);
 
         // Border
         int borderColor = getBorderColor(hoveredItemData);
-        guiGraphics.fill(boxX, boxY, boxX + boxWidth, boxY + 2, borderColor);
-        guiGraphics.fill(boxX, boxY + boxHeight - 2, boxX + boxWidth, boxY + boxHeight, borderColor);
-        guiGraphics.fill(boxX, boxY, boxX + 2, boxY + boxHeight, borderColor);
-        guiGraphics.fill(boxX + boxWidth - 2, boxY, boxX + boxWidth, boxY + boxHeight, borderColor);
+        guiGraphics.fill(0,            0,             boxWidth,    2,            borderColor);
+        guiGraphics.fill(0,            boxHeight - 2, boxWidth,    boxHeight,    borderColor);
+        guiGraphics.fill(0,            0,             2,           boxHeight,    borderColor);
+        guiGraphics.fill(boxWidth - 2, 0,             boxWidth,    boxHeight,    borderColor);
+
+        // Corner resize handle – small "staircase" lines in the bottom-right corner
+        int hs = HANDLE_SIZE;
+        int hc = isOnHandle ? 0xFFFFFFFF : (isResizing ? 0xFFFFAA00 : 0xFF666666);
+        guiGraphics.fill(boxWidth - hs,     boxHeight - 2,  boxWidth - 2, boxHeight - 1,  hc);
+        guiGraphics.fill(boxWidth - hs + 4, boxHeight - 5,  boxWidth - 2, boxHeight - 4,  hc);
+        guiGraphics.fill(boxWidth - hs + 8, boxHeight - 8,  boxWidth - 2, boxHeight - 7,  hc);
+        guiGraphics.fill(boxWidth - 2,      boxHeight - hs, boxWidth - 1, boxHeight - 2,  hc);
 
         // Title
-        String title = (isShiftHeld && isMouseOver) ? "§l§nSeymour §7[DRAG]" : "§l§nSeymour Analysis";
-        guiGraphics.text(client.font, Component.literal(title), boxX + 5, boxY + 5, 0xFFFFFFFF, true);
+        String title = isOnHandle ? "§l§nSeymour §7[RESIZE]" :
+                       (isShiftHeld && isMouseOver) ? "§l§nSeymour §7[DRAG]" : "§l§nSeymour Analysis";
+        guiGraphics.text(client.font, Component.literal(title), 5, 5, 0xFFFFFFFF, true);
 
         // Piece information
         String pieceType = PieceTypeUtil.detectPieceType(hoveredItemData.itemName);
         String pieceTypeDisplay = pieceType != null
             ? pieceType.substring(0, 1).toUpperCase() + pieceType.substring(1)
             : "Unknown";
-        guiGraphics.text(client.font, Component.literal("§7Piece: §f#" + hoveredItemData.itemHex + " - " + pieceTypeDisplay), boxX + 5, boxY + 18, 0xFFFFFFFF, true);
+        guiGraphics.text(client.font, Component.literal("§7Piece: §f#" + hoveredItemData.itemHex + " - " + pieceTypeDisplay), 5, 18, 0xFFFFFFFF, true);
 
         int yOffset = 28;
 
-        // Word match
         ClothConfig config = ClothConfig.getInstance();
         if (config.isWordsEnabled() && hoveredItemData.wordMatch != null) {
-            guiGraphics.text(client.font, Component.literal("§d§l✦ WORD: " + hoveredItemData.wordMatch), boxX + 5, boxY + yOffset, 0xFFFFFFFF, true);
+            guiGraphics.text(client.font, Component.literal("§d§l✦ WORD: " + hoveredItemData.wordMatch), 5, yOffset, 0xFFFFFFFF, true);
             yOffset += 10;
         }
-
-        // Pattern match
         if (config.isPatternsEnabled() && hoveredItemData.specialPattern != null) {
             String patternName = getPatternDisplayName(hoveredItemData.specialPattern);
-            guiGraphics.text(client.font, Component.literal("§5§l★ PATTERN: " + patternName), boxX + 5, boxY + yOffset, 0xFFFFFFFF, true);
+            guiGraphics.text(client.font, Component.literal("§5§l★ PATTERN: " + patternName), 5, yOffset, 0xFFFFFFFF, true);
             yOffset += 10;
         }
 
         if (isShiftHeld) {
-            // Top matches (up to 10 non-T3)
             List<ColorAnalyzer.ColorMatch> top3 = hoveredItemData.analysisResult.top3Matches();
             int matchCount = top3.size();
-            guiGraphics.text(client.font, Component.literal("§7§lTop " + matchCount + " Matches:"), boxX + 5, boxY + yOffset, 0xFFFFFFFF, true);
+            guiGraphics.text(client.font, Component.literal("§7§lTop " + matchCount + " Matches:"), 5, yOffset, 0xFFFFFFFF, true);
 
             double[] ownedDeltas = hoveredItemData.ownedBestDeltasForTop3;
-
             for (int i = 0; i < Math.min(10, matchCount); i++) {
                 ColorAnalyzer.ColorMatch match = top3.get(i);
-                int matchY = boxY + yOffset + 12 + (i * 25);
-
+                int matchY = yOffset + 12 + (i * 25);
                 String colorPrefix = getTierColorCode(match.tier(), match.isFade(), match.isCustom());
                 String line1 = colorPrefix + (i + 1) + ". §f" + match.name() + " §7- #" + match.targetHex();
-
-                // Build comparison suffix: difference vs best owned piece for this target
                 String compSuffix = "";
-                if (ownedDeltas != null && i < ownedDeltas.length && ownedDeltas[i] >= 0) {
+                if (ownedDeltas != null && i < ownedDeltas.length) {
                     double ownedDelta = ownedDeltas[i];
-                    double diff = ownedDelta - match.deltaE(); // positive = this piece is better (lower ΔE)
-                    boolean selfIsOwned = CollectionManager.getInstance().getCollection()
-                        .containsKey(hoveredItemData.uuid);
-                    if (diff > 0.005 && selfIsOwned) {
-                        // This piece is in DB and is the best owned for this target
-                        compSuffix = " §7| §eBest!";
-                    } else if (diff > 0.005) {
-                        compSuffix = " §7| §a+" + String.format("%.2f", diff);
-                    } else if (diff < -0.005) {
-                        compSuffix = " §7| §c" + String.format("%.2f", diff);
+                    boolean selfIsOwned = CollectionManager.getInstance().getCollection().containsKey(hoveredItemData.uuid);
+                    if (ownedDelta < 0) {
+                        if (selfIsOwned) compSuffix = " §7| §eBest!";
                     } else {
-                        compSuffix = " §7| §7±0.00";
+                        double diff = ownedDelta - match.deltaE();
+                        if      (diff > 0.005 && selfIsOwned) compSuffix = " §7| §eBest!";
+                        else if (diff > 0.005)                compSuffix = " §7| §a+" + String.format("%.2f", diff);
+                        else if (diff < -0.005)               compSuffix = " §7| §c"  + String.format("%.2f", diff);
+                        else                                  compSuffix = " §7| §7±0.00";
                     }
                 }
-
                 String line2 = "§7  ΔE: " + colorPrefix + String.format("%.5f", match.deltaE()) +
                                " §7| Abs: §f" + match.absoluteDistance() + compSuffix;
-
-                guiGraphics.text(client.font, Component.literal(line1), boxX + 5, matchY, 0xFFFFFFFF, true);
-                guiGraphics.text(client.font, Component.literal(line2), boxX + 5, matchY + 10, 0xFFFFFFFF, true);
+                guiGraphics.text(client.font, Component.literal(line1), 5, matchY,      0xFFFFFFFF, true);
+                guiGraphics.text(client.font, Component.literal(line2), 5, matchY + 10, 0xFFFFFFFF, true);
             }
         } else {
-            // Single match details
-            guiGraphics.text(client.font, Component.literal("§7Closest: §f" + hoveredItemData.bestMatchName), boxX + 5, boxY + yOffset, 0xFFFFFFFF, true);
-            guiGraphics.text(client.font, Component.literal("§7Target: §7#" + hoveredItemData.bestMatchHex), boxX + 5, boxY + yOffset + 10, 0xFFFFFFFF, true);
-
+            guiGraphics.text(client.font, Component.literal("§7Closest: §f" + hoveredItemData.bestMatchName), 5, yOffset,      0xFFFFFFFF, true);
+            guiGraphics.text(client.font, Component.literal("§7Target: §7#"  + hoveredItemData.bestMatchHex),  5, yOffset + 10, 0xFFFFFFFF, true);
             String colorPrefix = getTierColorCode(hoveredItemData.tier, hoveredItemData.isFadeDye, hoveredItemData.isCustom);
-            guiGraphics.text(client.font, Component.literal(colorPrefix + "ΔE: §f" +
-                String.format("%.2f", hoveredItemData.deltaE)),
-                boxX + 5, boxY + yOffset + 20, 0xFFFFFFFF, true);
-            guiGraphics.text(client.font, Component.literal("§7Absolute: §f" + hoveredItemData.absoluteDist), boxX + 5, boxY + yOffset + 30, 0xFFFFFFFF, true);
-
+            guiGraphics.text(client.font, Component.literal(colorPrefix + "ΔE: §f" + String.format("%.2f", hoveredItemData.deltaE)), 5, yOffset + 20, 0xFFFFFFFF, true);
+            guiGraphics.text(client.font, Component.literal("§7Absolute: §f" + hoveredItemData.absoluteDist), 5, yOffset + 30, 0xFFFFFFFF, true);
             String tierText = getTierText(hoveredItemData.tier, hoveredItemData.isFadeDye, hoveredItemData.isCustom);
-            guiGraphics.text(client.font, Component.literal(tierText), boxX + 5, boxY + yOffset + 40, 0xFFFFFFFF, true);
-
+            guiGraphics.text(client.font, Component.literal(tierText), 5, yOffset + 40, 0xFFFFFFFF, true);
             yOffset += 50;
-
-            // Checklist status - show for ALL pieces that are checklist targets
             if (hoveredItemData.isNeededForChecklist) {
                 if (hoveredItemData.isOwned) {
                     String ownershipText = hoveredItemData.matchTier <= 1 ? "§a§l✓ Checklist" : "§e§l✓ Checklist";
-                    guiGraphics.text(client.font, Component.literal(ownershipText), boxX + 5, boxY + yOffset, 0xFFFFFFFF, true);
+                    guiGraphics.text(client.font, Component.literal(ownershipText), 5, yOffset, 0xFFFFFFFF, true);
                     yOffset += 10;
                 } else {
-                    guiGraphics.text(client.font, Component.literal("§c§l✗ NEEDED FOR CHECKLIST"), boxX + 5, boxY + yOffset, 0xFFFFFFFF, true);
+                    guiGraphics.text(client.font, Component.literal("§c§l✗ NEEDED FOR CHECKLIST"), 5, yOffset, 0xFFFFFFFF, true);
                     yOffset += 10;
                 }
             }
-
-            // Dupe warning (only show when NOT holding shift)
             if (config.isDupesEnabled() && hoveredItemData.dupeCount > 0) {
-                guiGraphics.text(client.font, Component.literal("§c§l⚠ DUPE HEX §7(x" + hoveredItemData.dupeCount + ")"),
-                    boxX + 5, boxY + yOffset, 0xFFFFFFFF, true);
+                guiGraphics.text(client.font, Component.literal("§c§l⚠ DUPE HEX §7(x" + hoveredItemData.dupeCount + ")"), 5, yOffset, 0xFFFFFFFF, true);
             }
         }
+
+        pose.popMatrix();
     }
 
 

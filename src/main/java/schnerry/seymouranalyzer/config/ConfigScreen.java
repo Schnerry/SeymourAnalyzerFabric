@@ -89,6 +89,17 @@ public class ConfigScreen {
                 .setSaveConsumer(config::setDbCompareEnabled)
                 .build());
 
+        analysisCategory.addEntry(entryBuilder.startBooleanToggle(
+                Component.literal("DB Compare only Different Pieces"),
+                config.isDbCompareOnlyDiffPieces())
+                .setDefaultValue(false)
+                .setTooltip(Component.literal("When enabled, the DB Compare (Shift) feature will only show pieces that are different from the one you're hovering over."))
+                .setSaveConsumer(value -> {
+                    config.setDbCompareOnlyDiffPieces(value);
+                    schnerry.seymouranalyzer.render.HexTooltipRenderer.getInstance().clearDbCache();
+                })
+                .build());
+
         // Match Priority Editor - Create a subcategory
         ConfigCategory priorityCategory = builder.getOrCreateCategory(Component.literal("Match Priorities"));
 
@@ -139,6 +150,14 @@ public class ConfigScreen {
                 .build());
 
         filterCategory.addEntry(entryBuilder.startBooleanToggle(
+                Component.literal("Show High Customs"),
+                config.isShowHighCustoms())
+                .setDefaultValue(true)
+                .setTooltip(Component.literal("Show custom color matches with ΔE > 2.00 (T3+)"))
+                .setSaveConsumer(config::setShowHighCustoms)
+                .build());
+
+        filterCategory.addEntry(entryBuilder.startBooleanToggle(
                 Component.literal("3-Piece Sets"),
                 config.isThreePieceSetsEnabled())
                 .setDefaultValue(true)
@@ -163,6 +182,14 @@ public class ConfigScreen {
                 .setDefaultValue(false)
                 .setTooltip(Component.literal("Enable scanning of items in item frames"))
                 .setSaveConsumer(config::setItemFramesEnabled)
+                .build());
+
+        scanningCategory.addEntry(entryBuilder.startBooleanToggle(
+                Component.literal("Only scan on your Island"),
+                config.isScanOnlyOwnIsland())
+                .setDefaultValue(false)
+                .setTooltip(Component.literal("Only scan Item Frames on your own Island"))
+                .setSaveConsumer(config::setScanOnlyOwnIsland)
                 .build());
 
         // Gambling Category

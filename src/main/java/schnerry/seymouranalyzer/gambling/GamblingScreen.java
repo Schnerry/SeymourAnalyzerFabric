@@ -168,10 +168,10 @@ public class GamblingScreen extends Screen {
     }
 
     private void drawDownArrow(GuiGraphicsExtractor g, int cx, int tipY) {
-        // right-pointing arrow, centered at cx, sitting above the strip
-        int midY = tipY - 9; // vertically centered above tipY
+        // left-pointing arrow, centered at cx, sitting above the strip
+        int midY = tipY - 9;
         for (int i = 0; i < 8; i++) {
-            int half = 7 - i;
+            int half = i; // narrow on left (tip), wide on right
             g.fill(cx - 3 + i, midY - half, cx - 3 + i + 1, midY + half + 1, 0xFFFFCC00);
         }
     }

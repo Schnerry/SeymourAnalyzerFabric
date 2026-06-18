@@ -25,6 +25,7 @@ public class PriorityEditorScreen extends ModScreen {
     private static final int ITEM_SPACING = 2;
     private static final int LIST_WIDTH = 400;
     private static final int LIST_START_Y = 60;
+    private static final int SWATCH_SIZE = 16;
 
     public PriorityEditorScreen(Screen parent) {
         super(Component.literal("Match Priority Editor"), parent);
@@ -46,11 +47,15 @@ public class PriorityEditorScreen extends ModScreen {
         this.addRenderableWidget(Button.builder(Component.literal("Cancel"), button -> this.onClose())
             .bounds(this.width / 2 + 5, this.height - 28, 150, 20).build());
 
-        // Reset to defaults button
-        this.addRenderableWidget(Button.builder(Component.literal("Reset to Defaults"), button -> {
+        // Reset to defaults button – resets both priority order AND all highlight colors
+        this.addRenderableWidget(Button.builder(Component.literal("Reset All to Defaults"), button -> {
             priorities.clear();
             priorities.addAll(ClothConfig.getDefaultMatchPriorities());
-        }).bounds(this.width / 2 - 75, this.height - 52, 150, 20).build());
+            for (MatchPriority p : MatchPriority.values()) {
+                ClothConfig.getInstance().resetHighlightColor(p);
+            }
+            ClothConfig.getInstance().save();
+        }).bounds(this.width / 2 - 90, this.height - 52, 180, 20).build());
     }
 
     @Override
@@ -107,13 +112,9 @@ public class PriorityEditorScreen extends ModScreen {
 
         // Border - draw manually since drawBorder was removed in 1.21.10
         int borderColor = isDragged ? 0xFFFFFFFF : (isHovered ? 0xFF888888 : 0xFF444444);
-        // Top edge
         guiGraphics.fill(x, y, x + LIST_WIDTH, y + 1, borderColor);
-        // Bottom edge
         guiGraphics.fill(x, y + ITEM_HEIGHT - 1, x + LIST_WIDTH, y + ITEM_HEIGHT, borderColor);
-        // Left edge
         guiGraphics.fill(x, y, x + 1, y + ITEM_HEIGHT, borderColor);
-        // Right edge
         guiGraphics.fill(x + LIST_WIDTH - 1, y, x + LIST_WIDTH, y + ITEM_HEIGHT, borderColor);
 
         // Priority number
@@ -126,6 +127,26 @@ public class PriorityEditorScreen extends ModScreen {
         // Description
         guiGraphics.text(this.font, priority.getDescription(), x + 40, y + 17, 0xFF888888);
 
+        // ── Color swatch ─────────────────────────────────────────────────────
+        int swatchX = getSwatchX(x);
+        int swatchY = y + (ITEM_HEIGHT - SWATCH_SIZE) / 2;
+        int color = ClothConfig.getInstance().getHighlightColor(priority);
+        // Checkerboard background (to show alpha)
+        for (int cx = 0; cx < SWATCH_SIZE; cx += 4) {
+            for (int cy = 0; cy < SWATCH_SIZE; cy += 4) {
+                boolean checker = ((cx / 4) + (cy / 4)) % 2 == 0;
+                guiGraphics.fill(swatchX + cx, swatchY + cy,
+                        swatchX + cx + 4, swatchY + cy + 4,
+                        checker ? 0xFFAAAAAA : 0xFF666666);
+            }
+        }
+        guiGraphics.fill(swatchX, swatchY, swatchX + SWATCH_SIZE, swatchY + SWATCH_SIZE, color);
+        // Swatch border
+        guiGraphics.fill(swatchX - 1,             swatchY - 1,             swatchX + SWATCH_SIZE + 1, swatchY,                  0xFFCCCCCC);
+        guiGraphics.fill(swatchX - 1,             swatchY + SWATCH_SIZE,   swatchX + SWATCH_SIZE + 1, swatchY + SWATCH_SIZE + 1, 0xFFCCCCCC);
+        guiGraphics.fill(swatchX - 1,             swatchY - 1,             swatchX,                   swatchY + SWATCH_SIZE + 1, 0xFFCCCCCC);
+        guiGraphics.fill(swatchX + SWATCH_SIZE,   swatchY - 1,             swatchX + SWATCH_SIZE + 1, swatchY + SWATCH_SIZE + 1, 0xFFCCCCCC);
+
         // Drag handle (three lines)
         //noinspection ConstantValue - isDragged is evaluated at render time and can be true
         if (isHovered || isDragged) {
@@ -137,6 +158,11 @@ public class PriorityEditorScreen extends ModScreen {
         }
     }
 
+    /** Returns the left X of the color swatch for row at list origin x. */
+    private int getSwatchX(int rowX) {
+        return rowX + LIST_WIDTH - 20 - SWATCH_SIZE - 8;
+    }
+
     @Override
     public boolean mouseClicked(MouseButtonEvent click, boolean isOutOfBounds) {
         if (click.button() == 0) { // Left click
@@ -146,6 +172,20 @@ public class PriorityEditorScreen extends ModScreen {
                 int itemY = LIST_START_Y + i * (ITEM_HEIGHT + ITEM_SPACING);
                 if (click.x() >= listX && click.x() <= listX + LIST_WIDTH &&
                     click.y() >= itemY && click.y() <= itemY + ITEM_HEIGHT) {
+
+                    // Check if click is on the color swatch
+                    int swatchX = getSwatchX(listX);
+                    int swatchY = itemY + (ITEM_HEIGHT - SWATCH_SIZE) / 2;
+                    if (click.x() >= swatchX && click.x() <= swatchX + SWATCH_SIZE &&
+                        click.y() >= swatchY && click.y() <= swatchY + SWATCH_SIZE) {
+                        // Open color picker for this priority
+                        if (this.minecraft != null) {
+                            this.minecraft.setScreen(new ColorPickerScreen(this, priorities.get(i)));
+                        }
+                        return true;
+                    }
+
+                    // Otherwise start drag
                     draggedIndex = i;
                     dragStartY = click.y();
                     currentDragY = click.y();

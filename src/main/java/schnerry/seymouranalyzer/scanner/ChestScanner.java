@@ -6,7 +6,10 @@ import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.world.entity.decoration.ItemFrame;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.inventory.Slot;
+import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.HoverEvent;
+import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.core.BlockPos;
@@ -19,6 +22,7 @@ import schnerry.seymouranalyzer.config.ClothConfig;
 import schnerry.seymouranalyzer.data.ArmorPiece;
 import schnerry.seymouranalyzer.data.CollectionManager;
 import schnerry.seymouranalyzer.util.ItemStackUtils;
+import schnerry.seymouranalyzer.util.ScoreboardUtils;
 import schnerry.seymouranalyzer.util.StringUtility;
 
 import java.util.*;
@@ -34,9 +38,24 @@ public class ChestScanner {
     private boolean exportingEnabled = false;
     private final Map<String, ArmorPiece> exportCollection = new HashMap<>();
     private long lastChestOpenTime = 0;
+    private long lastLocationUpdateTime = 0;
     private long lastItemFrameScanTime = 0;
     private static final long SCAN_DELAY_MS = 250;
+    private static final long LOCATION_UPDATE_INTERVAL_MS = 250;
     private static final long ITEM_FRAME_SCAN_INTERVAL_MS = 5000;
+
+    // ── Batch accumulation ───────────────────────────────────────────────────
+    // Accumulate all pieces scanned from a single chest before sending ONE message.
+    // Flushed when the screen changes (new chest opened) or closes.
+    private AbstractContainerScreen<?> pendingBatchScreen = null;
+    private final List<String> pendingBatchUuids = new ArrayList<>();
+
+    // ── Badge registry ───────────────────────────────────────────────────────
+    // Keeps the last MAX_BADGES scan events so they can be undone.
+    private static final int MAX_BADGES = 20;
+    private final Deque<ScanBadge> badgeHistory = new ArrayDeque<>();
+
+    // ────────────────────────────────────────────────────────────────────────
 
     public void startScan() {
         if (exportingEnabled) {
@@ -73,19 +92,120 @@ public class ChestScanner {
         return new HashMap<>(exportCollection);
     }
 
+    // ── Badge registry access ────────────────────────────────────────────────
+
+    /** Register a newly created badge and evict the oldest if over limit. */
+    public void registerBadge(ScanBadge badge) {
+        badgeHistory.addFirst(badge);
+        if (badgeHistory.size() > MAX_BADGES) {
+            badgeHistory.removeLast();
+        }
+    }
+
+    /** Look up a badge by its ID. Returns null if not found / already consumed. */
+    public ScanBadge getBadge(String badgeId) {
+        for (ScanBadge b : badgeHistory) {
+            if (b.getBadgeId().equals(badgeId)) return b;
+        }
+        return null;
+    }
+
+    /** Remove a badge (called after an undo). */
+    public void removeBadge(String badgeId) {
+        badgeHistory.removeIf(b -> b.getBadgeId().equals(badgeId));
+    }
+
+    // ── Flush helpers ────────────────────────────────────────────────────────
+
+    /**
+     * Flush the pending chest batch: create a ScanBadge, send the consolidated
+     * chat message (with clickable [Undo]), and reset the pending state.
+     */
+    private void flushChestBatch(Minecraft client) {
+        if (pendingBatchUuids.isEmpty()) {
+            pendingBatchUuids.clear();
+            return;
+        }
+
+        List<String> batchCopy = new ArrayList<>(pendingBatchUuids);
+        pendingBatchUuids.clear();
+
+        if (!exportingEnabled) {
+            // Create and register the badge
+            String badgeId = UUID.randomUUID().toString();
+            ScanBadge badge = new ScanBadge(badgeId, batchCopy, "chest");
+            registerBadge(badge);
+
+            int count = batchCopy.size();
+            int total = CollectionManager.getInstance().size();
+
+            if (client.player != null) {
+                MutableComponent msg = Component.literal(
+                    "§a[Seymour Analyzer] §7Scanned §e" + count +
+                    "§7 new piece" + (count == 1 ? "" : "s") +
+                    "! Total: §e" + total + " ");
+
+                MutableComponent undoBtn = Component.literal("§4[Undo]");
+                undoBtn.withStyle(style -> style
+                    .withClickEvent(new ClickEvent.RunCommand("/seymour undo " + badgeId))
+                    .withHoverEvent(new HoverEvent.ShowText(
+                        Component.literal("§7Click to undo this scan and remove §e" +
+                            count + " §7piece" + (count == 1 ? "" : "s") + " from the database"))));
+                msg.append(undoBtn);
+
+                client.player.sendSystemMessage(msg);
+            }
+        } else {
+            // Export mode – no badge needed, just send the count message
+            if (client.player != null) {
+                int count = batchCopy.size();
+                client.player.sendSystemMessage(
+                    Component.literal("§a[Seymour Analyzer] §7Added §e" + count +
+                        "§7 piece" + (count == 1 ? "" : "s") +
+                        " to export collection! Total: §e" + exportCollection.size())
+                );
+            }
+        }
+    }
+
+    // ────────────────────────────────────────────────────────────────────────
+
     /**
      * Tick handler - checks for GUI opens and item frame scanning
      */
     public void tick(Minecraft client) {
-        if (!scanningEnabled && !exportingEnabled) return;
-
         long now = System.currentTimeMillis();
 
-        // Check for storage container GUI opened (chests, hoppers, furnaces, etc.)
+        // ── Location update: ALWAYS active, no scan-mode guard ───────────────
+        // Keeps chest coordinates up to date whenever the player opens any container.
         if (client.screen instanceof AbstractContainerScreen<?> screen) {
+            String title = screen.getTitle().getString();
+            boolean isTradeOrAuction = title.contains("Auctions") || title.startsWith("Trading with ");
+            if (!isTradeOrAuction && now - lastLocationUpdateTime >= LOCATION_UPDATE_INTERVAL_MS) {
+                lastLocationUpdateTime = now;
+                updateKnownPieceLocations(screen, client);
+            }
+        }
+
+        if (!scanningEnabled && !exportingEnabled) return;
+
+        // ── Scan / export ─────────────────────────────────────────────────────
+        if (client.screen instanceof AbstractContainerScreen<?> screen) {
+            // New chest opened (different screen object) – flush the previous batch first
+            if (pendingBatchScreen != null && pendingBatchScreen != screen) {
+                flushChestBatch(client);
+            }
+            pendingBatchScreen = screen;
+
             if (now - lastChestOpenTime >= SCAN_DELAY_MS) {
                 lastChestOpenTime = now;
                 scanChestContents(screen, client);
+            }
+        } else {
+            // Screen closed or changed to non-container – flush any pending batch
+            if (pendingBatchScreen != null) {
+                flushChestBatch(client);
+                pendingBatchScreen = null;
             }
         }
 
@@ -97,7 +217,42 @@ public class ChestScanner {
     }
 
     /**
+     * Silently update the stored chest location of every known DB piece visible in
+     * the container portion of the current screen (player-inventory slots excluded).
+     * Runs regardless of scanningEnabled – just opening a chest is enough.
+     */
+    private void updateKnownPieceLocations(AbstractContainerScreen<?> screen, Minecraft client) {
+        try {
+            if (screen.getMenu() == null) return;
+
+            ArmorPiece.ChestLocation chestLoc = getChestLocationFromLooking(client);
+            if (chestLoc == null) return;
+
+            List<Slot> slots = screen.getMenu().slots;
+            // Only look at container slots, not the player-inventory tail (last 36 slots)
+            int containerSlots = Math.max(0, slots.size() - 36);
+
+            for (int i = 0; i < containerSlots; i++) {
+                ItemStack stack = slots.get(i).getItem();
+                if (stack.isEmpty()) continue;
+
+                String itemName = stack.getHoverName().getString();
+                if (!isSeymourArmor(itemName)) continue;
+
+                String uuid = ItemStackUtils.getOrCreateItemUUID(stack);
+                if (uuid == null) continue;
+
+                // updatePieceLocation is a no-op if UUID not in DB or location unchanged
+                CollectionManager.getInstance().updatePieceLocation(uuid, chestLoc);
+            }
+        } catch (Exception e) {
+            // Best-effort – never crash the tick
+        }
+    }
+
+    /**
      * Scan chest contents - exact port from index.js scanChestContents()
+     * NOTE: no longer sends chat messages directly; accumulates into pendingBatchUuids.
      */
     private void scanChestContents(AbstractContainerScreen<?> screen, Minecraft client) {
         if (!scanningEnabled && !exportingEnabled) return;
@@ -108,7 +263,6 @@ public class ChestScanner {
 
             ArmorPiece.ChestLocation chestLoc = getChestLocationFromLooking(client);
             List<Slot> slots = screen.getMenu().slots;
-            int scannedCount = 0;
 
             for (Slot slot : slots) {
                 ItemStack stack = slot.getItem();
@@ -123,6 +277,8 @@ public class ChestScanner {
                 // Check if already in collection/export
                 if (CollectionManager.getInstance().hasPiece(uuid) && !exportingEnabled) continue;
                 if (exportingEnabled && exportCollection.containsKey(uuid)) continue;
+                // Don't add duplicates within the same batch
+                if (pendingBatchUuids.contains(uuid)) continue;
 
                 String itemHex = ItemStackUtils.extractHex(stack);
                 if (itemHex == null) continue;
@@ -182,27 +338,8 @@ public class ChestScanner {
                     exportCollection.put(uuid, piece);
                 }
 
-                scannedCount++;
-            }
-
-            if (scannedCount > 0 && !exportingEnabled) {
-                int total = CollectionManager.getInstance().size();
-                if (client.player != null) {
-                    client.player.sendSystemMessage(
-                        Component.literal("§a[Seymour Analyzer] §7Scanned §e" + scannedCount +
-                            "§7 new piece" + (scannedCount == 1 ? "" : "s") +
-                            "! Total: §e" + total)
-                    );
-                }
-            } else if (scannedCount > 0) {
-                // exportingEnabled is true here
-                if (client.player != null) {
-                    client.player.sendSystemMessage(
-                        Component.literal("§a[Seymour Analyzer] §7Added §e" + scannedCount +
-                            "§7 piece" + (scannedCount == 1 ? "" : "s") +
-                            " to export collection! Total: §e" + exportCollection.size())
-                    );
-                }
+                // Track in current batch
+                pendingBatchUuids.add(uuid);
             }
 
         } catch (Exception e) {
@@ -215,6 +352,11 @@ public class ChestScanner {
      */
     private void readItemFrames(Minecraft client) {
         if (!ClothConfig.getInstance().isItemFramesEnabled() || (!scanningEnabled && !exportingEnabled)) {
+            return;
+        }
+
+        // If "scan only own island" is active, skip when the scoreboard shows we're elsewhere
+        if (ClothConfig.getInstance().isScanOnlyOwnIsland() && !ScoreboardUtils.isOnOwnIsland(client)) {
             return;
         }
 
@@ -242,7 +384,7 @@ public class ChestScanner {
 
             if (itemFrames.isEmpty()) return;
 
-            int pieceCount = 0;
+            List<String> frameBatchUuids = new ArrayList<>();
 
             for (ItemFrame frame : itemFrames) {
                 ItemStack stack = frame.getItem();
@@ -325,21 +467,37 @@ public class ChestScanner {
                     exportCollection.put(uuid, piece);
                 }
 
-                pieceCount++;
+                frameBatchUuids.add(uuid);
             }
 
-
-            if (pieceCount > 0 && !exportingEnabled) {
+            if (!frameBatchUuids.isEmpty() && !exportingEnabled) {
+                int pieceCount = frameBatchUuids.size();
                 int total = CollectionManager.getInstance().size();
+
+                // Create and register badge
+                String badgeId = UUID.randomUUID().toString();
+                ScanBadge badge = new ScanBadge(badgeId, frameBatchUuids, "item_frames");
+                registerBadge(badge);
+
                 if (client.player != null) {
-                    client.player.sendSystemMessage(
-                        Component.literal("§a[Seymour Analyzer] §7Scanned §e" + pieceCount +
-                            "§7 new piece" + (pieceCount == 1 ? "" : "s") +
-                            " from item frames! Total: §e" + total)
-                    );
+                    MutableComponent msg = Component.literal(
+                        "§a[Seymour Analyzer] §7Scanned §e" + pieceCount +
+                        "§7 new piece" + (pieceCount == 1 ? "" : "s") +
+                        " from item frames! Total: §e" + total + " ");
+
+                    MutableComponent undoBtn = Component.literal("§4[Undo]");
+                    undoBtn.withStyle(style -> style
+                        .withClickEvent(new ClickEvent.RunCommand("/seymour undo " + badgeId))
+                        .withHoverEvent(new HoverEvent.ShowText(
+                            Component.literal("§7Click to undo this scan and remove §e" +
+                                pieceCount + " §7piece" + (pieceCount == 1 ? "" : "s") + " from the database"))));
+                    msg.append(undoBtn);
+
+                    client.player.sendSystemMessage(msg);
                 }
-            } else if (pieceCount > 0) {
+            } else if (!frameBatchUuids.isEmpty()) {
                 // exportingEnabled is true here
+                int pieceCount = frameBatchUuids.size();
                 if (client.player != null) {
                     client.player.sendSystemMessage(
                         Component.literal("§a[Seymour Analyzer] §7Added §e" + pieceCount +

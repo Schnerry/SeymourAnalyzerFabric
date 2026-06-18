@@ -43,6 +43,7 @@
       {"hex": "A06540", "name": "Bronze Hunter Armor", "pieces": ["helmet", "chestplate", "leggings", "boots"]},
       {"hex": "1D1105", "name": "Werewolf Armor 3p", "pieces": ["chestplate", "leggings", "boots"]},
       {"hex": "117391", "name": "Guardian Chestplate", "pieces": ["chestplate"]},
+      {"hex": "FF0000", "name": "Red Sweater", "pieces": ["chestplate"]},
       {"hex": "04CFD3", "name": "Stereo Pants", "pieces": ["leggings"]},
       {"hex": "000000", "name": "Squid Boots", "pieces": ["boots"]},
       {"hex": "10616E", "name": "Sea Walker 3p", "pieces": ["chestplate", "leggings", "boots"]},

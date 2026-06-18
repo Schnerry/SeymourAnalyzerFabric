@@ -1,6 +1,7 @@
 package schnerry.seymouranalyzer.util;
 
 import net.minecraft.core.component.DataComponents;
+import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.world.item.component.DyedItemColor;
 import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.item.ItemStack;

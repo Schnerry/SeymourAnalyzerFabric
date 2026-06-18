@@ -56,6 +56,14 @@ public class ColorAnalyzer {
         // Check custom colors first if enabled
         if (config.isCustomColorsEnabled()) {
             customMatches = findMatchesInMap(hexcode, pieceType, config.getCustomColors(), true, false);
+
+            // Apply high custom filtering - only show T0/T1 customs (deltaE <= 2.0) when disabled
+            if (!config.isShowHighCustoms()) {
+                customMatches = customMatches.stream()
+                        .filter(m -> m.deltaE <= 2.0) // Only keep T0/T1 customs (deltaE <= 2.0)
+                        .collect(Collectors.toList());
+            }
+
             customMatches.sort(Comparator.comparingDouble(m -> m.deltaE));
         }
 

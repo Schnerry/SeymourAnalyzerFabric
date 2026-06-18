@@ -34,27 +34,6 @@ public class ItemSlotHighlighter {
     // Debug mode - set to true to log position info and show visual debug
     private static final boolean DEBUG_POSITIONS = false;
 
-    // Priority order: Dupe > Search > Word > Pattern > Tier
-    // Color definitions from old module
-    private static final int COLOR_DUPE = 0xC8000000;           // Black (200 alpha)
-    private static final int COLOR_SEARCH = 0x9600FF00;         // Green (150 alpha)
-    private static final int COLOR_WORD = 0x968B4513;           // Brown (150 alpha)
-    private static final int COLOR_PATTERN = 0x969333EA;        // Purple (150 alpha)
-
-    // Custom colors
-    private static final int COLOR_CUSTOM_T0 = 0x96006400;      // Dark green (150 alpha)
-    private static final int COLOR_CUSTOM_T1 = 0x96556B2F;      // Dark olive (150 alpha)
-    private static final int COLOR_CUSTOM_T2 = 0x78808000;      // Olive (120 alpha)
-
-    // Fade dye colors
-    private static final int COLOR_FADE_T0 = 0x780000FF;        // Blue (120 alpha)
-    private static final int COLOR_FADE_T1 = 0x7887CEFA;        // Sky blue (120 alpha)
-    private static final int COLOR_FADE_T2 = 0x78FFFF00;        // Yellow (120 alpha)
-
-    // Normal colors
-    private static final int COLOR_NORMAL_T0 = 0x78FF0000;      // Red (120 alpha)
-    private static final int COLOR_NORMAL_T1 = 0x78FF69B4;      // Hot pink (120 alpha)
-    private static final int COLOR_NORMAL_T2 = 0x78FFA500;      // Orange (120 alpha)
 
     /**
          * Cached data for an item to avoid re-analysis every frame
@@ -414,19 +393,19 @@ public class ItemSlotHighlighter {
 
         // Check dupe
         if (config.isDupesEnabled() && uuid != null && isDuplicateHex(hex, uuid)) {
-            possibleMatches.put(MatchPriority.DUPE, COLOR_DUPE);
+            possibleMatches.put(MatchPriority.DUPE, config.getHighlightColor(MatchPriority.DUPE));
         }
 
         // Check search match
         if (!searchHexes.isEmpty() && searchHexes.contains(hexUpper)) {
-            possibleMatches.put(MatchPriority.SEARCH, COLOR_SEARCH);
+            possibleMatches.put(MatchPriority.SEARCH, config.getHighlightColor(MatchPriority.SEARCH));
         }
 
         // Check word match
         if (config.isWordsEnabled()) {
             String wordMatch = PatternDetector.getInstance().detectWordMatch(hex);
             if (wordMatch != null) {
-                possibleMatches.put(MatchPriority.WORD, COLOR_WORD);
+                possibleMatches.put(MatchPriority.WORD, config.getHighlightColor(MatchPriority.WORD));
             }
         }
 
@@ -434,7 +413,7 @@ public class ItemSlotHighlighter {
         if (config.isPatternsEnabled()) {
             String pattern = PatternDetector.getInstance().detectPattern(hex);
             if (pattern != null) {
-                possibleMatches.put(MatchPriority.PATTERN, COLOR_PATTERN);
+                possibleMatches.put(MatchPriority.PATTERN, config.getHighlightColor(MatchPriority.PATTERN));
             }
         }
 
@@ -450,20 +429,20 @@ public class ItemSlotHighlighter {
 
                 if (match.isCustom()) {
                     switch (tier) {
-                        case 0, 1 -> possibleMatches.putIfAbsent(schnerry.seymouranalyzer.config.MatchPriority.CUSTOM_T1, COLOR_CUSTOM_T1);
-                        case 2 -> possibleMatches.putIfAbsent(schnerry.seymouranalyzer.config.MatchPriority.CUSTOM_T2, COLOR_CUSTOM_T2);
+                        case 0, 1 -> possibleMatches.putIfAbsent(MatchPriority.CUSTOM_T1, config.getHighlightColor(MatchPriority.CUSTOM_T1));
+                        case 2    -> possibleMatches.putIfAbsent(MatchPriority.CUSTOM_T2, config.getHighlightColor(MatchPriority.CUSTOM_T2));
                     }
                 } else if (match.isFade()) {
                     switch (tier) {
-                        case 0 -> possibleMatches.putIfAbsent(schnerry.seymouranalyzer.config.MatchPriority.FADE_T0, COLOR_FADE_T0);
-                        case 1 -> possibleMatches.putIfAbsent(schnerry.seymouranalyzer.config.MatchPriority.FADE_T1, COLOR_FADE_T1);
-                        case 2 -> possibleMatches.putIfAbsent(schnerry.seymouranalyzer.config.MatchPriority.FADE_T2, COLOR_FADE_T2);
+                        case 0 -> possibleMatches.putIfAbsent(MatchPriority.FADE_T0, config.getHighlightColor(MatchPriority.FADE_T0));
+                        case 1 -> possibleMatches.putIfAbsent(MatchPriority.FADE_T1, config.getHighlightColor(MatchPriority.FADE_T1));
+                        case 2 -> possibleMatches.putIfAbsent(MatchPriority.FADE_T2, config.getHighlightColor(MatchPriority.FADE_T2));
                     }
                 } else {
                     switch (tier) {
-                        case 0 -> possibleMatches.putIfAbsent(schnerry.seymouranalyzer.config.MatchPriority.NORMAL_T0, COLOR_NORMAL_T0);
-                        case 1 -> possibleMatches.putIfAbsent(schnerry.seymouranalyzer.config.MatchPriority.NORMAL_T1, COLOR_NORMAL_T1);
-                        case 2 -> possibleMatches.putIfAbsent(schnerry.seymouranalyzer.config.MatchPriority.NORMAL_T2, COLOR_NORMAL_T2);
+                        case 0 -> possibleMatches.putIfAbsent(MatchPriority.NORMAL_T0, config.getHighlightColor(MatchPriority.NORMAL_T0));
+                        case 1 -> possibleMatches.putIfAbsent(MatchPriority.NORMAL_T1, config.getHighlightColor(MatchPriority.NORMAL_T1));
+                        case 2 -> possibleMatches.putIfAbsent(MatchPriority.NORMAL_T2, config.getHighlightColor(MatchPriority.NORMAL_T2));
                     }
                 }
             }

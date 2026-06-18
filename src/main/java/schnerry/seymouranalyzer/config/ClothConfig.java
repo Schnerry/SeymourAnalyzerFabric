@@ -57,6 +57,9 @@ public class ClothConfig {
     private boolean showHighFades = true;
     @Getter
     @Setter
+    private boolean showHighCustoms = false;
+    @Getter
+    @Setter
     private boolean threePieceSetsEnabled = true;
     @Getter
     @Setter
@@ -72,6 +75,9 @@ public class ClothConfig {
     @Getter
     @Setter
     private boolean dbCompareEnabled = true;
+    @Getter
+    @Setter
+    private boolean dbCompareOnlyDiffPieces = false;
 
     // Toggle settings - Gambling
     @Getter
@@ -88,6 +94,10 @@ public class ClothConfig {
     @Setter
     private boolean itemFramesEnabled = false;
 
+    @Getter
+    @Setter
+    private boolean scanOnlyOwnIsland = false;
+
     // InfoBox position
     @Getter
     @Setter
@@ -95,10 +105,16 @@ public class ClothConfig {
     @Getter
     @Setter
     private int infoBoxY = 80;
+    @Getter
+    @Setter
+    private float infoBoxScale = 1.0f;
 
     // Match priorities - Higher in list = higher priority for highlights
     @Getter
     private List<MatchPriority> matchPriorities = getDefaultMatchPriorities();
+
+    // Per-priority highlight colors (ARGB). Falls back to MatchPriority.defaultColor if not set.
+    private Map<String, Integer> highlightColors = new HashMap<>();
 
     // Custom data
     @Getter
@@ -140,14 +156,18 @@ public class ClothConfig {
                 if (json.has("customColorsEnabled")) customColorsEnabled = json.get("customColorsEnabled").getAsBoolean();
                 if (json.has("dupesEnabled")) dupesEnabled = json.get("dupesEnabled").getAsBoolean();
                 if (json.has("showHighFades")) showHighFades = json.get("showHighFades").getAsBoolean();
+                if (json.has("showHighCustoms")) showHighCustoms = json.get("showHighCustoms").getAsBoolean();
                 if (json.has("itemFramesEnabled")) itemFramesEnabled = json.get("itemFramesEnabled").getAsBoolean();
+                if (json.has("scanOnlyOwnIsland")) scanOnlyOwnIsland = json.get("scanOnlyOwnIsland").getAsBoolean();
                 if (json.has("coloredHexText")) coloredHexText = json.get("coloredHexText").getAsBoolean();
                 if (json.has("dbCompareEnabled")) dbCompareEnabled = json.get("dbCompareEnabled").getAsBoolean();
+                if (json.has("dbCompareOnlyDiffPieces")) dbCompareOnlyDiffPieces = json.get("dbCompareOnlyDiffPieces").getAsBoolean();
                 if (json.has("autoRollOnVisitor")) autoRollOnVisitor = json.get("autoRollOnVisitor").getAsBoolean();
                 if (json.has("autoPinGui")) autoPinGui = json.get("autoPinGui").getAsBoolean();
 
                 if (json.has("infoBoxX")) infoBoxX = json.get("infoBoxX").getAsInt();
                 if (json.has("infoBoxY")) infoBoxY = json.get("infoBoxY").getAsInt();
+                if (json.has("infoBoxScale")) infoBoxScale = json.get("infoBoxScale").getAsFloat();
 
                 if (json.has("matchPriorities")) {
                     matchPriorities = new java.util.ArrayList<>();
@@ -163,6 +183,15 @@ public class ClothConfig {
                             matchPriorities.add(priority);
                         }
                     }
+                }
+
+                if (json.has("highlightColors")) {
+                    json.getAsJsonObject("highlightColors").entrySet().forEach(entry -> {
+                        try {
+                            long val = Long.parseLong(entry.getValue().getAsString(), 16);
+                            highlightColors.put(entry.getKey(), (int) val);
+                        } catch (NumberFormatException ignored) {}
+                    });
                 }
 
                 SeymourAnalyzer.LOGGER.info("Loaded config from file");
@@ -212,19 +241,27 @@ public class ClothConfig {
             json.addProperty("customColorsEnabled", customColorsEnabled);
             json.addProperty("dupesEnabled", dupesEnabled);
             json.addProperty("showHighFades", showHighFades);
+            json.addProperty("showHighCustoms", showHighCustoms);
             json.addProperty("itemFramesEnabled", itemFramesEnabled);
+            json.addProperty("scanOnlyOwnIsland", scanOnlyOwnIsland);
             json.addProperty("seymourOnlyHex", seymourOnlyHex);
             json.addProperty("coloredHexText", coloredHexText);
             json.addProperty("dbCompareEnabled", dbCompareEnabled);
+            json.addProperty("dbCompareOnlyDiffPieces", dbCompareOnlyDiffPieces);
             json.addProperty("autoRollOnVisitor", autoRollOnVisitor);
             json.addProperty("autoPinGui", autoPinGui);
 
             json.addProperty("infoBoxX", infoBoxX);
             json.addProperty("infoBoxY", infoBoxY);
+            json.addProperty("infoBoxScale", infoBoxScale);
 
             com.google.gson.JsonArray prioritiesArray = new com.google.gson.JsonArray();
             matchPriorities.forEach(priority -> prioritiesArray.add(priority.name()));
             json.add("matchPriorities", prioritiesArray);
+
+            com.google.gson.JsonObject hColors = new com.google.gson.JsonObject();
+            highlightColors.forEach((k, v) -> hColors.addProperty(k, String.format("%08X", v)));
+            json.add("highlightColors", hColors);
 
             try (FileWriter writer = new FileWriter(configFile)) {
                 GSON.toJson(json, writer);
@@ -259,6 +296,31 @@ public class ClothConfig {
     public void setMatchPriorities(List<MatchPriority> matchPriorities) {
         this.matchPriorities = matchPriorities;
         // Clear highlight cache so items re-calculate with new priorities
+        ItemSlotHighlighter.getInstance().clearCache();
+    }
+
+    /**
+     * Get the configured highlight color for a priority (ARGB).
+     * Falls back to the priority's built-in default color.
+     */
+    public int getHighlightColor(MatchPriority priority) {
+        return highlightColors.getOrDefault(priority.name(), priority.getDefaultColor());
+    }
+
+    /**
+     * Set a custom highlight color for a priority (ARGB).
+     * Clears item cache so highlights update immediately.
+     */
+    public void setHighlightColor(MatchPriority priority, int argb) {
+        highlightColors.put(priority.name(), argb);
+        ItemSlotHighlighter.getInstance().clearCache();
+    }
+
+    /**
+     * Reset a priority's highlight color back to its built-in default.
+     */
+    public void resetHighlightColor(MatchPriority priority) {
+        highlightColors.remove(priority.name());
         ItemSlotHighlighter.getInstance().clearCache();
     }
 

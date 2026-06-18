@@ -91,6 +91,7 @@ public class HexTooltipRenderer {
         if (displayHex == null) return;
 
         String itemName = stack.getHoverName().getString();
+        String itemType = StringUtility.removeFormatting(itemName);
         boolean isSeymourArmor = StringUtility.isSeymourArmor(itemName);
 
         // If "Seymour Only Hex" is enabled, skip non-Seymour leather pieces
@@ -180,7 +181,8 @@ public class HexTooltipRenderer {
                                || InputConstants.isKeyDown(window2, GLFW.GLFW_KEY_RIGHT_SHIFT);
             if (shiftHeld2 && ClothConfig.getInstance().isDbCompareEnabled()) {
                 String selfUuid = ItemStackUtils.getOrCreateItemUUID(stack);
-                List<DbMatch> dbMatches = getDbCompareMatches(hexForAnalysis, selfUuid);
+                Boolean diffOnly = ClothConfig.getInstance().isDbCompareOnlyDiffPieces();
+                List<DbMatch> dbMatches = getDbCompareMatches(hexForAnalysis, itemName, selfUuid, diffOnly);
                 if (!dbMatches.isEmpty()) {
                     MutableComponent dbHeader = Component.literal("─── DB Compare ───");
                     dbHeader.setStyle(Style.EMPTY.withColor(TextColor.fromRgb(0x888888)).withItalic(false));
@@ -235,7 +237,7 @@ public class HexTooltipRenderer {
      * Get or compute the 3 closest pieces from the user's collection by ΔE.
      * Results are cached by "hex:selfUuid". The piece with selfUuid is excluded.
      */
-    private List<DbMatch> getDbCompareMatches(String hex, String selfUuid) {
+    private List<DbMatch> getDbCompareMatches(String hex, String pieceType, String selfUuid, Boolean diffOnly) {
         String cacheKey = hex + ":" + (selfUuid != null ? selfUuid : "");
         return dbCompareCache.computeIfAbsent(cacheKey, k -> {
             Map<String, ArmorPiece> collection = CollectionManager.getInstance().getCollection();
@@ -246,6 +248,8 @@ public class HexTooltipRenderer {
                 if (piece.getHexcode() == null || piece.getHexcode().isEmpty()) continue;
                 // Exclude self by UUID
                 if (selfUuid != null && selfUuid.equals(piece.getUuid())) continue;
+                // Exclude same piece type when diffOnly is true
+                if (diffOnly != null && diffOnly && pieceType.equals(piece.getPieceName())) continue;
                 double delta = ColorMath.calculateDeltaE(hex, piece.getHexcode());
                 int absDistance = ColorMath.calculateAbsoluteDistance(hex, piece.getHexcode());
                 results.add(new DbMatch(piece.getPieceName(), piece.getHexcode(), delta, absDistance));
@@ -320,7 +324,8 @@ public class HexTooltipRenderer {
                 text.contains("Speed:") || text.contains("Strength:") ||
                 text.contains("Crit Chance:") || text.contains("Crit Damage:") ||
                 text.contains("Ability Damage:") || text.contains("Ferocity:") ||
-                text.contains("Magic Find:") || text.contains("Pet Luck:")) {
+                text.contains("Magic Find:") || text.contains("Pet Luck:") ||
+                text.contains("Gear Score:") || text.contains("Trophy Chance")) {
                 return i;
             }
         }
