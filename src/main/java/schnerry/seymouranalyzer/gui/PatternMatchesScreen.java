@@ -1,6 +1,6 @@
 package schnerry.seymouranalyzer.gui;
 
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.input.MouseButtonEvent;
@@ -105,19 +105,19 @@ public class PatternMatchesScreen extends ModScreen {
     }
 
     @Override
-    public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float delta) {
+    public void render(GuiGraphicsExtractor guiGraphics, int mouseX, int mouseY, float delta) {
         // Don't fill background - let text render properly
 
         // Title
-        guiGraphics.drawCenteredString(this.font, "§l§nPattern Matches", this.width / 2, 10, 0xFFFFFFFF);
+        guiGraphics.centeredText(this.font, "§l§nPattern Matches", this.width / 2, 10, 0xFFFFFFFF);
 
         // Count
         int totalPieces = patternMatches.stream().mapToInt(e -> e.pieces.size()).sum();
         String info = "§7Total: §e" + patternMatches.size() + " §7pattern types | §e" + totalPieces + " §7pieces";
-        guiGraphics.drawCenteredString(this.font, info, this.width / 2, 30, 0xFFFFFFFF);
+        guiGraphics.centeredText(this.font, info, this.width / 2, 30, 0xFFFFFFFF);
 
         if (patternMatches.isEmpty()) {
-            guiGraphics.drawCenteredString(this.font, "§7No pattern matches found!", this.width / 2, this.height / 2, 0xFFFFFFFF);
+            guiGraphics.centeredText(this.font, "§7No pattern matches found!", this.width / 2, this.height / 2, 0xFFFFFFFF);
         } else {
             drawPatternList(guiGraphics);
             drawPatternCounter(guiGraphics);
@@ -131,7 +131,7 @@ public class PatternMatchesScreen extends ModScreen {
         super.render(guiGraphics, mouseX, mouseY, delta);
     }
 
-    private void drawContextMenu(GuiGraphics guiGraphics) {
+    private void drawContextMenu(GuiGraphicsExtractor guiGraphics) {
         int x = contextMenu.x;
         int y = contextMenu.y;
         int w = contextMenu.width;
@@ -147,18 +147,18 @@ public class PatternMatchesScreen extends ModScreen {
         guiGraphics.fill(x + w - 2, y, x + w, y + h, 0xFF646464);
 
         // Option text
-        guiGraphics.drawString(this.font, "Find in Database", x + 5, y + 6, 0xFFFFFFFF);
+        guiGraphics.text(this.font, "Find in Database", x + 5, y + 6, 0xFFFFFFFF);
     }
 
-    private void drawPatternList(GuiGraphics guiGraphics) {
+    private void drawPatternList(GuiGraphicsExtractor guiGraphics) {
         int startY = 55;
         int rowHeight = 20;
 
         // Headers
-        guiGraphics.drawString(this.font, "§l§7Pattern Type", 20, startY, 0xFFFFFFFF);
-        guiGraphics.drawString(this.font, "§l§7Description", 180, startY, 0xFFFFFFFF);
-        guiGraphics.drawString(this.font, "§l§7Piece Name", 370, startY, 0xFFFFFFFF);
-        guiGraphics.drawString(this.font, "§l§7Hex", 580, startY, 0xFFFFFFFF);
+        guiGraphics.text(this.font, "§l§7Pattern Type", 20, startY, 0xFFFFFFFF);
+        guiGraphics.text(this.font, "§l§7Description", 180, startY, 0xFFFFFFFF);
+        guiGraphics.text(this.font, "§l§7Piece Name", 370, startY, 0xFFFFFFFF);
+        guiGraphics.text(this.font, "§l§7Hex", 580, startY, 0xFFFFFFFF);
 
         // Separator
         guiGraphics.fill(20, startY + 12, this.width - 20, startY + 13, 0xFF555555);
@@ -204,25 +204,25 @@ public class PatternMatchesScreen extends ModScreen {
 
         // Footer
         String footer = "§7Showing " + (scrollOffset + 1) + "-" + endIndex + " of " + rows.size();
-        guiGraphics.drawCenteredString(this.font, footer, this.width / 2, this.height - 25, 0xFFFFFFFF);
+        guiGraphics.centeredText(this.font, footer, this.width / 2, this.height - 25, 0xFFFFFFFF);
     }
 
-    private void drawPatternRow(GuiGraphics guiGraphics, PatternRow row, int y) {
+    private void drawPatternRow(GuiGraphicsExtractor guiGraphics, PatternRow row, int y) {
         // Pattern type (only on first piece)
         if (row.isFirst) {
             String patternName = getPatternName(row.patternType);
-            guiGraphics.drawString(this.font, "§5§l" + patternName, 20, y, 0xFFFFFFFF);
+            guiGraphics.text(this.font, "§5§l" + patternName, 20, y, 0xFFFFFFFF);
         }
 
         // Description
-        guiGraphics.drawString(this.font, "§f" + row.description, 180, y, 0xFFFFFFFF);
+        guiGraphics.text(this.font, "§f" + row.description, 180, y, 0xFFFFFFFF);
 
         // Piece name
         String name = row.piece.getPieceName();
         if (name.length() > 30) {
             name = name.substring(0, 30) + "...";
         }
-        guiGraphics.drawString(this.font, "§7" + name, 370, y, 0xFFFFFFFF);
+        guiGraphics.text(this.font, "§7" + name, 370, y, 0xFFFFFFFF);
 
         // Hex box
         ColorMath.RGB rgb = ColorMath.hexToRgb(row.piece.getHexcode());
@@ -232,13 +232,13 @@ public class PatternMatchesScreen extends ModScreen {
         // Hex text - with alpha channel
         String hexText = "#" + row.piece.getHexcode();
         if (ColorMath.isColorDark(row.piece.getHexcode())) {
-            guiGraphics.drawString(this.font, hexText, 582, y, 0xFFFFFFFF);
+            guiGraphics.text(this.font, hexText, 582, y, 0xFFFFFFFF);
         } else {
-            guiGraphics.drawString(this.font, hexText, 582, y, 0xFF000000);
+            guiGraphics.text(this.font, hexText, 582, y, 0xFF000000);
         }
     }
 
-    private void drawPatternCounter(GuiGraphics guiGraphics) {
+    private void drawPatternCounter(GuiGraphicsExtractor guiGraphics) {
         int boxX = this.width - 170;
         int boxY = 70;
         int boxWidth = 150;
@@ -256,7 +256,7 @@ public class PatternMatchesScreen extends ModScreen {
         guiGraphics.fill(boxX + boxWidth - 2, boxY, boxX + boxWidth, boxY + boxHeight, 0xFF646464);
 
         // Title
-        guiGraphics.drawString(this.font, "§l§7Pattern Counts", boxX + 5, boxY + 5, 0xFFFFFFFF);
+        guiGraphics.text(this.font, "§l§7Pattern Counts", boxX + 5, boxY + 5, 0xFFFFFFFF);
 
         int currentY = boxY + 18;
         for (Map.Entry<String, Integer> entry : patternCounts.entrySet()) {
@@ -272,10 +272,10 @@ public class PatternMatchesScreen extends ModScreen {
                 guiGraphics.fill(boxX + 10, currentY, boxX + 55, currentY + 10, color);
 
                 boolean isDark = ColorMath.isColorDark(hex);
-                guiGraphics.drawString(this.font, label + ":", boxX + 12, currentY + 1, isDark ? 0xFFFFFFFF : 0xFF000000);
-                guiGraphics.drawString(this.font, "§f" + entry.getValue(), boxX + 60, currentY + 1, 0xFFFFFFFF);
+                guiGraphics.text(this.font, label + ":", boxX + 12, currentY + 1, isDark ? 0xFFFFFFFF : 0xFF000000);
+                guiGraphics.text(this.font, "§f" + entry.getValue(), boxX + 60, currentY + 1, 0xFFFFFFFF);
             } else {
-                guiGraphics.drawString(this.font, text, boxX + 10, currentY, 0xFFFFFFFF);
+                guiGraphics.text(this.font, text, boxX + 10, currentY, 0xFFFFFFFF);
             }
 
             currentY += 12;
@@ -446,8 +446,8 @@ public class PatternMatchesScreen extends ModScreen {
 
         copyToClipboard(sb.toString());
         if (minecraft != null && minecraft.player != null) {
-            minecraft.player.displayClientMessage(
-                Component.literal("\u00a7a[Seymour] \u00a77Copied " + patternMatches.size() + " pattern matches to clipboard!"), false);
+            minecraft.player.sendSystemMessage(
+                Component.literal("\u00a7a[Seymour] \u00a77Copied " + patternMatches.size() + " pattern matches to clipboard!"));
         }
     }
 

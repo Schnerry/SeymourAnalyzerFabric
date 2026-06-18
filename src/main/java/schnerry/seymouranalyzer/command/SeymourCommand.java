@@ -28,9 +28,10 @@ import schnerry.seymouranalyzer.scanner.ChestScanner;
 import schnerry.seymouranalyzer.analyzer.ColorAnalyzer;
 import schnerry.seymouranalyzer.util.ColorMath;
 
+import java.net.URI;
 import java.util.*;
 
-import static net.fabricmc.fabric.api.client.command.v2.ClientCommandManager.*;
+import static net.fabricmc.fabric.api.client.command.v2.ClientCommands.*;
 
 /**
  * Handles all /seymour commands
@@ -195,6 +196,9 @@ public class SeymourCommand {
                     .executes(SeymourCommand::rebuildMatches))
                 .then(literal("pattern")
                     .executes(SeymourCommand::rebuildPattern)))
+            // /seymour discord - clickable Seymour Cafe Discord invite
+            .then(literal("discord")
+                .executes(SeymourCommand::showDiscordInvite))
         );
     }
 
@@ -214,6 +218,7 @@ public class SeymourCommand {
         ctx.getSource().sendFeedback(Component.literal("§4/seymour clear §7- Clear all caches & collection"));
         ctx.getSource().sendFeedback(Component.literal("§8/seymour stats §7- Print the amount of T1/T2/Dupes"));
         ctx.getSource().sendFeedback(Component.literal("§5/seymour roll §7- Open gambling roll animation"));
+        ctx.getSource().sendFeedback(Component.literal("§9/seymour discord §7- Open Seymour Cafe Discord invite"));
 
         int size = CollectionManager.getInstance().size();
         ctx.getSource().sendFeedback(Component.literal("§7Collection: §e" + size + " §7pieces"));
@@ -1386,6 +1391,32 @@ public class SeymourCommand {
         ctx.getSource().sendFeedback(Component.literal("  §7Visual Distance (ΔE): §f" + String.format("%.2f", avgDeltaE)));
         ctx.getSource().sendFeedback(Component.literal("§8§m----------------------------------------------------"));
 
+        return 1;
+    }
+
+    private static int showDiscordInvite(CommandContext<FabricClientCommandSource> ctx) {
+        try {
+            Style inviteStyle = Style.EMPTY
+                .withColor(TextColor.fromRgb(0x55FFFF))
+                .withUnderlined(true)
+                .withClickEvent(new ClickEvent.OpenUrl(URI.create("https://discord.gg/qEgFQ4vSxp")))
+                .withHoverEvent(new HoverEvent.ShowText(Component.literal("Open Seymour Cafe Discord")));
+
+            ctx.getSource().sendFeedback(
+                Component.literal("Join the Seymour Cafe Discord by clicking on this message")
+                    .setStyle(inviteStyle)
+            );
+
+            Style linkStyle = Style.EMPTY
+                .withColor(TextColor.fromRgb(0xAAAAAA))
+                .withUnderlined(true)
+                .withClickEvent(new ClickEvent.OpenUrl(URI.create("https://discord.gg/qEgFQ4vSxp")));
+
+            ctx.getSource().sendFeedback(Component.literal("discord.gg/qEgFQ4vSxp").setStyle(linkStyle));
+        } catch (Exception e) {
+            ctx.getSource().sendError(Component.literal("§c[Seymour] Failed to create Discord invite link."));
+            return reportCommandError(ctx, "creating discord invite", e);
+        }
         return 1;
     }
 }

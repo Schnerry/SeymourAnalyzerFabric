@@ -1,6 +1,6 @@
 package schnerry.seymouranalyzer.mixin;
 
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.inventory.Slot;
@@ -39,10 +39,10 @@ public abstract class HandledScreenMixin {
      * ALSO track the hovered slot here since we KNOW it exists at this point
      */
     @Inject(
-        method = "renderSlot",
+        method = "extractSlot",
         at = @At("HEAD")
     )
-    private void onDrawSlot(GuiGraphics guiGraphics, Slot slot, int mouseX, int mouseY, CallbackInfo ci) {
+    private void onDrawSlot(GuiGraphicsExtractor guiGraphics, Slot slot, int mouseX, int mouseY, CallbackInfo ci) {
         ItemStack stack = slot.getItem();
         if (stack.isEmpty()) return;
 
@@ -70,10 +70,10 @@ public abstract class HandledScreenMixin {
      * This runs BEFORE any other mod's TAIL injections
      */
     @Inject(
-        method = "render",
+        method = "extractRenderState",
         at = @At("HEAD")
     )
-    private void onRenderHead(GuiGraphics guiGraphics, int mouseX, int mouseY, float delta, CallbackInfo ci) {
+    private void onRenderHead(GuiGraphicsExtractor guiGraphics, int mouseX, int mouseY, float delta, CallbackInfo ci) {
         AbstractContainerScreen<?> screen = (AbstractContainerScreen<?>) (Object) this;
 
         // Reset logging flag when screen changes
@@ -122,10 +122,10 @@ public abstract class HandledScreenMixin {
      * Uses our cached data if hoveredSlot was cleared by another mod
      */
     @Inject(
-        method = "render",
+        method = "extractRenderState",
         at = @At("TAIL")
     )
-    private void onRenderTail(GuiGraphics guiGraphics, int mouseX, int mouseY, float delta, CallbackInfo ci) {
+    private void onRenderTail(GuiGraphicsExtractor guiGraphics, int mouseX, int mouseY, float delta, CallbackInfo ci) {
         // If hoveredSlot exists and is still valid, re-update with current data
         if (this.hoveredSlot != null && !this.hoveredSlot.getItem().isEmpty()) {
             ItemStack stack = this.hoveredSlot.getItem();
@@ -145,10 +145,10 @@ public abstract class HandledScreenMixin {
      * This is called independently and gives us another chance to capture the slot
      */
     @Inject(
-        method = "renderTooltip",
+        method = "extractTooltip",
         at = @At("HEAD")
     )
-    private void onDrawTooltipHead(GuiGraphics guiGraphics, int x, int y, CallbackInfo ci) {
+    private void onDrawTooltipHead(GuiGraphicsExtractor guiGraphics, int x, int y, CallbackInfo ci) {
         // Capture focused slot data when tooltip rendering starts
         if (this.hoveredSlot != null && !this.hoveredSlot.getItem().isEmpty()) {
             ItemStack stack = this.hoveredSlot.getItem();

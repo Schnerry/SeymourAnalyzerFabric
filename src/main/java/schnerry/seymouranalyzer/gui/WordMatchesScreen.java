@@ -1,6 +1,6 @@
 package schnerry.seymouranalyzer.gui;
 
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.input.MouseButtonEvent;
@@ -84,20 +84,20 @@ public class WordMatchesScreen extends ModScreen {
     }
 
     @Override
-    public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float delta) {
+    public void render(GuiGraphicsExtractor guiGraphics, int mouseX, int mouseY, float delta) {
         // Don't fill background - let text render properly
 
         // Title
-        guiGraphics.drawCenteredString(this.font, "§l§nWord Matches", this.width / 2, 10, 0xFFFFFFFF);
+        guiGraphics.centeredText(this.font, "§l§nWord Matches", this.width / 2, 10, 0xFFFFFFFF);
 
         // Count
         int totalPieces = wordMatches.stream().mapToInt(e -> e.pieces.size()).sum();
         String info = "§7Found §e" + wordMatches.size() + " §7words with §e" + totalPieces + " §7pieces total";
-        guiGraphics.drawCenteredString(this.font, info, this.width / 2, 30, 0xFFFFFFFF);
+        guiGraphics.centeredText(this.font, info, this.width / 2, 30, 0xFFFFFFFF);
 
         if (wordMatches.isEmpty()) {
-            guiGraphics.drawCenteredString(this.font, "§7No word matches found!", this.width / 2, this.height / 2, 0xFFFFFFFF);
-            guiGraphics.drawCenteredString(this.font, "§7Use §e/seymour word add <word> <pattern> §7to add words", this.width / 2, this.height / 2 + 15, 0xFFFFFFFF);
+            guiGraphics.centeredText(this.font, "§7No word matches found!", this.width / 2, this.height / 2, 0xFFFFFFFF);
+            guiGraphics.centeredText(this.font, "§7Use §e/seymour word add <word> <pattern> §7to add words", this.width / 2, this.height / 2 + 15, 0xFFFFFFFF);
         } else {
             drawWordList(guiGraphics);
         }
@@ -110,7 +110,7 @@ public class WordMatchesScreen extends ModScreen {
         super.render(guiGraphics, mouseX, mouseY, delta);
     }
 
-    private void drawContextMenu(GuiGraphics guiGraphics) {
+    private void drawContextMenu(GuiGraphicsExtractor guiGraphics) {
         int x = contextMenu.x;
         int y = contextMenu.y;
         int w = contextMenu.width;
@@ -126,17 +126,17 @@ public class WordMatchesScreen extends ModScreen {
         guiGraphics.fill(x + w - 2, y, x + w, y + h, 0xFF646464);
 
         // Option text
-        guiGraphics.drawString(this.font, "Find in Database", x + 5, y + 6, 0xFFFFFFFF);
+        guiGraphics.text(this.font, "Find in Database", x + 5, y + 6, 0xFFFFFFFF);
     }
 
-    private void drawWordList(GuiGraphics guiGraphics) {
+    private void drawWordList(GuiGraphicsExtractor guiGraphics) {
         int startY = 55;
         int rowHeight = 20;
 
         // Headers
-        guiGraphics.drawString(this.font, "§l§7Word", 20, startY, 0xFFFFFFFF);
-        guiGraphics.drawString(this.font, "§l§7Piece Name", 150, startY, 0xFFFFFFFF);
-        guiGraphics.drawString(this.font, "§l§7Hex", 400, startY, 0xFFFFFFFF);
+        guiGraphics.text(this.font, "§l§7Word", 20, startY, 0xFFFFFFFF);
+        guiGraphics.text(this.font, "§l§7Piece Name", 150, startY, 0xFFFFFFFF);
+        guiGraphics.text(this.font, "§l§7Hex", 400, startY, 0xFFFFFFFF);
 
         // Separator
         guiGraphics.fill(20, startY + 12, this.width - 20, startY + 13, 0xFF555555);
@@ -179,13 +179,13 @@ public class WordMatchesScreen extends ModScreen {
 
         // Footer
         String footer = "§7Showing " + (scrollOffset + 1) + "-" + endIndex + " of " + rows.size();
-        guiGraphics.drawCenteredString(this.font, footer, this.width / 2, this.height - 25, 0xFFFFFFFF);
+        guiGraphics.centeredText(this.font, footer, this.width / 2, this.height - 25, 0xFFFFFFFF);
     }
 
-    private void drawWordRow(GuiGraphics guiGraphics, WordRow row, int y) {
+    private void drawWordRow(GuiGraphicsExtractor guiGraphics, WordRow row, int y) {
         // Word (only on first piece)
         if (row.isFirst) {
-            guiGraphics.drawString(this.font, "§d§l" + row.word, 20, y, 0xFFFFFFFF);
+            guiGraphics.text(this.font, "§d§l" + row.word, 20, y, 0xFFFFFFFF);
         }
 
         // Piece name
@@ -193,7 +193,7 @@ public class WordMatchesScreen extends ModScreen {
         if (name.length() > 35) {
             name = name.substring(0, 35) + "...";
         }
-        guiGraphics.drawString(this.font, "§7" + name, 150, y, 0xFFFFFFFF);
+        guiGraphics.text(this.font, "§7" + name, 150, y, 0xFFFFFFFF);
 
         // Hex box
         ColorMath.RGB rgb = ColorMath.hexToRgb(row.piece.getHexcode());
@@ -203,9 +203,9 @@ public class WordMatchesScreen extends ModScreen {
         // Hex text - with alpha channel
         String hexText = "#" + row.piece.getHexcode();
         if (ColorMath.isColorDark(row.piece.getHexcode())) {
-            guiGraphics.drawString(this.font, hexText, 402, y, 0xFFFFFFFF);
+            guiGraphics.text(this.font, hexText, 402, y, 0xFFFFFFFF);
         } else {
-            guiGraphics.drawString(this.font, hexText, 402, y, 0xFF000000);
+            guiGraphics.text(this.font, hexText, 402, y, 0xFF000000);
         }
     }
 
@@ -375,8 +375,8 @@ public class WordMatchesScreen extends ModScreen {
 
         copyToClipboard(sb.toString());
         if (minecraft != null && minecraft.player != null) {
-            minecraft.player.displayClientMessage(
-                Component.literal("\u00a7a[Seymour] \u00a77Copied " + wordMatches.size() + " word matches to clipboard!"), false);
+            minecraft.player.sendSystemMessage(
+                Component.literal("\u00a7a[Seymour] \u00a77Copied " + wordMatches.size() + " word matches to clipboard!"));
         }
     }
 

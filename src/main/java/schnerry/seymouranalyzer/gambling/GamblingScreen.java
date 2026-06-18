@@ -1,6 +1,6 @@
 package schnerry.seymouranalyzer.gambling;
 
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
@@ -51,8 +51,7 @@ public class GamblingScreen extends Screen {
         winner = strip.get(WINNER_INDEX);
     }
 
-    @Override
-    public void render(GuiGraphics g, int mouseX, int mouseY, float delta) {
+    public void render(GuiGraphicsExtractor g, int mouseX, int mouseY, float delta) {
         long now = System.currentTimeMillis();
         if (startMs < 0) startMs = now;
         long elapsed = now - startMs;
@@ -87,6 +86,12 @@ public class GamblingScreen extends Screen {
         if (!rolling) renderInspectionPanel(g, now);
     }
 
+    @Override
+    public void extractRenderState(GuiGraphicsExtractor g, int mouseX, int mouseY, float delta) {
+        super.extractRenderState(g, mouseX, mouseY, delta);
+        render(g, mouseX, mouseY, delta);
+    }
+
     private void playTick(float pitch) {
         if (this.minecraft == null) return;
         this.minecraft.getSoundManager().play(
@@ -101,7 +106,7 @@ public class GamblingScreen extends Screen {
         );
     }
 
-    private void renderTicker(GuiGraphics g, long now) {
+    private void renderTicker(GuiGraphicsExtractor g, long now) {
         int cx = this.width  / 2;
         int cy = this.height / 2 - 40;
         int stripTop    = cy - TICKER_H / 2;
@@ -144,7 +149,7 @@ public class GamblingScreen extends Screen {
             String label  = tier.label;
             int    labelX = cellLeft + (CELL_SIZE - this.font.width(label)) / 2;
             int    labelY = itemAreaBottom + 1;
-            g.drawString(this.font, label, labelX, labelY, 0xFF000000 | tierRgb, false);
+            g.text(this.font, label, labelX, labelY, 0xFF000000 | tierRgb);
 
             int barTop = stripBottom - TIER_BAR_H - 2;
             g.fill(cellLeft, barTop, cellLeft + CELL_SIZE, barTop + TIER_BAR_H,
@@ -154,15 +159,15 @@ public class GamblingScreen extends Screen {
         drawDownArrow(g, cx, stripTop - 2);
     }
 
-    private void renderItemScaled2x(GuiGraphics g, ItemStack stack, int x, int y) {
+    private void renderItemScaled2x(GuiGraphicsExtractor g, ItemStack stack, int x, int y) {
         g.pose().pushMatrix();
         g.pose().translate(x + 8f, y + 8f);
         g.pose().scale(2.0f, 2.0f);
-        g.renderItem(stack, -8, -8);
+        g.item(stack, -8, -8);
         g.pose().popMatrix();
     }
 
-    private void drawDownArrow(GuiGraphics g, int cx, int tipY) {
+    private void drawDownArrow(GuiGraphicsExtractor g, int cx, int tipY) {
         // right-pointing arrow, centered at cx, sitting above the strip
         int midY = tipY - 9; // vertically centered above tipY
         for (int i = 0; i < 8; i++) {
@@ -171,7 +176,7 @@ public class GamblingScreen extends Screen {
         }
     }
 
-    private void renderInspectionPanel(GuiGraphics g, long now) {
+    private void renderInspectionPanel(GuiGraphicsExtractor g, long now) {
         long sinceEnd = now - rollingEndMs;
         float alpha   = (float) Math.min(1.0, sinceEnd / (double) INSPECT_FADE_MS);
         int   a       = (int)(alpha * 255) & 0xFF;
@@ -208,7 +213,7 @@ public class GamblingScreen extends Screen {
         g.pose().pushMatrix();
         g.pose().translate(itemDrawX + ITEM_SIDE / 2f, itemDrawY + ITEM_SIDE / 2f);
         g.pose().scale(ITEM_SCALE, ITEM_SCALE);
-        g.renderItem(winner, -8, -8);
+        g.item(winner, -8, -8);
         g.pose().popMatrix();
 
         int tx    = px + ITEM_COL_W + 10;
@@ -219,12 +224,12 @@ public class GamblingScreen extends Screen {
         String rareName = GamblingRoller.getRarityName(winner);
         String hexStr   = GamblingRoller.getHexString(winner);
 
-        g.drawString(this.font, itemName,   tx, ty,              (a << 24) | 0xFFFFFF, false);
-        g.drawString(this.font, tier.label, tx, ty + lineH,      (a << 24) | tierRgb,  false);
+        g.text(this.font, itemName,   tx, ty,              (a << 24) | 0xFFFFFF);
+        g.text(this.font, tier.label, tx, ty + lineH,      (a << 24) | tierRgb);
         int badgeW = this.font.width(tier.label) + 6;
-        g.drawString(this.font, rareName,   tx + badgeW, ty + lineH, (a << 24) | 0xAAAAAA, false);
-        g.drawString(this.font, "COLOR",    tx, ty + lineH * 3,  (a << 24) | 0x888888, false);
-        g.drawString(this.font, hexStr,     tx, ty + lineH * 4,  (a << 24) | 0xFFCC00, false);
+        g.text(this.font, rareName,   tx + badgeW, ty + lineH, (a << 24) | 0xAAAAAA);
+        g.text(this.font, "COLOR",    tx, ty + lineH * 3,  (a << 24) | 0x888888);
+        g.text(this.font, hexStr,     tx, ty + lineH * 4,  (a << 24) | 0xFFCC00);
 
         int swatchX = tx + this.font.width(hexStr) + 6;
         int swatchY = ty + lineH * 4 - 1;
@@ -232,7 +237,7 @@ public class GamblingScreen extends Screen {
 
         if (matchCount > 0) {
             int matchY = ty + lineH * 6;
-            g.drawString(this.font, "CLOSEST MATCHES", tx, matchY, (a << 24) | 0x888888, false);
+            g.text(this.font, "CLOSEST MATCHES", tx, matchY, (a << 24) | 0x888888);
             matchY += lineH;
 
             int maxNameW = panelW - ITEM_COL_W - 10 - 80;
@@ -258,15 +263,15 @@ public class GamblingScreen extends Screen {
                 }
                 if (!matchName.equals(match.name())) matchName += "..";
 
-                g.drawString(this.font, prefix, tx, matchY, (a << 24) | 0xAAAAAA, false);
+                g.text(this.font, prefix, tx, matchY, (a << 24) | 0xAAAAAA);
                 int afterPrefix = tx + this.font.width(prefix);
-                g.drawString(this.font, matchName, afterPrefix, matchY, (a << 24) | 0xFFFFFF, false);
+                g.text(this.font, matchName, afterPrefix, matchY, (a << 24) | 0xFFFFFF);
 
                 int deltaX = px + panelW - 12 - this.font.width(deltaStr) - 6 - this.font.width(absStr);
-                g.drawString(this.font, deltaStr, deltaX, matchY, (a << 24) | matchTierRgb, false);
+                g.text(this.font, deltaStr, deltaX, matchY, (a << 24) | matchTierRgb);
 
                 int absX = deltaX + this.font.width(deltaStr) + 6;
-                g.drawString(this.font, absStr, absX, matchY, (a << 24) | 0xAAAAAA, false);
+                g.text(this.font, absStr, absX, matchY, (a << 24) | 0xAAAAAA);
 
                 matchY += lineH;
             }
@@ -276,14 +281,14 @@ public class GamblingScreen extends Screen {
             float hintAlpha = (float) Math.min(1.0, (sinceEnd - HINT_DELAY_MS) / 800.0);
             int   ha        = (int)(hintAlpha * 180) & 0xFF;
             String hint = "Press ESC to close";
-            g.drawString(this.font, hint,
+            g.text(this.font, hint,
                     cx - this.font.width(hint) / 2,
                     this.height - 30,
-                    (ha << 24) | 0x666666, false);
+                    (ha << 24) | 0x666666);
         }
     }
 
-    private void drawSwatch(GuiGraphics g, ItemStack stack,
+    private void drawSwatch(GuiGraphicsExtractor g, ItemStack stack,
                             int x, int y, int w, int h, int a) {
         DyedItemColor dyed = stack.get(DataComponents.DYED_COLOR);
         if (dyed == null) return;

@@ -1,6 +1,6 @@
 package schnerry.seymouranalyzer.config;
 
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.MouseButtonEvent;
@@ -54,12 +54,12 @@ public class PriorityEditorScreen extends ModScreen {
     }
 
     @Override
-    public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float delta) {
+    public void render(GuiGraphicsExtractor guiGraphics, int mouseX, int mouseY, float delta) {
         // Title
-        guiGraphics.drawCenteredString(this.font, this.title, this.width / 2, 15, 0xFFFFFFFF);
+        guiGraphics.centeredText(this.font, this.title, this.width / 2, 15, 0xFFFFFFFF);
 
         // Instructions
-        guiGraphics.drawCenteredString(this.font,
+        guiGraphics.centeredText(this.font,
             Component.literal("Drag to reorder • Higher = Priority for highlights"),
             this.width / 2, 35, 0xFFAAAAAA);
 
@@ -97,7 +97,7 @@ public class PriorityEditorScreen extends ModScreen {
         super.render(guiGraphics, mouseX, mouseY, delta);
     }
 
-    private void renderPriorityItem(GuiGraphics guiGraphics, MatchPriority priority, int x, int y, int index) {
+    private void renderPriorityItem(GuiGraphicsExtractor guiGraphics, MatchPriority priority, int x, int y, int index) {
         boolean isHovered = index == hoveredIndex || index == draggedIndex;
         boolean isDragged = index == draggedIndex;
 
@@ -118,13 +118,13 @@ public class PriorityEditorScreen extends ModScreen {
 
         // Priority number
         String priorityNum = "#" + (index + 1);
-        guiGraphics.drawString(this.font, priorityNum, x + 8, y + 6, 0xFFFFAA00);
+        guiGraphics.text(this.font, priorityNum, x + 8, y + 6, 0xFFFFAA00);
 
         // Display name
-        guiGraphics.drawString(this.font, priority.getDisplayName(), x + 40, y + 6, 0xFFFFFFFF);
+        guiGraphics.text(this.font, priority.getDisplayName(), x + 40, y + 6, 0xFFFFFFFF);
 
         // Description
-        guiGraphics.drawString(this.font, priority.getDescription(), x + 40, y + 17, 0xFF888888);
+        guiGraphics.text(this.font, priority.getDescription(), x + 40, y + 17, 0xFF888888);
 
         // Drag handle (three lines)
         //noinspection ConstantValue - isDragged is evaluated at render time and can be true

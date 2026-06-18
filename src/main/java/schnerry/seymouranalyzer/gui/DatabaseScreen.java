@@ -3,7 +3,7 @@ package schnerry.seymouranalyzer.gui;
 import lombok.Setter;
 import com.mojang.blaze3d.platform.Window;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
@@ -184,7 +184,7 @@ public class DatabaseScreen extends ModScreen {
         wildcardHelpButton = net.minecraft.client.gui.components.Button.builder(Component.literal("?"), btn -> {
             // on click: show a brief chat message with help as well
             if (minecraft != null && minecraft.player != null) {
-                minecraft.player.displayClientMessage(Component.literal("Wildcard search help: use X for any hex digit; W/Y/Z are bound wildcards."), false);
+                minecraft.player.sendSystemMessage(Component.literal("Wildcard search help: use X for any hex digit; W/Y/Z are bound wildcards."));
             }
         }).bounds(helpX, 10, 16, 16).build();
         this.addRenderableWidget(wildcardHelpButton);
@@ -305,7 +305,7 @@ public class DatabaseScreen extends ModScreen {
     }
 
     @Override
-    public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float delta) {
+    public void render(GuiGraphicsExtractor guiGraphics, int mouseX, int mouseY, float delta) {
         // Don't fill ANY background - let default background show through
         // Text renders correctly without background fills covering it
 
@@ -315,7 +315,7 @@ public class DatabaseScreen extends ModScreen {
         // Title - simple white text
         String titleStr = "Seymour Database";
         int titleWidth = this.font.width(titleStr);
-        guiGraphics.drawString(this.font, titleStr, this.width / 2 - titleWidth / 2, 5, 0xFFFFFFFF);
+        guiGraphics.text(this.font, titleStr, this.width / 2 - titleWidth / 2, 5, 0xFFFFFFFF);
 
         // Collection size info - calculate total width first, then center
         String totalLabel = "Total: ";
@@ -340,19 +340,19 @@ public class DatabaseScreen extends ModScreen {
 
         // Now draw centered
         int infoX = this.width / 2 - totalInfoWidth / 2;
-        guiGraphics.drawString(this.font, totalLabel, infoX, 19, 0xFF888888);
+        guiGraphics.text(this.font, totalLabel, infoX, 19, 0xFF888888);
         infoX += this.font.width(totalLabel);
-        guiGraphics.drawString(this.font, totalCount, infoX, 19, 0xFFFFFF55);
+        guiGraphics.text(this.font, totalCount, infoX, 19, 0xFFFFFF55);
         infoX += this.font.width(totalCount);
-        guiGraphics.drawString(this.font, piecesLabel, infoX, 19, 0xFF888888);
+        guiGraphics.text(this.font, piecesLabel, infoX, 19, 0xFF888888);
 
         if (filteredPieces.size() != allPieces.size()) {
             infoX += this.font.width(piecesLabel);
-            guiGraphics.drawString(this.font, filteredText, infoX, 19, 0xFF888888);
+            guiGraphics.text(this.font, filteredText, infoX, 19, 0xFF888888);
             infoX += this.font.width(filteredText);
-            guiGraphics.drawString(this.font, filteredCount, infoX, 19, 0xFFFFFF55);
+            guiGraphics.text(this.font, filteredCount, infoX, 19, 0xFFFFFF55);
             infoX += this.font.width(filteredCount);
-            guiGraphics.drawString(this.font, filteredEnd, infoX, 19, 0xFF888888);
+            guiGraphics.text(this.font, filteredEnd, infoX, 19, 0xFF888888);
         }
 
         // Calculate tier counts
@@ -409,19 +409,19 @@ public class DatabaseScreen extends ModScreen {
                        this.font.width(dupesValue);
 
         int row1X = this.width / 2 - row1Width / 2;
-        guiGraphics.drawString(this.font, t1Label, row1X, 30, 0xFF888888);
+        guiGraphics.text(this.font, t1Label, row1X, 30, 0xFF888888);
         row1X += this.font.width(t1Label);
-        guiGraphics.drawString(this.font, t1Value, row1X, 30, 0xFFFF5555);
+        guiGraphics.text(this.font, t1Value, row1X, 30, 0xFFFF5555);
         row1X += this.font.width(t1Value) + 10;
 
-        guiGraphics.drawString(this.font, t2Label, row1X, 30, 0xFF888888);
+        guiGraphics.text(this.font, t2Label, row1X, 30, 0xFF888888);
         row1X += this.font.width(t2Label);
-        guiGraphics.drawString(this.font, t2Value, row1X, 30, 0xFFFFAA00);
+        guiGraphics.text(this.font, t2Value, row1X, 30, 0xFFFFAA00);
         row1X += this.font.width(t2Value) + 10;
 
-        guiGraphics.drawString(this.font, dupesLabel, row1X, 30, 0xFF888888);
+        guiGraphics.text(this.font, dupesLabel, row1X, 30, 0xFF888888);
         row1X += this.font.width(dupesLabel);
-        guiGraphics.drawString(this.font, dupesValue, row1X, 30, 0xFFFF55FF);
+        guiGraphics.text(this.font, dupesValue, row1X, 30, 0xFFFF55FF);
 
         // Row 2: T1 Fade, T2 Fade
         String t1FadeLabel = "T1 Fade: ";
@@ -435,21 +435,21 @@ public class DatabaseScreen extends ModScreen {
                        this.font.width(t2FadeValue);
 
         int row2X = this.width / 2 - row2Width / 2;
-        guiGraphics.drawString(this.font, t1FadeLabel, row2X, 40, 0xFF888888);
+        guiGraphics.text(this.font, t1FadeLabel, row2X, 40, 0xFF888888);
         row2X += this.font.width(t1FadeLabel);
-        guiGraphics.drawString(this.font, t1FadeValue, row2X, 40, 0xFF5555FF);
+        guiGraphics.text(this.font, t1FadeValue, row2X, 40, 0xFF5555FF);
         row2X += this.font.width(t1FadeValue) + 10;
 
-        guiGraphics.drawString(this.font, t2FadeLabel, row2X, 40, 0xFF888888);
+        guiGraphics.text(this.font, t2FadeLabel, row2X, 40, 0xFF888888);
         row2X += this.font.width(t2FadeLabel);
-        guiGraphics.drawString(this.font, t2FadeValue, row2X, 40, 0xFFFFFF55);
+        guiGraphics.text(this.font, t2FadeValue, row2X, 40, 0xFFFFFF55);
 
         if (filteredPieces.isEmpty()) {
             String noResultsMsg = !searchField.getValue().isEmpty() || !hexSearchField.getValue().isEmpty()
                 ? "No results for search"
                 : "No pieces. Use /seymour scan start";
             int msgWidth = this.font.width(noResultsMsg);
-            guiGraphics.drawString(this.font, noResultsMsg, this.width / 2 - msgWidth / 2, this.height / 2, 0xFF888888);
+            guiGraphics.text(this.font, noResultsMsg, this.width / 2 - msgWidth / 2, this.height / 2, 0xFF888888);
 
             // DON'T return early - still need to render widgets!
             // Render widgets so buttons still work
@@ -464,11 +464,11 @@ public class DatabaseScreen extends ModScreen {
         String deltaArrow = sortColumn != null && sortColumn.equals("deltaE") ? (sortAscending ? " ↓" : " ↑") : "";
         String absArrow = sortColumn != null && sortColumn.equals("absolute") ? (sortAscending ? " ↓" : " ↑") : "";
 
-        guiGraphics.drawString(this.font, "Name" + nameArrow, 20, HEADER_Y, 0xFFAAAAAA);
-        guiGraphics.drawString(this.font, "Hex" + hexArrow, 200, HEADER_Y, 0xFFAAAAAA);
-        guiGraphics.drawString(this.font, "Match" + matchArrow, 300, HEADER_Y, 0xFFAAAAAA);
-        guiGraphics.drawString(this.font, "ΔE" + deltaArrow, 550, HEADER_Y, 0xFFAAAAAA);
-        guiGraphics.drawString(this.font, "Absolute" + absArrow, 630, HEADER_Y, 0xFFAAAAAA);
+        guiGraphics.text(this.font, "Name" + nameArrow, 20, HEADER_Y, 0xFFAAAAAA);
+        guiGraphics.text(this.font, "Hex" + hexArrow, 200, HEADER_Y, 0xFFAAAAAA);
+        guiGraphics.text(this.font, "Match" + matchArrow, 300, HEADER_Y, 0xFFAAAAAA);
+        guiGraphics.text(this.font, "ΔE" + deltaArrow, 550, HEADER_Y, 0xFFAAAAAA);
+        guiGraphics.text(this.font, "Absolute" + absArrow, 630, HEADER_Y, 0xFFAAAAAA);
 
         // Show "Closest" column when hex search is active with 6 digits
         String hexSearchText = hexSearchField != null ? hexSearchField.getValue().replace("#", "") : "";
@@ -476,7 +476,7 @@ public class DatabaseScreen extends ModScreen {
 
         if (showClosestColumn) {
             String distanceArrow = sortColumn != null && sortColumn.equals("distance") ? (sortAscending ? " ↓" : " ↑") : "";
-            guiGraphics.drawString(this.font, "Closest" + distanceArrow, 710, HEADER_Y, 0xFFAAAAAA);
+            guiGraphics.text(this.font, "Closest" + distanceArrow, 710, HEADER_Y, 0xFFAAAAAA);
         }
 
         // Separator line
@@ -514,15 +514,15 @@ public class DatabaseScreen extends ModScreen {
         // Footer - simple text
         String footerStr = "Showing " + (scrollOffset + 1) + "-" + endIndex + " of " + filteredPieces.size();
         int footerWidth = this.font.width(footerStr);
-        guiGraphics.drawString(this.font, footerStr, this.width / 2 - footerWidth / 2, this.height - 25, 0xFF888888);
+        guiGraphics.text(this.font, footerStr, this.width / 2 - footerWidth / 2, this.height - 25, 0xFF888888);
 
         // ESC text - draw in segments for color
         int escX = this.width / 2 - 60;
-        guiGraphics.drawString(this.font, "Press ", escX, this.height - 10, 0xFF888888);
+        guiGraphics.text(this.font, "Press ", escX, this.height - 10, 0xFF888888);
         escX += this.font.width("Press ");
-        guiGraphics.drawString(this.font, "ESC", escX, this.height - 10, 0xFFFFFF55);
+        guiGraphics.text(this.font, "ESC", escX, this.height - 10, 0xFFFFFF55);
         escX += this.font.width("ESC");
-        guiGraphics.drawString(this.font, " to close", escX, this.height - 10, 0xFF888888);
+        guiGraphics.text(this.font, " to close", escX, this.height - 10, 0xFF888888);
 
         // Draw guiGraphics menu on top if open
         if (contextMenu != null) {
@@ -560,13 +560,13 @@ public class DatabaseScreen extends ModScreen {
             // Draw lines
             int textY = boxY + 4;
             for (String line : WILDCARD_HELP_LINES) {
-                guiGraphics.drawString(this.font, line, boxX + padding, textY, 0xFFFFFFFF);
+                guiGraphics.text(this.font, line, boxX + padding, textY, 0xFFFFFFFF);
                 textY += lineHeight;
             }
         }
     }
 
-    private void drawPieceRow(GuiGraphics guiGraphics, ArmorPiece piece, int y) {
+    private void drawPieceRow(GuiGraphicsExtractor guiGraphics, ArmorPiece piece, int y) {
         boolean isExpanded = piece.getUuid().equals(expandedPieceUuid);
 
         // Draw highlight backgrounds first
@@ -618,14 +618,14 @@ public class DatabaseScreen extends ModScreen {
         }
 
         // Draw with alpha channel included
-        guiGraphics.drawString(this.font, nameStr, 20, y + 4, 0xFFFFFFFF);
+        guiGraphics.text(this.font, nameStr, 20, y + 4, 0xFFFFFFFF);
 
         // Hex text
         String hexStr = piece.getHexcode();
         if (ColorMath.isColorDark(piece.getHexcode())) {
-            guiGraphics.drawString(this.font, hexStr, 202, y + 4, 0xFFFFFFFF);
+            guiGraphics.text(this.font, hexStr, 202, y + 4, 0xFFFFFFFF);
         } else {
-            guiGraphics.drawString(this.font, hexStr, 202, y + 4, 0xFF000000);
+            guiGraphics.text(this.font, hexStr, 202, y + 4, 0xFF000000);
         }
 
         // Match name
@@ -634,7 +634,7 @@ public class DatabaseScreen extends ModScreen {
             if (matchStr.length() > 35) {
                 matchStr = matchStr.substring(0, 35) + "...";
             }
-            guiGraphics.drawString(this.font, matchStr, 300, y + 4, 0xFF55FFFF);
+            guiGraphics.text(this.font, matchStr, 300, y + 4, 0xFF55FFFF);
 
             double deltaE = piece.getBestMatch().deltaE;
             boolean isFade = checkFadeDye(piece.getBestMatch().colorName);
@@ -654,14 +654,14 @@ public class DatabaseScreen extends ModScreen {
             }
 
             String deFormat = isShiftHeld ? "%.5f" : "%.2f";
-            guiGraphics.drawString(this.font, String.format(deFormat, deltaE), 550, y + 4, deColor);
+            guiGraphics.text(this.font, String.format(deFormat, deltaE), 550, y + 4, deColor);
 
             int absDistance = piece.getBestMatch().absoluteDistance;
-            guiGraphics.drawString(this.font, String.valueOf(absDistance), 630, y + 4, 0xFFAAAAAA);
+            guiGraphics.text(this.font, String.valueOf(absDistance), 630, y + 4, 0xFFAAAAAA);
         } else {
-            guiGraphics.drawString(this.font, "Unknown", 300, y + 4, 0xFFAAAAAA);
-            guiGraphics.drawString(this.font, "-", 550, y + 4, 0xFFAAAAAA);
-            guiGraphics.drawString(this.font, "-", 630, y + 4, 0xFFAAAAAA);
+            guiGraphics.text(this.font, "Unknown", 300, y + 4, 0xFFAAAAAA);
+            guiGraphics.text(this.font, "-", 550, y + 4, 0xFFAAAAAA);
+            guiGraphics.text(this.font, "-", 630, y + 4, 0xFFAAAAAA);
         }
 
         // Display "Closest" column when hex search is active
@@ -689,7 +689,7 @@ public class DatabaseScreen extends ModScreen {
             // Display as "Δ[deltaE] - [distance]"
             String closestFormat = isShiftHeld ? "Δ%.5f - %d" : "Δ%.2f - %d";
             String closestText = String.format(closestFormat, searchDeltaE, searchDistance);
-            guiGraphics.drawString(this.font, closestText, 720, y + 4, 0xFFAAAAAA);
+            guiGraphics.text(this.font, closestText, 720, y + 4, 0xFFAAAAAA);
         }
 
         // Draw expanded matches if this piece is expanded
@@ -698,7 +698,7 @@ public class DatabaseScreen extends ModScreen {
         }
     }
 
-    private void drawExpandedMatches(GuiGraphics guiGraphics, ArmorPiece piece, int startY) {
+    private void drawExpandedMatches(GuiGraphicsExtractor guiGraphics, ArmorPiece piece, int startY) {
         // In dupe mode, show the 3 closest pieces from collection instead of color matches
         if (showDupesOnly) {
             drawClosestCollectionPieces(guiGraphics, piece, startY);
@@ -758,7 +758,7 @@ public class DatabaseScreen extends ModScreen {
                 matchName = matchName.substring(0, 30) + "...";
             }
             String matchText = displayNum + ". " + matchName;
-            guiGraphics.drawString(this.font, matchText, 95, currentY + 3, 0xFF55FFFF);
+            guiGraphics.text(this.font, matchText, 95, currentY + 3, 0xFF55FFFF);
 
             // Draw deltaE with color
             int deColor;
@@ -772,10 +772,10 @@ public class DatabaseScreen extends ModScreen {
                 deColor = 0xFFAAAAAA;
             }
             String matchDeFormat = isShiftHeld ? "%.5f" : "%.2f";
-            guiGraphics.drawString(this.font, String.format(matchDeFormat, match.deltaE), 550, currentY + 3, deColor);
+            guiGraphics.text(this.font, String.format(matchDeFormat, match.deltaE), 550, currentY + 3, deColor);
 
             // Draw absolute distance
-            guiGraphics.drawString(this.font, String.valueOf(match.absoluteDistance), 630, currentY + 3, 0xFFAAAAAA);
+            guiGraphics.text(this.font, String.valueOf(match.absoluteDistance), 630, currentY + 3, 0xFFAAAAAA);
 
             currentY += 20;
             displayNum++;
@@ -786,7 +786,7 @@ public class DatabaseScreen extends ModScreen {
      * Draw the 3 closest pieces from the collection to this dupe piece's hex.
      * Shows name, hex, and deltaE for each close piece.
      */
-    private void drawClosestCollectionPieces(GuiGraphics guiGraphics, ArmorPiece piece, int startY) {
+    private void drawClosestCollectionPieces(GuiGraphicsExtractor guiGraphics, ArmorPiece piece, int startY) {
         String pieceHex = piece.getHexcode();
         if (pieceHex == null || pieceHex.isEmpty()) return;
 
@@ -837,7 +837,7 @@ public class DatabaseScreen extends ModScreen {
                 name = name.substring(0, 25) + "...";
             }
             String matchText = displayNum + ". " + name + " #" + closePiece.getHexcode();
-            guiGraphics.drawString(this.font, matchText, 95, currentY + 3, 0xFF55FFFF);
+            guiGraphics.text(this.font, matchText, 95, currentY + 3, 0xFF55FFFF);
 
             // Draw deltaE with color
             int deColor;
@@ -851,17 +851,17 @@ public class DatabaseScreen extends ModScreen {
                 deColor = 0xFFAAAAAA;
             }
             String dupeDeFormat = isShiftHeld ? "Δ%.5f" : "Δ%.2f";
-            guiGraphics.drawString(this.font, String.format(dupeDeFormat, deltaE), 550, currentY + 3, deColor);
+            guiGraphics.text(this.font, String.format(dupeDeFormat, deltaE), 550, currentY + 3, deColor);
 
             // Draw absolute distance
-            guiGraphics.drawString(this.font, String.valueOf(absDistance), 630, currentY + 3, 0xFFAAAAAA);
+            guiGraphics.text(this.font, String.valueOf(absDistance), 630, currentY + 3, 0xFFAAAAAA);
 
             currentY += 20;
             displayNum++;
         }
     }
 
-    private void drawContextMenu(GuiGraphics guiGraphics, int mouseX, int mouseY) {
+    private void drawContextMenu(GuiGraphicsExtractor guiGraphics, int mouseX, int mouseY) {
         int x = contextMenu.x;
         int y = contextMenu.y;
         int w = contextMenu.width;
@@ -885,10 +885,10 @@ public class DatabaseScreen extends ModScreen {
         }
 
         // Option 1: "Find Piece"
-        guiGraphics.drawString(this.font, "Find Piece", x + 5, y + 6, 0xFFFFFFFF);
+        guiGraphics.text(this.font, "Find Piece", x + 5, y + 6, 0xFFFFFFFF);
 
         // Option 2: "Remove Piece"
-        guiGraphics.drawString(this.font, "Remove Piece", x + 5, y + 26, 0xFFFFFFFF);
+        guiGraphics.text(this.font, "Remove Piece", x + 5, y + 26, 0xFFFFFFFF);
     }
 
     private boolean handleContextMenuClick(double mouseX, double mouseY, int button) {
@@ -914,7 +914,7 @@ public class DatabaseScreen extends ModScreen {
             // Option 1: "Find Piece" - execute search command
             if (minecraft != null && minecraft.player != null) {
                 String hex = contextMenu.piece.getHexcode();
-                minecraft.player.displayClientMessage(Component.literal("§a[Seymour] §7Searching for pieces with hex " + hex + "..."), false);
+                minecraft.player.sendSystemMessage(Component.literal("§a[Seymour] §7Searching for pieces with hex " + hex + "..."));
                 minecraft.player.connection.sendCommand("seymour search " + hex);
             }
             contextMenu = null;
@@ -933,8 +933,8 @@ public class DatabaseScreen extends ModScreen {
             filterAndSort();
 
             if (minecraft != null && minecraft.player != null) {
-                minecraft.player.displayClientMessage(Component.literal("§a[Seymour] §7Removed piece: §f" + pieceName + " §7(" + hex + ")"), false);
-                minecraft.player.displayClientMessage(Component.literal("§a[Seymour] §7New piece count: §e" + allPieces.size()), false);
+                minecraft.player.sendSystemMessage(Component.literal("§a[Seymour] §7Removed piece: §f" + pieceName + " §7(" + hex + ")"));
+                minecraft.player.sendSystemMessage(Component.literal("§a[Seymour] §7New piece count: §e" + allPieces.size()));
             }
 
             contextMenu = null;
@@ -1414,8 +1414,8 @@ public class DatabaseScreen extends ModScreen {
         try {
             this.minecraft.keyboardHandler.setClipboard(sb.toString());
             if (minecraft != null && minecraft.player != null) {
-                minecraft.player.displayClientMessage(
-                    Component.literal("\u00a7a[Seymour] \u00a77Copied " + filteredPieces.size() + " dupe pieces to clipboard!"), false);
+                minecraft.player.sendSystemMessage(
+                    Component.literal("\u00a7a[Seymour] \u00a77Copied " + filteredPieces.size() + " dupe pieces to clipboard!"));
             }
         } catch (Exception ignored) {}
     }

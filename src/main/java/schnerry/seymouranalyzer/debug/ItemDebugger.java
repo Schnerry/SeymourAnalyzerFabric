@@ -40,9 +40,8 @@ public class ItemDebugger {
 
         Minecraft client = Minecraft.getInstance();
         if (client.player != null) {
-            client.player.displayClientMessage(
-                Component.literal("§a[Seymour Debug] §eEnabled! §7Open an inventory, hover over an item and press the §ecapture key§7."),
-                false
+            client.player.sendSystemMessage(
+                Component.literal("§a[Seymour Debug] §eEnabled! §7Open an inventory, hover over an item and press the §ecapture key§7.")
             );
         }
     }
@@ -72,25 +71,22 @@ public class ItemDebugger {
                     enabled = false;
 
                     if (client.player != null) {
-                        client.player.displayClientMessage(
-                            Component.literal("§a[Seymour Debug] §7Item data logged to console! Debug mode disabled."),
-                            false
+                        client.player.sendSystemMessage(
+                            Component.literal("§a[Seymour Debug] §7Item data logged to console! Debug mode disabled.")
                         );
                     }
                     SeymourAnalyzer.LOGGER.info("[DEBUG] Debug mode disabled after logging item");
                 } else {
                     if (client.player != null) {
-                        client.player.displayClientMessage(
-                            Component.literal("§a[Seymour Debug] §cNo item hovered! Open an inventory and hover over an item first."),
-                            false
+                        client.player.sendSystemMessage(
+                            Component.literal("§a[Seymour Debug] §cNo item hovered! Open an inventory and hover over an item first.")
                         );
                     }
                 }
             } else {
                 if (client.player != null) {
-                    client.player.displayClientMessage(
-                        Component.literal("§a[Seymour Debug] §cOpen an inventory screen first, then hover over an item and press the key."),
-                        false
+                    client.player.sendSystemMessage(
+                        Component.literal("§a[Seymour Debug] §cOpen an inventory screen first, then hover over an item and press the key.")
                     );
                 }
             }

@@ -4,7 +4,7 @@ import lombok.Getter;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
-import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderEvents;
+import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.phys.Vec3;
 import schnerry.seymouranalyzer.command.SeymourCommand;
@@ -36,11 +36,11 @@ public class SeymourAnalyzerClient implements ClientModInitializer {
 
         // Initialize BlockHighlighter and register world render event
         BlockHighlighter.getInstance();
-        WorldRenderEvents.BEFORE_DEBUG_RENDER.register(context -> {
+        LevelRenderEvents.BEFORE_GIZMOS.register(context -> {
             BlockHighlighter highlighter = BlockHighlighter.getInstance();
             if (!highlighter.hasHighlights()) return;
             Vec3 cameraPos = Minecraft.getInstance().gameRenderer.getMainCamera().position();
-            highlighter.renderHighlights(context.matrices(), context.consumers(), cameraPos);
+            highlighter.renderHighlights(context.poseStack(), context.bufferSource(), cameraPos);
         });
         SeymourAnalyzer.LOGGER.info("Initialized BlockHighlighter");
 

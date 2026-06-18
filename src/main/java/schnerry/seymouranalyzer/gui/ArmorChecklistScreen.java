@@ -5,7 +5,7 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import lombok.Setter;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.input.MouseButtonEvent;
@@ -697,17 +697,17 @@ public class ArmorChecklistScreen extends ModScreen {
     }
 
     @Override
-    public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float delta) {
+    public void render(GuiGraphicsExtractor guiGraphics, int mouseX, int mouseY, float delta) {
         // Check if custom colors need reloading (e.g., from /seymour add command)
         reloadCustomColorsIfNeeded();
 
         // Title
         String titleStr = "§l§nArmor Set Checklist";
         int titleWidth = this.font.width(titleStr);
-        guiGraphics.drawString(this.font, titleStr, this.width / 2 - titleWidth / 2, 10, 0xFFFFFFFF);
+        guiGraphics.text(this.font, titleStr, this.width / 2 - titleWidth / 2, 10, 0xFFFFFFFF);
 
         if (pageOrder.isEmpty() || currentPage >= pageOrder.size()) {
-            guiGraphics.drawString(this.font, "No checklist data loaded!", this.width / 2 - 70, this.height / 2, 0xFFFF5555);
+            guiGraphics.text(this.font, "No checklist data loaded!", this.width / 2 - 70, this.height / 2, 0xFFFF5555);
             super.render(guiGraphics, mouseX, mouseY, delta);
             return;
         }
@@ -716,7 +716,7 @@ public class ArmorChecklistScreen extends ModScreen {
         String currentCategory = pageOrder.get(currentPage);
         String pageInfo = "§7Page " + (currentPage + 1) + "/" + pageOrder.size() + " - §e" + currentCategory;
         int pageInfoWidth = this.font.width(pageInfo);
-        guiGraphics.drawString(this.font, pageInfo, this.width / 2 - pageInfoWidth / 2, 30, 0xFFFFFFFF);
+        guiGraphics.text(this.font, pageInfo, this.width / 2 - pageInfoWidth / 2, 30, 0xFFFFFFFF);
 
         // Draw checklist entries
         List<ChecklistEntry> entries = categories.get(currentCategory);
@@ -731,12 +731,12 @@ public class ArmorChecklistScreen extends ModScreen {
         }
 
         // Footer
-        guiGraphics.drawString(this.font, "§7Press §eESC §7to close | Click pages below to switch", this.width / 2 - 120, this.height - 10, 0xFFFFFFFF);
+        guiGraphics.text(this.font, "§7Press §eESC §7to close | Click pages below to switch", this.width / 2 - 120, this.height - 10, 0xFFFFFFFF);
 
         super.render(guiGraphics, mouseX, mouseY, delta);
     }
 
-    private void drawContextMenu(GuiGraphics guiGraphics) {
+    private void drawContextMenu(GuiGraphicsExtractor guiGraphics) {
         int x = contextMenu.x;
         int y = contextMenu.y;
         int w = contextMenu.width;
@@ -754,16 +754,16 @@ public class ArmorChecklistScreen extends ModScreen {
 
         if (contextMenu.isRowMenu) {
             // Row menu: "Find all pieces" and "Find in Database"
-            guiGraphics.drawString(this.font, "Find all pieces", x + 5, y + 6, 0xFFFFFFFF);
-            guiGraphics.drawString(this.font, "Find in Database", x + 5, y + 26, 0xFFFFFFFF);
+            guiGraphics.text(this.font, "Find all pieces", x + 5, y + 6, 0xFFFFFFFF);
+            guiGraphics.text(this.font, "Find in Database", x + 5, y + 26, 0xFFFFFFFF);
         } else {
             // Piece menu: "Find Piece" and "Find in Database"
-            guiGraphics.drawString(this.font, "Find Piece", x + 5, y + 6, 0xFFFFFFFF);
-            guiGraphics.drawString(this.font, "Find in Database", x + 5, y + 26, 0xFFFFFFFF);
+            guiGraphics.text(this.font, "Find Piece", x + 5, y + 6, 0xFFFFFFFF);
+            guiGraphics.text(this.font, "Find in Database", x + 5, y + 26, 0xFFFFFFFF);
         }
     }
 
-    private void drawStatsCounter(GuiGraphics guiGraphics, List<ChecklistEntry> entries) {
+    private void drawStatsCounter(GuiGraphicsExtractor guiGraphics, List<ChecklistEntry> entries) {
         int boxWidth = 180;
         int boxHeight = 40;
         int boxX = this.width - boxWidth - 20;
@@ -817,22 +817,22 @@ public class ArmorChecklistScreen extends ModScreen {
         String line1 = "§7T1: §c" + t1Count + " §7(" + t1Color + t1PercentStr + "%§7) | T2: §6" + t2Count + " §7(§f" + t2PercentStr + "%§7)";
         int line1Width = this.font.width(line1);
         int line1X = boxX + (boxWidth - line1Width) / 2;
-        guiGraphics.drawString(this.font, line1, line1X, boxY + 6, 0xFFFFFFFF);
+        guiGraphics.text(this.font, line1, line1X, boxY + 6, 0xFFFFFFFF);
 
         // Line 2: Missing and total filled
         String line2 = "§7Missing: §c" + missingCount + " §7| §e" + filledCount + "/" + totalSlots + " §7(§f" + percentStr + "%§7)";
         int line2Width = this.font.width(line2);
         int line2X = boxX + (boxWidth - line2Width) / 2;
-        guiGraphics.drawString(this.font, line2, line2X, boxY + 22, 0xFFFFFFFF);
+        guiGraphics.text(this.font, line2, line2X, boxY + 22, 0xFFFFFFFF);
     }
 
-    private void drawChecklist(GuiGraphics guiGraphics, List<ChecklistEntry> entries) {
+    private void drawChecklist(GuiGraphicsExtractor guiGraphics, List<ChecklistEntry> entries) {
         // Draw headers
-        guiGraphics.drawString(this.font, "§l§7Target Color", 80, START_Y - 15, 0xFFFFFFFF);
-        guiGraphics.drawString(this.font, "§l§7Helmet", 250, START_Y - 15, 0xFFFFFFFF);
-        guiGraphics.drawString(this.font, "§l§7Chestplate", 370, START_Y - 15, 0xFFFFFFFF);
-        guiGraphics.drawString(this.font, "§l§7Leggings", 490, START_Y - 15, 0xFFFFFFFF);
-        guiGraphics.drawString(this.font, "§l§7Boots", 610, START_Y - 15, 0xFFFFFFFF);
+        guiGraphics.text(this.font, "§l§7Target Color", 80, START_Y - 15, 0xFFFFFFFF);
+        guiGraphics.text(this.font, "§l§7Helmet", 250, START_Y - 15, 0xFFFFFFFF);
+        guiGraphics.text(this.font, "§l§7Chestplate", 370, START_Y - 15, 0xFFFFFFFF);
+        guiGraphics.text(this.font, "§l§7Leggings", 490, START_Y - 15, 0xFFFFFFFF);
+        guiGraphics.text(this.font, "§l§7Boots", 610, START_Y - 15, 0xFFFFFFFF);
 
         int availableHeight = this.height - START_Y - 80;
         int maxVisible = Math.max(1, availableHeight / ROW_HEIGHT);
@@ -848,7 +848,7 @@ public class ArmorChecklistScreen extends ModScreen {
         // Scroll indicator
         if (entries.size() > maxVisible) {
             String scrollText = "§7(" + (scrollOffset + 1) + "-" + endIndex + " of " + entries.size() + ") §eScroll for more";
-            guiGraphics.drawString(this.font, scrollText, 20, START_Y + (maxVisible * ROW_HEIGHT) + 5, 0xFFFFFFFF);
+            guiGraphics.text(this.font, scrollText, 20, START_Y + (maxVisible * ROW_HEIGHT) + 5, 0xFFFFFFFF);
 
             // Draw scrollbar
             int scrollbarX = this.width - 15;
@@ -859,7 +859,7 @@ public class ArmorChecklistScreen extends ModScreen {
         }
     }
 
-    private void drawChecklistRow(GuiGraphics guiGraphics, ChecklistEntry entry, int y) {
+    private void drawChecklistRow(GuiGraphicsExtractor guiGraphics, ChecklistEntry entry, int y) {
         // Draw hex color box (50px wide to fit hex code)
         ColorMath.RGB rgb = ColorMath.hexToRgb(entry.hex);
         int color = 0xFF000000 | (rgb.r() << 16) | (rgb.g() << 8) | rgb.b();
@@ -869,14 +869,14 @@ public class ArmorChecklistScreen extends ModScreen {
         boolean isDark = ColorMath.isColorDark(entry.hex);
         int textColor = isDark ? 0xFFFFFFFF : 0xFF000000;
         String hexText = "#" + entry.hex;
-        guiGraphics.drawString(this.font, hexText, 22, y + 6, textColor);
+        guiGraphics.text(this.font, hexText, 22, y + 6, textColor);
 
         // Draw armor set name
         String displayName = entry.name;
         if (displayName.length() > 25) {
             displayName = displayName.substring(0, 25) + "...";
         }
-        guiGraphics.drawString(this.font, displayName, 80, y + 6, 0xFFFFFFFF);
+        guiGraphics.text(this.font, displayName, 80, y + 6, 0xFFFFFFFF);
 
         // Draw piece match boxes (helmet, chestplate, leggings, boots)
         int[] xPositions = {250, 370, 490, 610};
@@ -892,7 +892,7 @@ public class ArmorChecklistScreen extends ModScreen {
             if (!isRequired && pieceToPieceMode) {
                 // Gray out - not needed for this set (only when filter is ON)
                 guiGraphics.fill(boxX, y, boxX + 100, y + 20, 0xB0606060);
-                guiGraphics.drawString(this.font, "§8-", boxX + 45, y + 6, 0xFF666666);
+                guiGraphics.text(this.font, "§8-", boxX + 45, y + 6, 0xFF666666);
                 continue;
             }
 
@@ -902,7 +902,7 @@ public class ArmorChecklistScreen extends ModScreen {
             if (match == null) {
                 // No match found - RED
                 guiGraphics.fill(boxX, y, boxX + 100, y + 20, 0xFFC80000);
-                guiGraphics.drawString(this.font, "§c✗ Missing", boxX + 5, y + 6, 0xFFFFFFFF);
+                guiGraphics.text(this.font, "§c✗ Missing", boxX + 5, y + 6, 0xFFFFFFFF);
             } else {
                 // Match found - show with quality color
                 double deltaE = ColorMath.calculateDeltaE(entry.hex, match.getHexcode());
@@ -920,7 +920,7 @@ public class ArmorChecklistScreen extends ModScreen {
 
                 // Show piece name and delta to row hex
                 String pieceHexAndDelta = match.getHexcode().concat(" - ").concat(String.format("ΔE: %.2f", deltaE));
-                guiGraphics.drawString(this.font, pieceHexAndDelta, boxX + 3, y + 6, 0xFFFFFFFF);
+                guiGraphics.text(this.font, pieceHexAndDelta, boxX + 3, y + 6, 0xFFFFFFFF);
             }
         }
     }
@@ -1022,7 +1022,7 @@ public class ArmorChecklistScreen extends ModScreen {
 
             if (allPieces.isEmpty()) {
                 if (minecraft != null && minecraft.player != null) {
-                    minecraft.player.displayClientMessage(Component.literal("§c[Armor Checklist] No pieces found for this entry!"), false);
+                    minecraft.player.sendSystemMessage(Component.literal("§c[Armor Checklist] No pieces found for this entry!"));
                 }
                 return false;
             }
@@ -1056,7 +1056,7 @@ public class ArmorChecklistScreen extends ModScreen {
         ArmorPiece match = entry.foundPieces.get(clickedPieceType);
         if (match == null) {
             if (minecraft != null && minecraft.player != null) {
-                minecraft.player.displayClientMessage(Component.literal("§c[Armor Checklist] No piece found for this slot!"), false);
+                minecraft.player.sendSystemMessage(Component.literal("§c[Armor Checklist] No piece found for this slot!"));
             }
             return false;
         }
@@ -1102,14 +1102,14 @@ public class ArmorChecklistScreen extends ModScreen {
                     }
 
                     String hexString = String.join(" ", hexList);
-                    minecraft.player.displayClientMessage(Component.literal("§a[Armor Checklist] Searching for " + contextMenu.allPieces.size() + " piece(s)..."), false);
+                    minecraft.player.sendSystemMessage(Component.literal("§a[Armor Checklist] Searching for " + contextMenu.allPieces.size() + " piece(s)..."));
                     // Execute search command with all hexes
                     minecraft.player.connection.sendCommand("seymour search " + hexString);
                 }
             } else {
                 // Find single piece
                 if (minecraft != null && minecraft.player != null && contextMenu.piece != null) {
-                    minecraft.player.displayClientMessage(Component.literal("§a[Armor Checklist] Searching for pieces with hex " + contextMenu.piece.getHexcode() + "..."), false);
+                    minecraft.player.sendSystemMessage(Component.literal("§a[Armor Checklist] Searching for pieces with hex " + contextMenu.piece.getHexcode() + "..."));
                     // Execute search command
                     minecraft.player.connection.sendCommand("seymour search " + contextMenu.piece.getHexcode());
                 }
@@ -1255,8 +1255,8 @@ public class ArmorChecklistScreen extends ModScreen {
         try {
             this.minecraft.keyboardHandler.setClipboard(sb.toString());
             if (minecraft != null && minecraft.player != null) {
-                minecraft.player.displayClientMessage(
-                    Component.literal("\u00a7a[Seymour] \u00a77Copied " + totalMissing + " missing checklist slots to clipboard!"), false);
+                minecraft.player.sendSystemMessage(
+                    Component.literal("\u00a7a[Seymour] \u00a77Copied " + totalMissing + " missing checklist slots to clipboard!"));
             }
         } catch (Exception ignored) {}
     }

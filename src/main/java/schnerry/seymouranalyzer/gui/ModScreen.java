@@ -1,6 +1,6 @@
 package schnerry.seymouranalyzer.gui;
 
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
@@ -44,11 +44,15 @@ public abstract class ModScreen extends Screen {
         GuiScaleManager.getInstance().onModGuiClose();
     }
 
-    @Override
-    public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float delta) {
+    public void render(GuiGraphicsExtractor guiGraphics, int mouseX, int mouseY, float delta) {
         // Check scale is still correct each frame
         GuiScaleManager.getInstance().tick();
-        super.render(guiGraphics, mouseX, mouseY, delta);
+    }
+
+    @Override
+    public void extractRenderState(GuiGraphicsExtractor guiGraphics, int mouseX, int mouseY, float delta) {
+        super.extractRenderState(guiGraphics, mouseX, mouseY, delta);
+        render(guiGraphics, mouseX, mouseY, delta);
     }
 
     @Override

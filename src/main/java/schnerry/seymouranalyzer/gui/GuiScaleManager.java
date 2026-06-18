@@ -44,7 +44,7 @@ public class GuiScaleManager {
         // Set scale to 2
         if (client.options.guiScale().get() != 2) {
             client.options.guiScale().set(2);
-            client.resizeDisplay();
+            client.resizeGui();
             SeymourAnalyzer.LOGGER.info("[GuiScale] Set GUI scale to 2");
         }
     }
@@ -68,7 +68,7 @@ public class GuiScaleManager {
         // Restore original scale if we saved one
         if (originalGuiScale != -1) {
             client.options.guiScale().set(originalGuiScale);
-            client.resizeDisplay();
+            client.resizeGui();
             SeymourAnalyzer.LOGGER.info("[GuiScale] Restored GUI scale to " + originalGuiScale);
             originalGuiScale = -1; // Reset
         }

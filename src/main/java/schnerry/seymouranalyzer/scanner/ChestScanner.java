@@ -188,21 +188,19 @@ public class ChestScanner {
             if (scannedCount > 0 && !exportingEnabled) {
                 int total = CollectionManager.getInstance().size();
                 if (client.player != null) {
-                    client.player.displayClientMessage(
+                    client.player.sendSystemMessage(
                         Component.literal("§a[Seymour Analyzer] §7Scanned §e" + scannedCount +
                             "§7 new piece" + (scannedCount == 1 ? "" : "s") +
-                            "! Total: §e" + total),
-                        false
+                            "! Total: §e" + total)
                     );
                 }
             } else if (scannedCount > 0) {
                 // exportingEnabled is true here
                 if (client.player != null) {
-                    client.player.displayClientMessage(
+                    client.player.sendSystemMessage(
                         Component.literal("§a[Seymour Analyzer] §7Added §e" + scannedCount +
                             "§7 piece" + (scannedCount == 1 ? "" : "s") +
-                            " to export collection! Total: §e" + exportCollection.size()),
-                        false
+                            " to export collection! Total: §e" + exportCollection.size())
                     );
                 }
             }
@@ -334,21 +332,19 @@ public class ChestScanner {
             if (pieceCount > 0 && !exportingEnabled) {
                 int total = CollectionManager.getInstance().size();
                 if (client.player != null) {
-                    client.player.displayClientMessage(
+                    client.player.sendSystemMessage(
                         Component.literal("§a[Seymour Analyzer] §7Scanned §e" + pieceCount +
                             "§7 new piece" + (pieceCount == 1 ? "" : "s") +
-                            " from item frames! Total: §e" + total),
-                        false
+                            " from item frames! Total: §e" + total)
                     );
                 }
             } else if (pieceCount > 0) {
                 // exportingEnabled is true here
                 if (client.player != null) {
-                    client.player.displayClientMessage(
+                    client.player.sendSystemMessage(
                         Component.literal("§a[Seymour Analyzer] §7Added §e" + pieceCount +
                             "§7 piece" + (pieceCount == 1 ? "" : "s") +
-                            " from item frames to export collection! Total: §e" + exportCollection.size()),
-                        false
+                            " from item frames to export collection! Total: §e" + exportCollection.size())
                     );
                 }
             }

@@ -1,6 +1,6 @@
 package schnerry.seymouranalyzer.gui;
 
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.input.MouseButtonEvent;
@@ -78,13 +78,13 @@ public class BestSetsScreen extends ModScreen {
     }
 
     @Override
-    public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float delta) {
+    public void render(GuiGraphicsExtractor guiGraphics, int mouseX, int mouseY, float delta) {
         super.render(guiGraphics, mouseX, mouseY, delta);
 
         // Title
         String title = "§l§nBest Matching Sets";
         int titleWidth = this.font.width(title);
-        guiGraphics.drawString(this.font, title, this.width / 2 - titleWidth / 2, 10, 0xFFFFFFFF);
+        guiGraphics.text(this.font, title, this.width / 2 - titleWidth / 2, 10, 0xFFFFFFFF);
 
         // Progress bar
         if (isCalculating && calculationProgress > 0) {
@@ -109,7 +109,7 @@ public class BestSetsScreen extends ModScreen {
             // Percentage
             String percentText = "§e" + calculationProgress + "%";
             int percentWidth = this.font.width(percentText);
-            guiGraphics.drawString(this.font, percentText, progressBarX + (progressBarWidth - percentWidth) / 2, progressBarY + 10, 0xFFFFFFFF);
+            guiGraphics.text(this.font, percentText, progressBarX + (progressBarWidth - percentWidth) / 2, progressBarY + 10, 0xFFFFFFFF);
         }
 
         // Draw sets or instructions
@@ -118,12 +118,12 @@ public class BestSetsScreen extends ModScreen {
             String line2 = "§7This will find 4-piece sets with lowest color difference";
             String line3 = "§7Each piece is used only ONCE across all sets";
 
-            guiGraphics.drawString(this.font, line1, this.width / 2 - this.font.width(line1) / 2, 100, 0xFF888888);
-            guiGraphics.drawString(this.font, line2, this.width / 2 - this.font.width(line2) / 2, 115, 0xFF888888);
-            guiGraphics.drawString(this.font, line3, this.width / 2 - this.font.width(line3) / 2, 130, 0xFF888888);
+            guiGraphics.text(this.font, line1, this.width / 2 - this.font.width(line1) / 2, 100, 0xFF888888);
+            guiGraphics.text(this.font, line2, this.width / 2 - this.font.width(line2) / 2, 115, 0xFF888888);
+            guiGraphics.text(this.font, line3, this.width / 2 - this.font.width(line3) / 2, 130, 0xFF888888);
         } else if (!bestSets.isEmpty()) {
             String setsInfo = "§7Top " + bestSets.size() + " sets (ΔE ≤ " + MAX_DELTA_E + ") - Each piece used once";
-            guiGraphics.drawString(this.font, setsInfo, 20, START_Y - 10, 0xFF888888);
+            guiGraphics.text(this.font, setsInfo, 20, START_Y - 10, 0xFF888888);
 
             // Draw visible sets
             int maxVisible = 5;
@@ -139,19 +139,19 @@ public class BestSetsScreen extends ModScreen {
             if (bestSets.size() > maxVisible) {
                 String scrollText = "§7(" + (scrollOffset + 1) + "-" + Math.min(scrollOffset + maxVisible, bestSets.size()) +
                                    " of " + bestSets.size() + ") §eScroll for more";
-                guiGraphics.drawString(this.font, scrollText, 20, START_Y + (maxVisible * ROW_HEIGHT) + 10, 0xFF888888);
+                guiGraphics.text(this.font, scrollText, 20, START_Y + (maxVisible * ROW_HEIGHT) + 10, 0xFF888888);
             }
         }
 
-        // Draw guiGraphics menu
+        // Draw context menu
         if (contextMenu != null) {
             drawContextMenu(guiGraphics, mouseX, mouseY);
         }
     }
 
-    private void drawSetRow(GuiGraphics guiGraphics, ArmorSet set, int rowY, int rank) {
+    private void drawSetRow(GuiGraphicsExtractor guiGraphics, ArmorSet set, int rowY, int rank) {
         // Rank
-        guiGraphics.drawString(this.font, "§e#" + rank, 20, rowY, 0xFFFFFFFF);
+        guiGraphics.text(this.font, "§e#" + rank, 20, rowY, 0xFFFFFFFF);
 
         // Color squares (2x2 grid)
         int boxX = 20;
@@ -181,31 +181,31 @@ public class BestSetsScreen extends ModScreen {
         guiGraphics.fill(boxX + totalBoxSize, boxY, boxX + totalBoxSize + 1, boxY + totalBoxSize, 0xFFFFFFFF);
 
         // Labels on boxes
-        guiGraphics.drawString(this.font, "§8H", boxX + 3, boxY + 5, 0xFFFFFFFF);
-        guiGraphics.drawString(this.font, "§8C", boxX + boxSize + 3, boxY + 5, 0xFFFFFFFF);
-        guiGraphics.drawString(this.font, "§8L", boxX + 3, boxY + boxSize + 5, 0xFFFFFFFF);
-        guiGraphics.drawString(this.font, "§8B", boxX + boxSize + 3, boxY + boxSize + 5, 0xFFFFFFFF);
+        guiGraphics.text(this.font, "§8H", boxX + 3, boxY + 5, 0xFFFFFFFF);
+        guiGraphics.text(this.font, "§8C", boxX + boxSize + 3, boxY + 5, 0xFFFFFFFF);
+        guiGraphics.text(this.font, "§8L", boxX + 3, boxY + boxSize + 5, 0xFFFFFFFF);
+        guiGraphics.text(this.font, "§8B", boxX + boxSize + 3, boxY + boxSize + 5, 0xFFFFFFFF);
 
         // Piece info (left side)
-        guiGraphics.drawString(this.font, "§7Helmet: §f" + set.helmet.getPieceName(), 80, rowY, 0xFFFFFFFF);
-        guiGraphics.drawString(this.font, "§8  #" + set.helmet.getHexcode().toUpperCase(), 80, rowY + 12, 0xFFFFFFFF);
+        guiGraphics.text(this.font, "§7Helmet: §f" + set.helmet.getPieceName(), 80, rowY, 0xFFFFFFFF);
+        guiGraphics.text(this.font, "§8  #" + set.helmet.getHexcode().toUpperCase(), 80, rowY + 12, 0xFFFFFFFF);
 
-        guiGraphics.drawString(this.font, "§7Chest: §f" + set.chestplate.getPieceName(), 80, rowY + 24, 0xFFFFFFFF);
-        guiGraphics.drawString(this.font, "§8  #" + set.chestplate.getHexcode().toUpperCase(), 80, rowY + 36, 0xFFFFFFFF);
+        guiGraphics.text(this.font, "§7Chest: §f" + set.chestplate.getPieceName(), 80, rowY + 24, 0xFFFFFFFF);
+        guiGraphics.text(this.font, "§8  #" + set.chestplate.getHexcode().toUpperCase(), 80, rowY + 36, 0xFFFFFFFF);
 
         // Piece info (middle)
-        guiGraphics.drawString(this.font, "§7Legs: §f" + set.leggings.getPieceName(), 420, rowY, 0xFFFFFFFF);
-        guiGraphics.drawString(this.font, "§8  #" + set.leggings.getHexcode().toUpperCase(), 420, rowY + 12, 0xFFFFFFFF);
+        guiGraphics.text(this.font, "§7Legs: §f" + set.leggings.getPieceName(), 420, rowY, 0xFFFFFFFF);
+        guiGraphics.text(this.font, "§8  #" + set.leggings.getHexcode().toUpperCase(), 420, rowY + 12, 0xFFFFFFFF);
 
-        guiGraphics.drawString(this.font, "§7Boots: §f" + set.boots.getPieceName(), 420, rowY + 24, 0xFFFFFFFF);
-        guiGraphics.drawString(this.font, "§8  #" + set.boots.getHexcode().toUpperCase(), 420, rowY + 36, 0xFFFFFFFF);
+        guiGraphics.text(this.font, "§7Boots: §f" + set.boots.getPieceName(), 420, rowY + 24, 0xFFFFFFFF);
+        guiGraphics.text(this.font, "§8  #" + set.boots.getHexcode().toUpperCase(), 420, rowY + 36, 0xFFFFFFFF);
 
         // Statistics (right side)
         String avgColor = set.avgDeltaE <= 1.0 ? "§a" : (set.avgDeltaE <= 2.0 ? "§e" : "§6");
-        guiGraphics.drawString(this.font, "§7Avg ΔE: " + avgColor + String.format("%.2f", set.avgDeltaE), 770, rowY, 0xFFFFFFFF);
-        guiGraphics.drawString(this.font, "§7W/o worst: §b" + String.format("%.2f", set.avgWithout1), 770, rowY + 12, 0xFFFFFFFF);
-        guiGraphics.drawString(this.font, "§7W/o worst 2: §d" + String.format("%.2f", set.avgWithout2), 770, rowY + 24, 0xFFFFFFFF);
-        guiGraphics.drawString(this.font, "§7Worst: §c" + set.worstPieceType, 770, rowY + 36, 0xFFFFFFFF);
+        guiGraphics.text(this.font, "§7Avg ΔE: " + avgColor + String.format("%.2f", set.avgDeltaE), 770, rowY, 0xFFFFFFFF);
+        guiGraphics.text(this.font, "§7W/o worst: §b" + String.format("%.2f", set.avgWithout1), 770, rowY + 12, 0xFFFFFFFF);
+        guiGraphics.text(this.font, "§7W/o worst 2: §d" + String.format("%.2f", set.avgWithout2), 770, rowY + 24, 0xFFFFFFFF);
+        guiGraphics.text(this.font, "§7Worst: §c" + set.worstPieceType, 770, rowY + 36, 0xFFFFFFFF);
 
         // Average hex swatches
         ColorMath.RGB avgRgb = ColorMath.hexToRgb(set.avgHex);
@@ -218,12 +218,12 @@ public class BestSetsScreen extends ModScreen {
         // All 4 avg hex
         guiGraphics.fill(swatchX, avgSwatchY, swatchX + swatchSize, avgSwatchY + swatchSize,
             0xFF000000 | (avgRgb.r() << 16) | (avgRgb.g() << 8) | avgRgb.b());
-        guiGraphics.drawString(this.font, "§7Avg: §f#" + set.avgHex, swatchX + swatchSize + 3, avgSwatchY, 0xFFFFFFFF);
+        guiGraphics.text(this.font, "§7Avg: §f#" + set.avgHex, swatchX + swatchSize + 3, avgSwatchY, 0xFFFFFFFF);
 
         // Top 3 avg hex
         guiGraphics.fill(swatchX, top3SwatchY, swatchX + swatchSize, top3SwatchY + swatchSize,
             0xFF000000 | (top3Rgb.r() << 16) | (top3Rgb.g() << 8) | top3Rgb.b());
-        guiGraphics.drawString(this.font, "§7Top3: §f#" + set.top3AvgHex, swatchX + swatchSize + 3, top3SwatchY, 0xFFFFFFFF);
+        guiGraphics.text(this.font, "§7Top3: §f#" + set.top3AvgHex, swatchX + swatchSize + 3, top3SwatchY, 0xFFFFFFFF);
 
         // Separator line
         guiGraphics.fill(20, rowY + 75, this.width - 40, rowY + 76, 0xFF3C3C3C);
@@ -290,35 +290,35 @@ public class BestSetsScreen extends ModScreen {
         contextMenu = new ContextMenu(hex, (int) x, (int) y);
     }
 
-    private void drawContextMenu(GuiGraphics guiGraphics, int mouseX, int mouseY) {
+    private void drawContextMenu(GuiGraphicsExtractor guiGraphics, int mouseX, int mouseY) {
         int menuWidth = 120;
         int optionHeight = 20;
 
         // Background
-        guiGraphics.fill(contextMenu.x, contextMenu.y, contextMenu.x + menuWidth, contextMenu.y + optionHeight, 0xF0282828);
+        guiGraphics.fill(contextMenu.x(), contextMenu.y(), contextMenu.x() + menuWidth, contextMenu.y() + optionHeight, 0xF0282828);
 
         // Border
-        guiGraphics.fill(contextMenu.x, contextMenu.y, contextMenu.x + menuWidth, contextMenu.y + 2, 0xFF646464);
-        guiGraphics.fill(contextMenu.x, contextMenu.y + optionHeight - 2, contextMenu.x + menuWidth, contextMenu.y + optionHeight, 0xFF646464);
-        guiGraphics.fill(contextMenu.x, contextMenu.y, contextMenu.x + 2, contextMenu.y + optionHeight, 0xFF646464);
-        guiGraphics.fill(contextMenu.x + menuWidth - 2, contextMenu.y, contextMenu.x + menuWidth, contextMenu.y + optionHeight, 0xFF646464);
+        guiGraphics.fill(contextMenu.x(), contextMenu.y(), contextMenu.x() + menuWidth, contextMenu.y() + 2, 0xFF646464);
+        guiGraphics.fill(contextMenu.x(), contextMenu.y() + optionHeight - 2, contextMenu.x() + menuWidth, contextMenu.y() + optionHeight, 0xFF646464);
+        guiGraphics.fill(contextMenu.x(), contextMenu.y(), contextMenu.x() + 2, contextMenu.y() + optionHeight, 0xFF646464);
+        guiGraphics.fill(contextMenu.x() + menuWidth - 2, contextMenu.y(), contextMenu.x() + menuWidth, contextMenu.y() + optionHeight, 0xFF646464);
 
         // Hover highlight
-        if (mouseX >= contextMenu.x && mouseX <= contextMenu.x + menuWidth &&
-            mouseY >= contextMenu.y && mouseY < contextMenu.y + optionHeight) {
-            guiGraphics.fill(contextMenu.x, contextMenu.y, contextMenu.x + menuWidth, contextMenu.y + optionHeight, 0xC8505050);
+        if (mouseX >= contextMenu.x() && mouseX <= contextMenu.x() + menuWidth &&
+            mouseY >= contextMenu.y() && mouseY < contextMenu.y() + optionHeight) {
+            guiGraphics.fill(contextMenu.x(), contextMenu.y(), contextMenu.x() + menuWidth, contextMenu.y() + optionHeight, 0xC8505050);
         }
 
         // Option text
-        guiGraphics.drawString(this.font, "§fFind in Database", contextMenu.x + 5, contextMenu.y + 6, 0xFFFFFFFF);
+        guiGraphics.text(this.font, "§fFind in Database", contextMenu.x() + 5, contextMenu.y() + 6, 0xFFFFFFFF);
     }
 
     private boolean handleContextMenuClick(double mouseX, double mouseY) {
         int menuWidth = 120;
         int optionHeight = 20;
 
-        if (mouseX >= contextMenu.x && mouseX <= contextMenu.x + menuWidth &&
-            mouseY >= contextMenu.y && mouseY < contextMenu.y + optionHeight) {
+        if (mouseX >= contextMenu.x() && mouseX <= contextMenu.x() + menuWidth &&
+            mouseY >= contextMenu.y() && mouseY < contextMenu.y() + optionHeight) {
             // Open database with hex search
             DatabaseScreen dbScreen = new DatabaseScreen(this);
             dbScreen.setHexSearch(contextMenu.hex);
@@ -679,4 +679,3 @@ public class BestSetsScreen extends ModScreen {
     private record ContextMenu(String hex, int x, int y) {
     }
 }
-

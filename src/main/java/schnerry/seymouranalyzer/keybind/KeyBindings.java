@@ -1,7 +1,7 @@
 package schnerry.seymouranalyzer.keybind;
 
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
-import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
+import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper;
 import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
 import net.fabricmc.fabric.api.client.screen.v1.ScreenKeyboardEvents;
 import net.minecraft.client.KeyMapping;
@@ -31,7 +31,7 @@ public class KeyBindings {
 
     public static void register() {
         // O for Database GUI
-        openDatabaseGuiKey = KeyBindingHelper.registerKeyBinding(new KeyMapping(
+        openDatabaseGuiKey = KeyMappingHelper.registerKeyMapping(new KeyMapping(
             "key.seymouranalyzer.opendatabasegui",
             InputConstants.Type.KEYSYM,
             GLFW.GLFW_KEY_O,
@@ -39,7 +39,7 @@ public class KeyBindings {
         ));
 
         // I for Config GUI
-        openConfigGuiKey = KeyBindingHelper.registerKeyBinding(new KeyMapping(
+        openConfigGuiKey = KeyMappingHelper.registerKeyMapping(new KeyMapping(
             "key.seymouranalyzer.openconfiggui",
             InputConstants.Type.KEYSYM,
             GLFW.GLFW_KEY_I,
@@ -47,7 +47,7 @@ public class KeyBindings {
         ));
 
         // P for Checklist GUI
-        openChecklistGuiKey = KeyBindingHelper.registerKeyBinding(new KeyMapping(
+        openChecklistGuiKey = KeyMappingHelper.registerKeyMapping(new KeyMapping(
             "key.seymouranalyzer.openchecklistgui",
             InputConstants.Type.KEYSYM,
             GLFW.GLFW_KEY_P,
@@ -55,7 +55,7 @@ public class KeyBindings {
         ));
 
         // No default key for debug capture (configurable in keybind settings)
-        debugCaptureKey = KeyBindingHelper.registerKeyBinding(new KeyMapping(
+        debugCaptureKey = KeyMappingHelper.registerKeyMapping(new KeyMapping(
             "key.seymouranalyzer.debugcapture",
             InputConstants.Type.KEYSYM,
             InputConstants.UNKNOWN.getValue(),
@@ -83,7 +83,7 @@ public class KeyBindings {
             if (screen instanceof AbstractContainerScreen<?>) {
                 ScreenKeyboardEvents.afterKeyPress(screen).register(
                     (Screen s, KeyEvent context) -> {
-                        InputConstants.Key boundKey = KeyBindingHelper.getBoundKeyOf(debugCaptureKey);
+                        InputConstants.Key boundKey = KeyMappingHelper.getBoundKeyOf(debugCaptureKey);
                         if (boundKey.getType() == InputConstants.Type.KEYSYM && boundKey.getValue() == context.key()) {
                             ItemDebugger.getInstance().onCaptureKeyPressed();
                         }

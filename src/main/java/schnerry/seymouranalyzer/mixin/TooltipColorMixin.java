@@ -1,7 +1,7 @@
 package schnerry.seymouranalyzer.mixin;
 
 import net.minecraft.client.gui.Font;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
@@ -22,7 +22,7 @@ import java.util.Optional;
  * Mixin to force-refresh hex color styles at render time, bypassing any tooltip caching
  * from other mods that might cache the rendered tooltip texture/components.
  */
-@Mixin(value = GuiGraphics.class, priority = 2000)
+@Mixin(value = GuiGraphicsExtractor.class, priority = 2000)
 public class TooltipColorMixin {
 
     @Inject(method = "setTooltipForNextFrame(Lnet/minecraft/client/gui/Font;Ljava/util/List;Ljava/util/Optional;IILnet/minecraft/resources/Identifier;)V", at = @At("HEAD"))

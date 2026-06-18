@@ -1,6 +1,6 @@
 package schnerry.seymouranalyzer.render;
 
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.inventory.Slot;
@@ -109,7 +109,7 @@ public class ItemSlotHighlighter {
      * Render highlight for a single slot (called by mixin)
      * This method is called during slot rendering, so it's in the correct coordinate space
      */
-    public void renderSlotHighlight(GuiGraphics guiGraphics, Slot slot) {
+    public void renderSlotHighlight(GuiGraphicsExtractor guiGraphics, Slot slot) {
         ClothConfig config = ClothConfig.getInstance();
         if (!config.isHighlightsEnabled()) return;
 
@@ -150,7 +150,7 @@ public class ItemSlotHighlighter {
      * Render highlights in slot coordinate space
      * This is called during beforeRenderForeground which already has the correct translation applied
      */
-    private void renderHighlightsInSlotSpace(AbstractContainerScreen<?> screen, GuiGraphics guiGraphics) {
+    private void renderHighlightsInSlotSpace(AbstractContainerScreen<?> screen, GuiGraphicsExtractor guiGraphics) {
         ClothConfig config = ClothConfig.getInstance();
         if (!config.isHighlightsEnabled()) return;
 
@@ -240,7 +240,7 @@ public class ItemSlotHighlighter {
     /**
      * Old render method - kept for reference, can be removed later
      */
-    private void renderHighlights(AbstractContainerScreen<?> screen, GuiGraphics guiGraphics, int mouseX, int mouseY, float delta) {
+    private void renderHighlights(AbstractContainerScreen<?> screen, GuiGraphicsExtractor guiGraphics, int mouseX, int mouseY, float delta) {
         ClothConfig config = ClothConfig.getInstance();
         if (!config.isHighlightsEnabled()) return;
 
@@ -539,7 +539,7 @@ public class ItemSlotHighlighter {
     /**
      * Draw a colored highlight overlay on a slot
      */
-    private void drawSlotHighlight(GuiGraphics guiGraphics, int x, int y, int color) {
+    private void drawSlotHighlight(GuiGraphicsExtractor guiGraphics, int x, int y, int color) {
         // Draw colored rectangle over the slot
         guiGraphics.fill(x, y, x + 16, y + 16, color);
     }

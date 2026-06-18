@@ -3,7 +3,7 @@ package schnerry.seymouranalyzer.render;
 import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.network.chat.Component;
@@ -62,7 +62,7 @@ public class InfoBoxRenderer {
 
         // Register screen render callback to render AFTER screen elements
         ScreenEvents.AFTER_INIT.register((client, screen, scaledWidth, scaledHeight) ->
-            ScreenEvents.afterRender(screen).register((scr, context, mouseX, mouseY, delta) ->
+            ScreenEvents.afterExtract(screen).register((scr, context, mouseX, mouseY, delta) ->
                 render(context, delta, scr)));
     }
 
@@ -190,7 +190,7 @@ public class InfoBoxRenderer {
     }
 
     @SuppressWarnings("unused") // delta is required by Fabric API callback signature
-    private static void render(GuiGraphics guiGraphics, float delta, Screen currentScreen) {
+    private static void render(GuiGraphicsExtractor guiGraphics, float delta, Screen currentScreen) {
         if (DEBUG) {
             System.out.println("[InfoBox] render() called");
             System.out.println("[InfoBox] Current screen instance: " + System.identityHashCode(currentScreen));
@@ -546,7 +546,7 @@ public class InfoBoxRenderer {
         return Math.clamp(calculatedWidth, minWidth, maxWidth);
     }
 
-    private static void renderInfoBox(GuiGraphics guiGraphics, Minecraft client) {
+    private static void renderInfoBox(GuiGraphicsExtractor guiGraphics, Minecraft client) {
         boolean isShiftHeld = GLFW.glfwGetKey(client.getWindow().handle(), GLFW.GLFW_KEY_LEFT_SHIFT) == GLFW.GLFW_PRESS ||
                              GLFW.glfwGetKey(client.getWindow().handle(), GLFW.GLFW_KEY_RIGHT_SHIFT) == GLFW.GLFW_PRESS;
 
@@ -570,31 +570,28 @@ public class InfoBoxRenderer {
 
         // Title
         String title = (isShiftHeld && isMouseOver) ? "§l§nSeymour §7[DRAG]" : "§l§nSeymour Analysis";
-        guiGraphics.drawString(client.font, Component.literal(title), boxX + 5, boxY + 5, 0xFFFFFFFF, true);
+        guiGraphics.text(client.font, Component.literal(title), boxX + 5, boxY + 5, 0xFFFFFFFF, true);
 
         // Piece information
         String pieceType = PieceTypeUtil.detectPieceType(hoveredItemData.itemName);
         String pieceTypeDisplay = pieceType != null
             ? pieceType.substring(0, 1).toUpperCase() + pieceType.substring(1)
             : "Unknown";
-        guiGraphics.drawString(client.font, Component.literal("§7Piece: §f#" + hoveredItemData.itemHex + " - " + pieceTypeDisplay),
-            boxX + 5, boxY + 18, 0xFFFFFFFF, true);
+        guiGraphics.text(client.font, Component.literal("§7Piece: §f#" + hoveredItemData.itemHex + " - " + pieceTypeDisplay), boxX + 5, boxY + 18, 0xFFFFFFFF, true);
 
         int yOffset = 28;
 
         // Word match
         ClothConfig config = ClothConfig.getInstance();
         if (config.isWordsEnabled() && hoveredItemData.wordMatch != null) {
-            guiGraphics.drawString(client.font, Component.literal("§d§l✦ WORD: " + hoveredItemData.wordMatch),
-                boxX + 5, boxY + yOffset, 0xFFFFFFFF, true);
+            guiGraphics.text(client.font, Component.literal("§d§l✦ WORD: " + hoveredItemData.wordMatch), boxX + 5, boxY + yOffset, 0xFFFFFFFF, true);
             yOffset += 10;
         }
 
         // Pattern match
         if (config.isPatternsEnabled() && hoveredItemData.specialPattern != null) {
             String patternName = getPatternDisplayName(hoveredItemData.specialPattern);
-            guiGraphics.drawString(client.font, Component.literal("§5§l★ PATTERN: " + patternName),
-                boxX + 5, boxY + yOffset, 0xFFFFFFFF, true);
+            guiGraphics.text(client.font, Component.literal("§5§l★ PATTERN: " + patternName), boxX + 5, boxY + yOffset, 0xFFFFFFFF, true);
             yOffset += 10;
         }
 
@@ -602,8 +599,7 @@ public class InfoBoxRenderer {
             // Top matches (up to 10 non-T3)
             List<ColorAnalyzer.ColorMatch> top3 = hoveredItemData.analysisResult.top3Matches();
             int matchCount = top3.size();
-            guiGraphics.drawString(client.font, Component.literal("§7§lTop " + matchCount + " Matches:"),
-                boxX + 5, boxY + yOffset, 0xFFFFFFFF, true);
+            guiGraphics.text(client.font, Component.literal("§7§lTop " + matchCount + " Matches:"), boxX + 5, boxY + yOffset, 0xFFFFFFFF, true);
 
             double[] ownedDeltas = hoveredItemData.ownedBestDeltasForTop3;
 
@@ -636,28 +632,22 @@ public class InfoBoxRenderer {
                 String line2 = "§7  ΔE: " + colorPrefix + String.format("%.5f", match.deltaE()) +
                                " §7| Abs: §f" + match.absoluteDistance() + compSuffix;
 
-                guiGraphics.drawString(client.font, Component.literal(line1),
-                    boxX + 5, matchY, 0xFFFFFFFF, true);
-                guiGraphics.drawString(client.font, Component.literal(line2),
-                    boxX + 5, matchY + 10, 0xFFFFFFFF, true);
+                guiGraphics.text(client.font, Component.literal(line1), boxX + 5, matchY, 0xFFFFFFFF, true);
+                guiGraphics.text(client.font, Component.literal(line2), boxX + 5, matchY + 10, 0xFFFFFFFF, true);
             }
         } else {
             // Single match details
-            guiGraphics.drawString(client.font, Component.literal("§7Closest: §f" + hoveredItemData.bestMatchName),
-                boxX + 5, boxY + yOffset, 0xFFFFFFFF, true);
-            guiGraphics.drawString(client.font, Component.literal("§7Target: §7#" + hoveredItemData.bestMatchHex),
-                boxX + 5, boxY + yOffset + 10, 0xFFFFFFFF, true);
+            guiGraphics.text(client.font, Component.literal("§7Closest: §f" + hoveredItemData.bestMatchName), boxX + 5, boxY + yOffset, 0xFFFFFFFF, true);
+            guiGraphics.text(client.font, Component.literal("§7Target: §7#" + hoveredItemData.bestMatchHex), boxX + 5, boxY + yOffset + 10, 0xFFFFFFFF, true);
 
             String colorPrefix = getTierColorCode(hoveredItemData.tier, hoveredItemData.isFadeDye, hoveredItemData.isCustom);
-            guiGraphics.drawString(client.font, Component.literal(colorPrefix + "ΔE: §f" +
+            guiGraphics.text(client.font, Component.literal(colorPrefix + "ΔE: §f" +
                 String.format("%.2f", hoveredItemData.deltaE)),
                 boxX + 5, boxY + yOffset + 20, 0xFFFFFFFF, true);
-            guiGraphics.drawString(client.font, Component.literal("§7Absolute: §f" + hoveredItemData.absoluteDist),
-                boxX + 5, boxY + yOffset + 30, 0xFFFFFFFF, true);
+            guiGraphics.text(client.font, Component.literal("§7Absolute: §f" + hoveredItemData.absoluteDist), boxX + 5, boxY + yOffset + 30, 0xFFFFFFFF, true);
 
             String tierText = getTierText(hoveredItemData.tier, hoveredItemData.isFadeDye, hoveredItemData.isCustom);
-            guiGraphics.drawString(client.font, Component.literal(tierText),
-                boxX + 5, boxY + yOffset + 40, 0xFFFFFFFF, true);
+            guiGraphics.text(client.font, Component.literal(tierText), boxX + 5, boxY + yOffset + 40, 0xFFFFFFFF, true);
 
             yOffset += 50;
 
@@ -665,19 +655,17 @@ public class InfoBoxRenderer {
             if (hoveredItemData.isNeededForChecklist) {
                 if (hoveredItemData.isOwned) {
                     String ownershipText = hoveredItemData.matchTier <= 1 ? "§a§l✓ Checklist" : "§e§l✓ Checklist";
-                    guiGraphics.drawString(client.font, Component.literal(ownershipText),
-                        boxX + 5, boxY + yOffset, 0xFFFFFFFF, true);
+                    guiGraphics.text(client.font, Component.literal(ownershipText), boxX + 5, boxY + yOffset, 0xFFFFFFFF, true);
                     yOffset += 10;
                 } else {
-                    guiGraphics.drawString(client.font, Component.literal("§c§l✗ NEEDED FOR CHECKLIST"),
-                        boxX + 5, boxY + yOffset, 0xFFFFFFFF, true);
+                    guiGraphics.text(client.font, Component.literal("§c§l✗ NEEDED FOR CHECKLIST"), boxX + 5, boxY + yOffset, 0xFFFFFFFF, true);
                     yOffset += 10;
                 }
             }
 
             // Dupe warning (only show when NOT holding shift)
             if (config.isDupesEnabled() && hoveredItemData.dupeCount > 0) {
-                guiGraphics.drawString(client.font, Component.literal("§c§l⚠ DUPE HEX §7(x" + hoveredItemData.dupeCount + ")"),
+                guiGraphics.text(client.font, Component.literal("§c§l⚠ DUPE HEX §7(x" + hoveredItemData.dupeCount + ")"),
                     boxX + 5, boxY + yOffset, 0xFFFFFFFF, true);
             }
         }
