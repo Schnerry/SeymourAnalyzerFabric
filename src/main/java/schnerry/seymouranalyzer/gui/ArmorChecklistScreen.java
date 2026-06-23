@@ -36,6 +36,7 @@ public class ArmorChecklistScreen extends ModScreen {
     private int scrollOffset = 0;
     private static final int ROW_HEIGHT = 30;
     private static final int START_Y = 70;
+    private static final int BOTTOM_MARGIN = 95; // Reserved px at bottom for page buttons + fixed buttons
 
     // Mode toggles
     private boolean fadeDyeMode = false;
@@ -635,20 +636,21 @@ public class ArmorChecklistScreen extends ModScreen {
     }
 
     private void initPageButtons() {
-        int buttonWidth = 90;
-        int buttonHeight = 20;
-        int buttonSpacing = 10;
-        int buttonsPerRow = 8;
+        int buttonWidth = 80;
+        int buttonHeight = 16;
+        int buttonSpacing = 7;
+        int buttonsPerRow = 9;
+        int rowStep = buttonHeight + 4;  // 20 px between row tops
+        int bottomAnchor = 30;           // px from bottom of screen to bottom row
 
         int totalPages = pageOrder.size();
         int numRows = (int) Math.ceil((double) totalPages / buttonsPerRow);
 
         // Rows grow upward from the bottom of the screen
-        // Row N (last row) at height - 35, row N-1 at height - 60, etc.
         for (int row = 0; row < numRows; row++) {
             int rowStart = row * buttonsPerRow;
             int rowCount = Math.min(buttonsPerRow, totalPages - rowStart);
-            int rowY = this.height - 35 - (numRows - 1 - row) * 25;
+            int rowY = this.height - bottomAnchor - (numRows - 1 - row) * rowStep;
 
             int totalWidth = rowCount * (buttonWidth + buttonSpacing) - buttonSpacing;
             int startX = (this.width - totalWidth) / 2;
@@ -834,7 +836,7 @@ public class ArmorChecklistScreen extends ModScreen {
         guiGraphics.text(this.font, "§l§7Leggings", 490, START_Y - 15, 0xFFFFFFFF);
         guiGraphics.text(this.font, "§l§7Boots", 610, START_Y - 15, 0xFFFFFFFF);
 
-        int availableHeight = this.height - START_Y - 80;
+        int availableHeight = this.height - START_Y - BOTTOM_MARGIN;
         int maxVisible = Math.max(1, availableHeight / ROW_HEIGHT);
 
         int endIndex = Math.min(scrollOffset + maxVisible, entries.size());
@@ -947,7 +949,7 @@ public class ArmorChecklistScreen extends ModScreen {
                 List<ChecklistEntry> entries = categories.get(currentCategory);
 
                 if (entries != null) {
-                    int availableHeight = this.height - START_Y - 80;
+                    int availableHeight = this.height - START_Y - BOTTOM_MARGIN;
                     int maxVisible = Math.max(1, availableHeight / ROW_HEIGHT);
 
                     if (entries.size() > maxVisible) {
@@ -992,7 +994,7 @@ public class ArmorChecklistScreen extends ModScreen {
         List<ChecklistEntry> entries = categories.get(currentCategory);
         if (entries == null) return false;
 
-        int availableHeight = this.height - START_Y - 80;
+        int availableHeight = this.height - START_Y - BOTTOM_MARGIN;
         int maxVisible = Math.max(1, availableHeight / ROW_HEIGHT);
         int visibleCount = Math.min(maxVisible, entries.size() - scrollOffset);
 
@@ -1144,7 +1146,7 @@ public class ArmorChecklistScreen extends ModScreen {
 
         if (entries == null) return false;
 
-        int availableHeight = this.height - START_Y - 80;
+        int availableHeight = this.height - START_Y - BOTTOM_MARGIN;
         int maxVisible = Math.max(1, availableHeight / ROW_HEIGHT);
         int maxScroll = Math.max(0, entries.size() - maxVisible);
 
@@ -1169,7 +1171,7 @@ public class ArmorChecklistScreen extends ModScreen {
             List<ChecklistEntry> entries = categories.get(currentCategory);
 
             if (entries != null) {
-                int availableHeight = this.height - START_Y - 80;
+                int availableHeight = this.height - START_Y - BOTTOM_MARGIN;
                 int maxVisible = Math.max(1, availableHeight / ROW_HEIGHT);
                 int scrollbarY = START_Y;
                 int scrollbarHeight = maxVisible * ROW_HEIGHT;

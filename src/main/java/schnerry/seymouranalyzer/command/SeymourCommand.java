@@ -1319,9 +1319,12 @@ public class SeymourCommand {
                                                        Math.abs(((itemRgb >> 8) & 0xFF) - ((matchRgb >> 8) & 0xFF)) +
                                                        Math.abs((itemRgb & 0xFF) - (matchRgb & 0xFF));
 
-                                top3.add(new ArmorPiece.ColorMatch(
+                                ArmorPiece.ColorMatch colorMatch = new ArmorPiece.ColorMatch(
                                     match.name(), match.targetHex(), match.deltaE(), matchAbsoluteDist, match.tier()
-                                ));
+                                );
+                                colorMatch.isCustom = match.isCustom();
+                                colorMatch.isFade = match.isFade();
+                                top3.add(colorMatch);
                             }
 
                             piece.setAllMatches(top3);

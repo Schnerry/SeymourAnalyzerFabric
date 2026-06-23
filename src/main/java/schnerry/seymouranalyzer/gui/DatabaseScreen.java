@@ -17,6 +17,7 @@ import schnerry.seymouranalyzer.SeymourAnalyzer;
 import schnerry.seymouranalyzer.config.ClothConfig;
 import schnerry.seymouranalyzer.data.ArmorPiece;
 import schnerry.seymouranalyzer.data.CollectionManager;
+import schnerry.seymouranalyzer.data.ColorDatabase;
 import schnerry.seymouranalyzer.util.ColorMath;
 
 import java.util.*;
@@ -1248,19 +1249,9 @@ public class DatabaseScreen extends ModScreen {
     }
 
     private boolean checkFadeDye(String colorName) {
-        String[] fadeDyes = {
-            "Aurora", "Black Ice", "Black Opal", "Dusk Dye", "Forest Dye", "Frog", "Hellebore", "Jerry",
-            "Kingfisher", "Lava", "Lucky", "Marine",
-            "Oasis", "Ocean", "Pastel Sky", "Portal", "Red Tulip", "Rose",
-            "Snowflake", "Spooky", "Sunflower", "Sunset", "Warden"
-        };
-
-        for (String fade : fadeDyes) {
-            if (colorName.startsWith(fade + " - Stage")) {
-                return true;
-            }
-        }
-        return false;
+        // Delegate to ColorDatabase so the check always reflects the actual loaded fade dye list,
+        // instead of a hardcoded list that can fall out of sync when new fades are added.
+        return ColorDatabase.getInstance().isFadeDye(colorName);
     }
 
     private void updateExpandedPiece(int mouseX, int mouseY) {
