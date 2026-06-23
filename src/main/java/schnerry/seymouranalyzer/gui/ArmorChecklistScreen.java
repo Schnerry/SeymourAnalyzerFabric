@@ -156,7 +156,7 @@ public class ArmorChecklistScreen extends ModScreen {
             String[] fadeDyeNames = {"Aurora", "Black Ice", "Black Opal", "Dusk Dye", "Forest Dye", "Frog", "Hellebore", "Jerry",
                                      "Kingfisher", "Lava", "Lucky", "Marine",
                                      "Oasis", "Ocean", "Pastel Sky", "Portal", "Red Tulip", "Rose",
-                                     "Snowflake", "Spooky", "Sunflower", "Sunset", "Warden"};
+                                     "Snowflake", "Spooky", "Sunflower", "Sunset", "Warden", "Charcoal", "Beach"};
             Set<String> fadeDyeSet = new HashSet<>(Arrays.asList(fadeDyeNames));
             for (String categoryName : categories.keySet()) {
                 if (!normalPageOrder.contains(categoryName) && !fadeDyeSet.contains(categoryName)) {
@@ -175,7 +175,7 @@ public class ArmorChecklistScreen extends ModScreen {
             String[] fadeDyes = {"Aurora", "Black Ice", "Black Opal", "Dusk Dye", "Forest Dye", "Frog", "Hellebore", "Jerry",
                                 "Kingfisher", "Lava", "Lucky", "Marine",
                                 "Oasis", "Ocean", "Pastel Sky", "Portal", "Red Tulip", "Rose",
-                                "Snowflake", "Spooky", "Sunflower", "Sunset", "Warden"};
+                                "Snowflake", "Spooky", "Sunflower", "Sunset", "Warden", "Charcoal", "Beach"};
             for (String fadeDye : fadeDyes) {
                 if (categories.containsKey(fadeDye)) {
                     fadeDyePageOrder.add(fadeDye);
