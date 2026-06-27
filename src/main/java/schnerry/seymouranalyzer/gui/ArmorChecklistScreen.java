@@ -677,6 +677,7 @@ public class ArmorChecklistScreen extends ModScreen {
         return switch (name) {
             case "Pure Colors" -> "Pure";
             case "Exo Pure Dyes" -> "Exo Pure";
+            case "1.12+ Pure Dyes" -> "1.12+ Pure";
             case "Other In-Game Dyes" -> "Dyes";
             case "Great Spook" -> "G.Spook";
             case "Ghostly Boots" -> "G.Boots";

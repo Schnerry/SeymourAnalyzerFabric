@@ -1202,8 +1202,8 @@ public class SeymourCommand {
                         updated++;
                     }
 
-                    // Progress updates
-                    if ((i + 1) % 500 == 0 || (i + 1) < 500) {
+                    // Progress updates every 500 items, plus one final update for partial batches.
+                    if ((i + 1) % 500 == 0 || i == total - 1) {
                         int progress = (int) ((i + 1) / (float) total * 100);
                         ctx.getSource().sendFeedback(Component.literal("§7Progress: §e" + (i + 1) + "§7/§e" + total + " §7(§a" + progress + "%§7)"));
                     }
@@ -1262,7 +1262,7 @@ public class SeymourCommand {
                         }
                     }
 
-                    if ((i + 1) % 500 == 0 || (i + 1) < 500) {
+                    if ((i + 1) % 500 == 0 || i == total - 1) {
                         int progress = (int) ((i + 1) / (float) total * 100);
                         ctx.getSource().sendFeedback(Component.literal("§7Progress: §e" + (i + 1) + "§7/§e" + total + " §7(§a" + progress + "%§7)"));
                     }
@@ -1332,7 +1332,7 @@ public class SeymourCommand {
                         }
                     }
 
-                    if ((i + 1) % 500 == 0 || (i + 1) < 500) {
+                    if ((i + 1) % 500 == 0 || i == total - 1) {
                         int progress = (int) ((i + 1) / (float) total * 100);
                         ctx.getSource().sendFeedback(Component.literal("§7Progress: §e" + (i + 1) + "§7/§e" + total + " §7(§a" + progress + "%§7)"));
                     }
@@ -1378,7 +1378,7 @@ public class SeymourCommand {
                         updated++;
                     }
 
-                    if ((i + 1) % 500 == 0 || (i + 1) < 500) {
+                    if ((i + 1) % 500 == 0 || i == total - 1) {
                         int progress = (int) ((i + 1) / (float) total * 100);
                         ctx.getSource().sendFeedback(Component.literal("§7Progress: §e" + (i + 1) + "§7/§e" + total + " §7(§a" + progress + "%§7)"));
                     }

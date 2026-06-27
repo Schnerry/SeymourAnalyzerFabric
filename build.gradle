@@ -34,9 +34,8 @@ dependencies {
 	// Fabric API. This is technically optional, but you probably want it anyway.
 	implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
 
-	// Cloth Config API - bundled with the mod using Jar-in-Jar
+	// Cloth Config API - External required library for Cloth Config GUI
 	implementation "me.shedaniel.cloth:cloth-config-fabric:${project.cloth_config_version}"
-	include "me.shedaniel.cloth:cloth-config-fabric:${project.cloth_config_version}"
 
 	// Lombok
 	compileOnly 'org.projectlombok:lombok:1.18.38'

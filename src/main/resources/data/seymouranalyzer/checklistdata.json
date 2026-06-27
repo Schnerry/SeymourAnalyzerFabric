@@ -153,6 +153,24 @@
       {"hex": "00FFFF", "name": "Pure Cyan", "pieces": ["helmet", "chestplate", "leggings", "boots"]},
       {"hex": "FF00FF", "name": "Pure Pink", "pieces": ["helmet", "chestplate", "leggings", "boots"]}
     ],
+    "1.12+ Pure Dyes": [
+      {"hex": "F9FFFE", "name": "1.12+ Pure White", "pieces": ["helmet", "chestplate", "leggings", "boots"]},
+      {"hex": "9D9D97", "name": "1.12+ Pure Light Grey", "pieces": ["helmet", "chestplate", "leggings", "boots"]},
+      {"hex": "474F52", "name": "1.12+ Pure Grey", "pieces": ["helmet", "chestplate", "leggings", "boots"]},
+      {"hex": "1D1D21", "name": "1.12+ Pure Black", "pieces": ["helmet", "chestplate", "leggings", "boots"]},
+      {"hex": "835432", "name": "1.12+ Pure Brown", "pieces": ["helmet", "chestplate", "leggings", "boots"]},
+      {"hex": "B02E26", "name": "1.12+ Pure Red", "pieces": ["helmet", "chestplate", "leggings", "boots"]},
+      {"hex": "F9801D", "name": "1.12+ Pure Orange", "pieces": ["helmet", "chestplate", "leggings", "boots"]},
+      {"hex": "FED83D", "name": "1.12+ Pure Yellow", "pieces": ["helmet", "chestplate", "leggings", "boots"]},
+      {"hex": "80C71F", "name": "1.12+ Pure Lime Green", "pieces": ["helmet", "chestplate", "leggings", "boots"]},
+      {"hex": "5E7C16", "name": "1.12+ Pure Green", "pieces": ["helmet", "chestplate", "leggings", "boots"]},
+      {"hex": "169C9C", "name": "1.12+ Pure Cyan", "pieces": ["helmet", "chestplate", "leggings", "boots"]},
+      {"hex": "3AB3DA", "name": "1.12+ Pure Light Blue", "pieces": ["helmet", "chestplate", "leggings", "boots"]},
+      {"hex": "3C44AA", "name": "1.12+ Pure Blue", "pieces": ["helmet", "chestplate", "leggings", "boots"]},
+      {"hex": "8932B8", "name": "1.12+ Pure Purple", "pieces": ["helmet", "chestplate", "leggings", "boots"]},
+      {"hex": "C74EBD", "name": "1.12+ Pure Magenta", "pieces": ["helmet", "chestplate", "leggings", "boots"]},
+      {"hex": "F38BAA", "name": "1.12+ Pure Pink", "pieces": ["helmet", "chestplate", "leggings", "boots"]}
+    ],
     "Exo Pure Dyes": [
       {"hex": "993333", "name": "Exo Pure Red", "pieces": ["helmet", "chestplate", "leggings", "boots"]},
       {"hex": "D87F33", "name": "Exo Pure Orange", "pieces": ["helmet", "chestplate", "leggings", "boots"]},
@@ -167,7 +185,7 @@
       {"hex": "7F3FB2", "name": "Exo Pure Purple", "pieces": ["helmet", "chestplate", "leggings", "boots"]},
       {"hex": "664C33", "name": "Exo Pure Brown", "pieces": ["helmet", "chestplate", "leggings", "boots"]},
       {"hex": "FFFFFF", "name": "Exo Pure White", "pieces": ["helmet", "chestplate", "leggings", "boots"]},
-      {"hex": "999999", "name": "Exo Pure Light Grey", "pieces": ["helmet", "chestplate", "leggings", "boots"]},
+      {"hex": "999999", "name": "Exo Pure Light Gray", "pieces": ["helmet", "chestplate", "leggings", "boots"]},
       {"hex": "4C4C4C", "name": "Exo Pure Grey", "pieces": ["helmet", "chestplate", "leggings", "boots"]},
       {"hex": "191919", "name": "Exo Pure Black", "pieces": ["helmet", "chestplate", "leggings", "boots"]}
     ],
@@ -396,6 +414,7 @@
   "normalPageOrder": [
     "Pure Colors",
     "Exo Pure Dyes",
+    "1.12+ Pure Dyes",
     "Other In-Game Dyes",
     "Fairy",
     "Crystal",
